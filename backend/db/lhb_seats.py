@@ -55,8 +55,9 @@ CREATE TABLE IF NOT EXISTS screener_hits (
 );
 """
 
-# ── 内置游资席位字典（精简版，约 25 位知名游资） ──
+# ── 内置游资席位字典（含殿堂级/新生代/地方帮派，约 40+ 位知名游资） ──
 _BUILTIN_SEATS: List[dict] = [
+    # ── 殿堂级游资 ──
     {"nickname": "章盟主", "real_name": "章建平", "tier": "legend", "style": "大资金趋势波段，格局锁仓", "premium": "neutral", "seats": [
         "国泰君安证券股份有限公司上海江苏路证券营业部",
         "国泰君安证券股份有限公司宁波彩虹北路证券营业部",
@@ -81,6 +82,18 @@ _BUILTIN_SEATS: List[dict] = [
         "华鑫证券有限责任公司上海红宝石路证券营业部",
         "华鑫证券有限责任公司上海宛平南路证券营业部",
     ]},
+    {"nickname": "金田路", "real_name": "", "tier": "legend", "style": "深圳一线老牌游资，龙头激进打板", "premium": "positive", "seats": [
+        "国信证券股份有限公司深圳泰然九路证券营业部",
+        "中国银河证券股份有限公司深圳民田路证券营业部",
+    ]},
+    {"nickname": "欢乐海岸", "real_name": "", "tier": "legend", "style": "核心资产趋势，大资金运作", "premium": "neutral", "seats": [
+        "华泰证券股份有限公司深圳益田路荣超商务中心证券营业部",
+    ]},
+    {"nickname": "葵花宝典", "real_name": "", "tier": "legend", "style": "超短龙头打板", "premium": "positive", "seats": [
+        "国海证券股份有限公司广州东风东路证券营业部",
+    ]},
+
+    # ── 新生代游资 ──
     {"nickname": "陈小群", "real_name": "陈宴群", "tier": "new_gen", "style": "龙头接力、一线天", "premium": "positive", "seats": [
         "中国银河证券股份有限公司大连黄河路证券营业部",
     ]},
@@ -112,11 +125,42 @@ _BUILTIN_SEATS: List[dict] = [
     {"nickname": "消闲派", "real_name": "", "tier": "new_gen", "style": "满仓满融极致进攻", "premium": "neutral", "seats": [
         "华泰证券股份有限公司浙江分公司",
     ]},
+    {"nickname": "紫阳东路", "real_name": "", "tier": "new_gen", "style": "武汉一线游资，高位接力", "premium": "neutral", "seats": [
+        "国泰海通证券股份有限公司武汉紫阳东路证券营业部",
+        "海通证券股份有限公司武汉紫阳东路证券营业部",
+        "国泰君安证券股份有限公司武汉紫阳东路证券营业部",
+    ]},
+    {"nickname": "著名刺客", "real_name": "", "tier": "new_gen", "style": "精准低吸+龙头接力", "premium": "positive", "seats": [
+        "中信证券股份有限公司北京望京证券营业部",
+    ]},
+    {"nickname": "北京炸板哥", "real_name": "", "tier": "new_gen", "style": "强势股博弈，次日竞价", "premium": "neutral", "seats": [
+        "华泰证券股份有限公司北京西三环北路证券营业部",
+        "中信证券股份有限公司北京东三环中路证券营业部",
+    ]},
+    {"nickname": "涅槃重升", "real_name": "", "tier": "new_gen", "style": "超短龙头，半路+打板", "premium": "positive", "seats": [
+        "招商证券股份有限公司深圳蛇口工业七路证券营业部",
+    ]},
+    {"nickname": "职业炒手", "real_name": "", "tier": "new_gen", "style": "量化辅助打板", "premium": "neutral", "seats": [
+        "国金证券股份有限公司上海奉贤区金碧路证券营业部",
+    ]},
+    {"nickname": "无锡马夫", "real_name": "", "tier": "new_gen", "style": "趋势股波段，龙头锁仓", "premium": "neutral", "seats": [
+        "华泰证券股份有限公司无锡解放西路证券营业部",
+    ]},
+    {"nickname": "宁波桑田路", "real_name": "", "tier": "new_gen", "style": "一线游资，龙头战法", "premium": "positive", "seats": [
+        "银河证券股份有限公司宁波桑田路证券营业部",
+        "中国银河证券股份有限公司宁波桑田路证券营业部",
+    ]},
+    {"nickname": "首板客", "real_name": "", "tier": "new_gen", "style": "首板排单，竞价博弈", "premium": "neutral", "seats": [
+        "华泰证券股份有限公司成都蜀金路证券营业部",
+    ]},
+
+    # ── 地方帮派 ──
     {"nickname": "拉萨天团", "real_name": "", "tier": "regional", "style": "群狼一日游，反向指标", "premium": "negative", "seats": [
         "东方财富证券股份有限公司拉萨",
     ]},
     {"nickname": "成都帮", "real_name": "", "tier": "regional", "style": "底部黑马点火", "premium": "neutral", "seats": [
         "华泰证券股份有限公司成都南一环路第二证券营业部",
+        "华泰证券股份有限公司成都蜀锦路证券营业部",
     ]},
     {"nickname": "深圳帮", "real_name": "", "tier": "regional", "style": "龙头接力", "premium": "neutral", "seats": [
         "华鑫证券有限责任公司深圳分公司",
@@ -127,6 +171,12 @@ _BUILTIN_SEATS: List[dict] = [
     ]},
     {"nickname": "杭州帮", "real_name": "", "tier": "regional", "style": "题材股短线", "premium": "neutral", "seats": [
         "中信证券股份有限公司杭州凤起路证券营业部",
+    ]},
+    {"nickname": "厦门帮", "real_name": "", "tier": "regional", "style": "控盘庄股、左侧埋伏", "premium": "neutral", "seats": [
+        "国泰君安证券股份有限公司厦门夏禾路证券营业部",
+    ]},
+    {"nickname": "温州帮", "real_name": "", "tier": "regional", "style": "多席位合力拉高出货", "premium": "negative", "seats": [
+        "华鑫证券有限责任公司温州飞霞南路证券营业部",
     ]},
 ]
 
@@ -229,13 +279,24 @@ def classify_seat(name: str) -> Dict[str, Optional[str]]:
         if kw in name:
             return {"type": "northbound", "nickname": None, "style": None, "premium": None, "label": "北向"}
 
-    # 游资匹配（包含即命中）
+    # 游资匹配：精确包含 + 关键地址模糊匹配
     with _cache_lock:
         for seat in _seat_cache:
-            if seat["seat_name"] in name or name in seat["seat_name"]:
+            matched = False
+            sn = seat["seat_name"]
+            if sn in name or name in sn:
+                matched = True
+            elif len(sn) > 6:
+                # 券商改名兼容：提取地址关键词（如"武汉紫阳东路"）
+                # 去掉常见券商前缀后比较剩余地址部分
+                addr_parts = sn.split("公司", 1)
+                if len(addr_parts) > 1:
+                    addr = addr_parts[-1]
+                    if len(addr) >= 4 and addr in name:
+                        matched = True
+            if matched:
                 tier = seat["tier"]
                 nick = seat["nickname"]
-                tier_labels = {"legend": "殿堂", "new_gen": "新生代", "regional": "地方"}
                 label = f"游资·{nick}"
                 return {
                     "type": tier,

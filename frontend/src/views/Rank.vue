@@ -11,6 +11,7 @@
       <div class="tab" :class="{ active: tab === 'etf' }" @click="switchTab('etf')">ETF排行</div>
       <div class="tab" :class="{ active: tab === 'ths' }" @click="switchTab('ths')">同花顺热榜</div>
       <div class="tab" :class="{ active: tab === 'lhb' }" @click="switchTab('lhb')">龙虎榜</div>
+      <div class="tab" :class="{ active: tab === 'changes' }" @click="switchTab('changes')">盘中异动</div>
     </div>
 
     <div class="tabs" v-if="tab === 'ths'">
@@ -102,6 +103,28 @@
         </div>
       </template>
 
+      <template v-else-if="tab === 'changes'">
+        <div class="card-title">盘中个股异动（大笔买卖 / 急速拉升跳水 / 封板等）</div>
+        <div class="table-wrap">
+          <table class="data-table">
+            <thead><tr><th>时间</th><th>名称</th><th>代码</th><th>异动类型</th><th>涨跌幅</th><th>现价</th></tr></thead>
+            <tbody>
+              <tr v-for="(p, i) in changesRows" :key="i" @click="openFromRank(p)">
+                <td>{{ p.time }}</td>
+                <td class="stock-name" :class="pctClass(p.change_pct)">
+                  <span class="name-cell"><BoardBadges :row="p" />{{ p.name }}</span>
+                </td>
+                <td>{{ p.code }}</td>
+                <td><span :class="['change-tag', changeTagClass(p.type_name)]">{{ p.type_name }}</span></td>
+                <td :class="pctClass(p.change_pct)">{{ p.change_pct != null ? fmtPct(p.change_pct) : '-' }}</td>
+                <td>{{ p.price || '-' }}</td>
+              </tr>
+              <tr v-if="!changesRows.length"><td colspan="6" class="empty">暂无异动数据（非交易时段无数据）</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </template>
+
       <template v-else-if="tab === 'lhb'">
         <div class="card-title">龙虎榜{{ lhbDate ? ' · ' + lhbDate : '' }}</div>
         <div class="table-wrap">
@@ -155,6 +178,7 @@ function openFromRank(row) {
   const list = tab.value === 'zt' ? ztSort.sorted.value
     : tab.value === 'ths' ? thsRows.value
     : tab.value === 'lhb' ? lhbRows.value
+    : tab.value === 'changes' ? changesRows.value
     : rows.value
   openStock(row, {
     list,
@@ -164,7 +188,7 @@ function openFromRank(row) {
 }
 
 const props = defineProps({ tab: { type: String, default: '' } })
-const VALID = ['zhangsu', 'moneyflow', 'hot', 'zt', 'etf', 'ths', 'lhb']
+const VALID = ['zhangsu', 'moneyflow', 'hot', 'zt', 'etf', 'ths', 'lhb', 'changes']
 const tab = ref(VALID.includes(props.tab) ? props.tab : 'zhangsu')
 const thsType = ref('hour')
 const rows = ref([])
@@ -220,7 +244,15 @@ const etfCols = [
 const ztRows = computed(() => applyListFilter(rows.value))
 const thsRows = computed(() => applyListFilter(rows.value))
 const lhbRows = computed(() => applyListFilter(rows.value))
+const changesRows = computed(() => applyListFilter(rows.value))
 const ztSort = useTableSort(ztRows)
+
+function changeTagClass(typeName) {
+  if (!typeName) return ''
+  if (['火箭发射', '快速反弹', '大笔买入', '封涨停板', '有大买盘', '竞价上涨', '高开5%', '向上缺口', '尾盘拉升'].includes(typeName)) return 'tag-up'
+  if (['加速下跌', '高台跳水', '大笔卖出', '封跌停板', '有大卖盘', '竞价下跌', '低开5%', '向下缺口', '尾盘跳水'].includes(typeName)) return 'tag-down'
+  return 'tag-neutral'
+}
 
 function switchTab(t) {
   tab.value = t
@@ -244,6 +276,8 @@ async function load() {
       const r = await api.lhb(80)
       lhbDate.value = r.date || ''
       rows.value = r.items || []
+    } else if (tab.value === 'changes') {
+      rows.value = await api.stockChanges(80)
     }
     error.value = ''
   } catch (e) {
@@ -260,4 +294,8 @@ usePolling(load, 3000)
   font-size: 12px; color: var(--text-dim);
 }
 .name-cell { display: inline-flex; align-items: center; gap: 4px; flex-wrap: wrap; }
+.change-tag { display: inline-block; font-size: 12px; padding: 1px 8px; border-radius: 4px; white-space: nowrap; }
+.tag-up { background: rgba(239,68,68,.15); color: var(--up-color, #ef4444); }
+.tag-down { background: rgba(34,197,94,.15); color: var(--down-color, #22c55e); }
+.tag-neutral { background: var(--border); color: var(--text-dim); }
 </style>

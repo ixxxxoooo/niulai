@@ -113,6 +113,7 @@ export const api = {
   alertsCheck: () => get('/alerts/check'),
   analysisData: (code) => get(`/stocks/${code}/analysis-data`),
   baiduSr: (code, ktype = 'day') => get(`/stocks/${code}/baidu-sr?ktype=${ktype}`),
+  stockChanges: (limit = 80) => get(`/market/stock-changes?limit=${limit}`),
   stockNews: (code, limit = 10) => get(`/stocks/${code}/news?limit=${limit}`),
   stockAnnouncements: (code, limit = 8) => get(`/stocks/${code}/announcements?limit=${limit}`),
 

@@ -99,6 +99,13 @@ def sector_moves(
     return [s.model_dump() for s in eastmoney.get_client().sector_moves(dir, limit)]
 
 
+@router.get("/market/stock-changes")
+@ttl_cache(ttl=15)
+def stock_changes(limit: int = Query(80, ge=1, le=200)):
+    """盘中个股异动：大笔买入/卖出、急速拉升/跳水等"""
+    return eastmoney.get_client().stock_changes(limit)
+
+
 @router.get("/global/indices")
 @ttl_cache()
 def global_indices():

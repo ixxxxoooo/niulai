@@ -1228,6 +1228,67 @@ class EastMoneyClient:
         """炸板池（曾涨停后打开）。"""
         return self._topic_pool("getTopicZBPool", limit, "zb")
 
+    def stock_changes(self, limit: int = 80) -> List[dict]:
+        """
+        盘中个股异动：大笔买入/卖出、急速拉升/跳水、火箭发射等。
+        数据来源 push2ex.eastmoney.com。
+
+        参数:
+            limit: 返回条数
+
+        返回:
+            [{code, name, time, type_name, change_pct, price, info}, ...]
+        """
+        _TYPE_MAP = {
+            "8201": "火箭发射", "8202": "快速反弹", "8193": "大笔买入",
+            "4": "封涨停板", "8207": "打开涨停", "8209": "打开跌停",
+            "8211": "有大买盘", "8212": "有大卖盘", "8213": "竞价上涨",
+            "8214": "竞价下跌", "8215": "高开5%", "8216": "低开5%",
+            "8217": "向上缺口", "8218": "向下缺口",
+            "8204": "加速下跌", "8203": "高台跳水", "64": "封跌停板",
+            "8208": "尾盘拉升", "8210": "尾盘跳水",
+        }
+        url = "https://push2ex.eastmoney.com/getAllStockChanges"
+        params = {
+            "type": "8201,8202,8193,4,8207,8209,8211,8212,8208,8210,8204,8203,64",
+            "pageindex": 0,
+            "pagesize": limit,
+            "ut": "7eea3edcaed734bea9004fcb5d7bc605",
+            "dpt": "wzchanges",
+        }
+        try:
+            resp = httpx.get(
+                url, params=params,
+                headers={"User-Agent": config.USER_AGENT, "Referer": "https://quote.eastmoney.com/"},
+                timeout=config.REQUEST_TIMEOUT, follow_redirects=True,
+            )
+            body = resp.json()
+        except Exception as e:
+            logger.info("个股异动接口失败: %s", e)
+            return []
+
+        data = (body or {}).get("data") or {}
+        items = data.get("allstock") or []
+        result = []
+        for it in items:
+            tm = it.get("tm") or ""
+            if len(tm) == 6:
+                tm = f"{tm[:2]}:{tm[2:4]}:{tm[4:]}"
+            type_code = str(it.get("type") or "")
+            result.append({
+                "code": str(it.get("c") or ""),
+                "name": it.get("n") or "",
+                "time": tm,
+                "type_code": type_code,
+                "type_name": _TYPE_MAP.get(type_code, f"异动{type_code}"),
+                "change_pct": it.get("p"),
+                "price": it.get("pc") if it.get("pc") else None,
+                "volume": it.get("v"),
+                "amount": it.get("a"),
+                "info": it.get("i") or "",
+            })
+        return result
+
     @staticmethod
     def _recent_trading_dates(days: int = 10) -> List[str]:
         """最近 days 个工作日（YYYYMMDD），从今天往前"""
