@@ -111,68 +111,81 @@ def fetch_lhb_list(limit: int = 50) -> Dict[str, Any]:
     return {"date": None, "items": []}
 
 
-def fetch_lhb_stock(code: str, lookback_days: int = 60) -> Optional[Dict[str, Any]]:
+def fetch_lhb_stock(code: str, lookback_days: int = 12) -> Optional[Dict[str, Any]]:
     """
     个股龙虎榜增强：最新一次席位明细 + 近 N 日上榜次数与历史。
+    采用两阶段策略：先快速找最新上榜日（最多查 lookback_days），
+    再一次性通过 datacenter 批量查近 90 天上榜记录。
 
     参数:
         code: 股票代码
-        lookback_days: 回溯工作日数（默认 60，约 3 个月）
+        lookback_days: 查找最新上榜日的回溯工作日数（默认 12）
 
     返回:
-        {
-            appear_count: 近期上榜次数,
-            appear_dates: [日期列表],
-            latest: {date, reason, price, change_pct, net, buy, sell, buy_seats, sell_seats},
-            history: [{date, reason, net}, ...] 最多 10 条
-        }
+        含 appear_count/appear_dates/latest/history 的字典
     """
     code = (code or "").strip()
     if not code:
         return None
 
+    # ── 阶段1：找最新上榜日的席位明细（最多查 lookback_days 天） ──
+    summary = None
+    day = None
     cols = ("SECURITY_CODE,SECURITY_NAME_ABBR,TRADE_DATE,CLOSE_PRICE,CHANGE_RATE,"
             "BILLBOARD_NET_AMT,BILLBOARD_BUY_AMT,BILLBOARD_SELL_AMT,EXPLANATION")
-
-    appear_dates = []
-    history = []
-    latest_summary = None
-    latest_day = None
-
     for d in _recent_days(lookback_days):
         rows = _dc_get(
             "RPT_DAILYBILLBOARD_DETAILSNEW", cols,
             f"(TRADE_DATE='{d}')(SECURITY_CODE=\"{code}\")", page_size=5,
         )
         if rows:
-            row = _row_list(rows[0])
-            appear_dates.append(d)
-            if len(history) < 10:
-                history.append({"date": d, "reason": row.get("reason", ""), "net": row.get("net")})
-            if latest_summary is None:
-                latest_summary = row
-                latest_day = d
-
-    if not latest_summary:
+            summary = _row_list(rows[0])
+            day = d
+            break
+    if not summary:
         return None
 
-    # 拉最新一日的席位明细
     buy_cols = "OPERATEDEPT_NAME,BUY,SELL,NET,EXPLANATION,TRADE_DATE"
-    filt = f"(TRADE_DATE='{latest_day}')(SECURITY_CODE=\"{code}\")"
+    filt = f"(TRADE_DATE='{day}')(SECURITY_CODE=\"{code}\")"
     buys = _dc_get("RPT_BILLBOARD_DAILYDETAILSBUY", buy_cols, filt, page_size=10)
     sells = _dc_get("RPT_BILLBOARD_DAILYDETAILSSELL", buy_cols, filt, page_size=10)
+
+    # ── 阶段2：一次性批量查近 90 天的全部上榜记录（单次请求） ──
+    appear_dates = [day]
+    history = [{"date": day, "reason": summary.get("reason", ""), "net": summary.get("net")}]
+    try:
+        import datetime as _dt
+        start = (_dt.date.today() - _dt.timedelta(days=90)).strftime("%Y-%m-%d")
+        hist_rows = _dc_get(
+            "RPT_DAILYBILLBOARD_DETAILSNEW", cols,
+            f"(TRADE_DATE>='{start}')(SECURITY_CODE=\"{code}\")",
+            page_size=50,
+            sort_columns="TRADE_DATE", sort_types="-1",
+        )
+        seen = {day}
+        for hr in hist_rows:
+            hd = str(hr.get("TRADE_DATE") or "")[:10]
+            if hd and hd not in seen:
+                seen.add(hd)
+                appear_dates.append(hd)
+                if len(history) < 10:
+                    r = _row_list(hr)
+                    history.append({"date": hd, "reason": r.get("reason", ""), "net": r.get("net")})
+        appear_dates.sort(reverse=True)
+    except Exception as e:
+        logger.debug("龙虎榜历史查询失败 %s: %s", code, e)
 
     return {
         "appear_count": len(appear_dates),
         "appear_dates": appear_dates,
         "latest": {
-            "date": latest_day,
-            "reason": latest_summary.get("reason") or "",
-            "price": latest_summary.get("price"),
-            "change_pct": latest_summary.get("change_pct"),
-            "net": latest_summary.get("net"),
-            "buy": latest_summary.get("buy"),
-            "sell": latest_summary.get("sell"),
+            "date": day,
+            "reason": summary.get("reason") or "",
+            "price": summary.get("price"),
+            "change_pct": summary.get("change_pct"),
+            "net": summary.get("net"),
+            "buy": summary.get("buy"),
+            "sell": summary.get("sell"),
             "buy_seats": [_seat(x) for x in buys],
             "sell_seats": [_seat(x) for x in sells],
         },
