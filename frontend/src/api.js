@@ -1,0 +1,131 @@
+// 后端 API 封装
+// @author ygw
+const BASE = '/api'
+
+async function get(path, retries = 2) {
+  for (let attempt = 0; attempt <= retries; attempt++) {
+    try {
+      const r = await fetch(BASE + path, { cache: 'no-store' })
+      if (!r.ok) {
+        let detail = `HTTP ${r.status}`
+        try { detail = (await r.json()).detail || detail } catch (e) { /* ignore */ }
+        if (r.status >= 500 && attempt < retries) {
+          await new Promise(ok => setTimeout(ok, 300 * (attempt + 1)))
+          continue
+        }
+        throw new Error(detail)
+      }
+      return r.json()
+    } catch (e) {
+      if (attempt < retries && (e.name === 'TypeError' || e.message.includes('fetch'))) {
+        await new Promise(ok => setTimeout(ok, 300 * (attempt + 1)))
+        continue
+      }
+      throw e
+    }
+  }
+}
+
+async function send(method, path, body) {
+  const r = await fetch(BASE + path, {
+    method,
+    headers: body ? { 'Content-Type': 'application/json' } : undefined,
+    body: body ? JSON.stringify(body) : undefined,
+    cache: 'no-store',
+  })
+  if (!r.ok) {
+    let detail = `HTTP ${r.status}`
+    try { detail = (await r.json()).detail || detail } catch (e) { /* ignore */ }
+    throw new Error(detail)
+  }
+  return r.json()
+}
+
+export const api = {
+  overview: () => get('/market/overview'),
+  marketVolume: () => get('/market/volume'),
+  sectors: (type = 'industry', sort = 'change_pct', limit = 100) =>
+    get(`/sectors?type=${type}&sort=${sort}&limit=${limit}`),
+  sectorDetail: (code, limit = 100, sort = 'change_pct') =>
+    get(`/sectors/${code}?sort=${sort}&limit=${limit}`),
+  hot: (by = 'change_pct', limit = 50) => get(`/rank/hot?by=${by}&limit=${limit}`),
+  zhangsu: (limit = 50) => get(`/rank/zhangsu?limit=${limit}`),
+  moneyflow: (limit = 50) => get(`/rank/moneyflow?limit=${limit}`),
+  etfRank: (by = 'change_pct', limit = 50) => get(`/etf/rank?by=${by}&limit=${limit}`),
+  sectorMoneyflow: (type = 'industry', limit = 100) =>
+    get(`/sectors/moneyflow?type=${type}&limit=${limit}`),
+  stock: (code) => get(`/stocks/${code}`),
+  trends: (code) => get(`/stocks/${code}/trends`),
+  kline: (code, period = 'day', limit = 120) => get(`/stocks/${code}/kline?period=${period}&limit=${limit}`),
+  ticks: (code, limit = 100) => get(`/stocks/${code}/ticks?limit=${limit}`),
+  moneyflowHistory: (code, days = 5) => get(`/stocks/${code}/moneyflow?days=${days}`),
+  stockLhb: (code) => get(`/stocks/${code}/lhb`),
+  batch: (codes) => get(`/stocks/batch?codes=${codes.join(',')}`),
+  limitUp: (limit = 100) => get(`/market/limit-up?limit=${limit}`),
+  thsHot: (type = 'hour', limit = 50) => get(`/ths/hot?type=${type}&limit=${limit}`),
+  lhb: (limit = 50) => get(`/market/lhb?limit=${limit}`),
+  indexQuote: (secid) => get(`/indices/quote?secid=${encodeURIComponent(secid)}`),
+  indicesQuotes: (secids = '1.000001,0.399006,1.000688') =>
+    get(`/indices/quotes?secids=${encodeURIComponent(secids)}`),
+  marketMoneyflow: (days = 5) => get(`/market/moneyflow?days=${days}`),
+  quoteTrends: (secid) => get(`/quotes/trends?secid=${encodeURIComponent(secid)}`),
+  quoteKline: (secid, period = 'day', limit = 120) =>
+    get(`/quotes/kline?secid=${encodeURIComponent(secid)}&period=${period}&limit=${limit}`),
+  tradingTime: () => get('/trading/time'),
+  search: (q, limit = 10) => get(`/search?q=${encodeURIComponent(q)}&limit=${limit}`),
+  globalIndices: () => get('/global/indices'),
+  globalTrends: (secid) => get(`/global/${secid}/trends`),
+  globalKline: (secid, period = 'day', limit = 120) => get(`/global/${secid}/kline?period=${period}&limit=${limit}`),
+  sectorMoves: (dir = 'up', limit = 30) => get(`/sector-moves?dir=${dir}&limit=${limit}`),
+  sectorMoneyflowHistory: (code, days = 5) => get(`/sectors/${code}/moneyflow-history?days=${days}`),
+
+  // SQLite：自选 / 设置 / 日志
+  watchlist: () => get('/watchlist'),
+  watchlistAdd: (code) => send('POST', '/watchlist', { code }),
+  watchlistRemove: (code) => send('DELETE', `/watchlist/${code}`),
+  watchlistImport: (codes) => send('POST', '/watchlist/import', { codes }),
+  watchlistClear: () => send('POST', '/watchlist/clear'),
+  settings: () => get('/settings'),
+  setSetting: (key, value) => send('POST', '/settings', { key, value: String(value) }),
+  setSettingsBulk: (items) => send('POST', '/settings/bulk', { items }),
+  logActions: (items) => send('POST', '/log/action', { items }),
+  logsApi: (limit = 80) => get(`/logs/api?limit=${limit}`),
+  logsActions: (limit = 80) => get(`/logs/actions?limit=${limit}`),
+  logsDatasource: (limit = 80) => get(`/logs/datasource?limit=${limit}`),
+  metaStocks: () => get('/meta/stocks'),
+  syncStocks: () => send('POST', '/meta/stocks/sync'),
+  syncTags: (scope = 'stocks') => send('POST', `/meta/tags/sync?scope=${scope}`),
+  syncStatus: () => get('/meta/tags/sync/status'),
+  metaLookup: (code) => get(`/meta/lookup/${code}`),
+  limitBreak: (limit = 100) => get(`/market/limit-break?limit=${limit}`),
+  positions: () => get('/positions'),
+  positionSave: (body) => send('PUT', '/positions', body),
+  positionDelete: (code) => send('DELETE', `/positions/${code}`),
+  positionSnapshotDelete: (id) => send('DELETE', `/positions/snapshots/${id}`),
+  positionSnapshotsClear: () => send('DELETE', '/positions/snapshots'),
+  positionsSummary: () => get('/positions/summary'),
+  positionsLedger: (code = '', limit = 80) =>
+    get(`/positions/ledger?limit=${limit}${code ? '&code=' + code : ''}`),
+  alerts: () => get('/alerts'),
+  alertCreate: (body) => send('POST', '/alerts', body),
+  alertUpdate: (id, body) => send('PUT', `/alerts/${id}`, body),
+  alertDelete: (id) => send('DELETE', `/alerts/${id}`),
+  alertsCheck: () => get('/alerts/check'),
+  analysisData: (code) => get(`/stocks/${code}/analysis-data`),
+  baiduSr: (code, ktype = 'day') => get(`/stocks/${code}/baidu-sr?ktype=${ktype}`),
+  stockNews: (code, limit = 10) => get(`/stocks/${code}/news?limit=${limit}`),
+  stockAnnouncements: (code, limit = 8) => get(`/stocks/${code}/announcements?limit=${limit}`),
+}
+
+/** 基础行情列配置（多个表格复用；数值列可点击排序） */
+export const briefColumns = [
+  { key: 'name', label: '名称', align: 'left' },
+  { key: 'code', label: '代码' },
+  { key: 'price', label: '现价', fmt: 'price', sortable: true },
+  { key: 'change_pct', label: '涨跌幅', fmt: 'pct', sortable: true },
+  { key: 'zhangsu', label: '涨速', fmt: 'pct', sortable: true },
+  { key: 'amount', label: '成交额', fmt: 'amount', sortable: true },
+  { key: 'turnover', label: '换手率', fmt: 'pct', sortable: true },
+  { key: 'volume_ratio', label: '量比', sortable: true },
+  { key: 'main_inflow', label: '主力净流入', fmt: 'amount', sortable: true },
+]

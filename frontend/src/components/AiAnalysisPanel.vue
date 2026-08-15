@@ -1,0 +1,454 @@
+<template>
+  <div class="ai-panel card" ref="panelEl">
+    <div class="ai-header">
+      <span class="ai-title">AI 智能分析</span>
+      <button class="btn-ai" :disabled="loading" @click="runAnalysis">
+        {{ loading ? '分析中…' : (result || reasoning ? '重新分析' : '开始分析') }}
+      </button>
+      <span v-if="elapsed" class="ai-elapsed">耗时 {{ elapsed }}s</span>
+      <button
+        v-if="result || reasoning || streamText"
+        class="btn-screenshot ai-shot"
+        title="截图整块"
+        @click="screenshotAi"
+      >
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="12" cy="12" r="3"/></svg>
+      </button>
+    </div>
+
+    <div v-if="!hasConfig" class="ai-tip">
+      请先在「设置」中开启 AI 分析并配置 API Key。
+      <a href="#/settings" class="link">前往设置 →</a>
+    </div>
+
+    <template v-else>
+      <div v-if="error" class="ai-error">
+        <div>{{ error }}</div>
+        <div v-if="debugInfo" class="ai-debug">{{ debugInfo }}</div>
+      </div>
+
+      <!-- 思维链：默认收起，可展开（类 DeepSeek / 豆包 思考块） -->
+      <div v-if="reasoning || (loading && thinking)" class="ai-think">
+        <button type="button" class="ai-think-toggle" @click="thinkOpen = !thinkOpen">
+          <span class="ai-think-icon" :class="{ open: thinkOpen }">▸</span>
+          <span v-if="loading && !result">{{ thinkOpen ? '正在思考…' : '思考中（点击展开）' }}</span>
+          <span v-else>已深度思考{{ thinkSeconds ? `（用时约 ${thinkSeconds}s）` : '' }}</span>
+          <span class="ai-think-hint">{{ thinkOpen ? '收起' : '展开' }}</span>
+        </button>
+        <div v-show="thinkOpen" class="ai-think-body">
+          <div class="ai-think-text">{{ reasoning || thinking }}</div>
+        </div>
+      </div>
+
+      <div v-if="loading && !streamText && !thinking" class="ai-loading">
+        <div class="ai-spinner"></div>
+        <span>正在获取数据并调用 AI…</span>
+      </div>
+
+      <div v-if="streamText && !result" class="ai-stream" v-html="renderRichText(streamText)"></div>
+
+      <div v-if="result" class="ai-result">
+        <div class="ai-section" v-for="sec in resultSections" :key="sec.key">
+          <div class="ai-section-title">{{ sec.title }}</div>
+          <div class="ai-text" v-html="renderRichText(sec.text)"></div>
+        </div>
+        <div class="ai-disclaimer">
+          ⚠️ AI 分析仅供参考，不构成投资建议。市场有风险，投资需谨慎。
+        </div>
+      </div>
+
+      <div v-else-if="!loading && !error && !reasoning" class="ai-empty">
+        点击「开始分析」，AI 将综合分时、K线、资金流、技术指标等数据给出走势判断。
+      </div>
+    </template>
+  </div>
+</template>
+
+<script setup>
+// @author ygw
+import { ref, computed } from 'vue'
+import { api } from '../api.js'
+import { settingsState } from '../composables/useSettings.js'
+import { captureElement } from '../composables/useScreenshot.js'
+
+const props = defineProps({
+  code: { type: String, required: true },
+  name: { type: String, default: '' },
+})
+
+const panelEl = ref(null)
+const loading = ref(false)
+const error = ref('')
+const debugInfo = ref('')
+const result = ref(null)
+const streamText = ref('')
+const reasoning = ref('')
+const thinking = ref('')
+const thinkOpen = ref(false)
+const thinkSeconds = ref(0)
+const elapsed = ref(0)
+
+const hasConfig = computed(() => {
+  return settingsState.aiEnabled && settingsState.aiApiKey && settingsState.aiApiKey.length > 5
+})
+
+const SECTION_META = [
+  { key: 'summary', title: '📊 综合判断' },
+  { key: 'trend', title: '📈 趋势分析' },
+  { key: 'buy_sell', title: '💰 买卖点建议' },
+  { key: 'support_resistance', title: '📐 压力位 / 支撑位' },
+  { key: 'risk', title: '⚠️ 风险提示' },
+]
+
+const resultSections = computed(() => {
+  if (!result.value) return []
+  return SECTION_META
+    .map(m => ({ ...m, text: result.value[m.key] || '' }))
+    .filter(s => s.text)
+})
+
+/**
+ * 富文本渲染：把 AI 输出转为带颜色标注的 HTML
+ * @param {string} text
+ * @returns {string}
+ */
+function renderRichText(text) {
+  if (!text) return ''
+  let html = String(text)
+    .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+    .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
+    .replace(/\n/g, '<br>')
+
+  html = html.replace(/([+-]?\d+\.?\d*%)/g, '<span class="ai-num">$1</span>')
+  html = html.replace(/(\d+\.?\d+)元/g, '<span class="ai-price">$1</span>元')
+  html = html.replace(/(看多|偏多|做多|买入|加仓|突破|金叉|放量上涨|强势|信心高)/g, '<span class="ai-bull">$1</span>')
+  html = html.replace(/(看空|偏空|做空|卖出|减仓|跌破|死叉|放量下跌|弱势)/g, '<span class="ai-bear">$1</span>')
+  html = html.replace(/(震荡|观望|等待|中性|持有)/g, '<span class="ai-neutral">$1</span>')
+  html = html.replace(/(止损|风险|警惕)/g, '<span class="ai-warn">$1</span>')
+  return html
+}
+
+/**
+ * 截图 AI 分析区域
+ */
+async function screenshotAi() {
+  if (!panelEl.value) return
+  const name = (props.name || props.code || 'AI') + '_智能分析.png'
+  await captureElement(panelEl.value, name)
+}
+
+function buildPrompt(data) {
+  const snap = data.snapshot || {}
+  const kline = data.kline || {}
+  const trend = data.trend || {}
+  const flow = data.moneyflow || []
+  const sr = data.support_resistance || {}
+  const newsItems = data.news || []
+  const pts = kline.points || []
+  const ind = kline.indicators || {}
+
+  const safe = (v, suffix = '') => (v != null && v !== '' && !isNaN(v)) ? v + suffix : '-'
+
+  const kSummary = pts.slice(-15).map(p =>
+    `${p.date} O${p.open} H${p.high} L${p.low} C${p.close} V${p.volume}`
+  ).join('\n') || '暂无K线数据'
+
+  const maSummary = ['ma5', 'ma10', 'ma20', 'ma60'].map(k => {
+    const arr = ind[k] || []
+    return arr.length ? `${k.toUpperCase()}=${arr[arr.length - 1]?.toFixed(2)}` : null
+  }).filter(Boolean).join(' ') || '无'
+
+  const macdArr = ind.macd || {}
+  const macdSummary = macdArr.dif ? `DIF=${macdArr.dif?.slice(-1)[0]?.toFixed(3)} DEA=${macdArr.dea?.slice(-1)[0]?.toFixed(3)} HIST=${macdArr.hist?.slice(-1)[0]?.toFixed(3)}` : '无'
+  const kdjSummary = ind.kdj ? `K=${ind.kdj.k?.slice(-1)[0]?.toFixed(1)} D=${ind.kdj.d?.slice(-1)[0]?.toFixed(1)} J=${ind.kdj.j?.slice(-1)[0]?.toFixed(1)}` : '无'
+  const rsiVal = ind.rsi?.slice(-1)[0]
+  const bollStr = ind.boll ? `上轨${ind.boll.upper?.slice(-1)[0]?.toFixed(2)} 中轨${ind.boll.mid?.slice(-1)[0]?.toFixed(2)} 下轨${ind.boll.lower?.slice(-1)[0]?.toFixed(2)}` : '无'
+
+  const flowSummary = flow.length ? flow.map(f =>
+    `${f.date?.slice(5)} 主力${f.main_inflow >= 0 ? '+' : ''}${(f.main_inflow / 1e4).toFixed(0)}万`
+  ).join(' | ') : '暂无'
+
+  const supportStr = (sr.support || []).map(s => `${s.label}=${s.price}`).join(', ') || '无'
+  const resistStr = (sr.resistance || []).map(s => `${s.label}=${s.price}`).join(', ') || '无'
+
+  const trendPts = (trend.points || [])
+  let trendDetail = '非交易时段，无分时数据'
+  if (trendPts.length > 0) {
+    const first = trendPts[0], last = trendPts[trendPts.length - 1]
+    const maxP = Math.max(...trendPts.map(p => p.price))
+    const minP = Math.min(...trendPts.map(p => p.price))
+    trendDetail = `分时${trendPts.length}点 开${first.price} 现${last.price} 均${last.avg?.toFixed(2) || '-'} 最高${maxP} 最低${minP}`
+  }
+
+  const newsSummary = newsItems.slice(0, 5).map(n => `- ${n.title}`).join('\n') || '暂无近期新闻'
+
+  return `对「${props.name || props.code}(${props.code})」做系统化技术分析。
+
+## 盘面快照
+现价${safe(snap.price)} 涨跌${safe(snap.change_pct, '%')} 今开${safe(snap.open)} 昨收${safe(snap.prev_close)} 最高${safe(snap.high)} 最低${safe(snap.low)}
+成交额${safe(snap.amount)} 换手${safe(snap.turnover, '%')} 量比${safe(snap.volume_ratio)} 振幅${safe(snap.amplitude, '%')}
+外盘${safe(snap.outer)} 内盘${safe(snap.inner)} 主力净流入${safe(snap.main_inflow)}
+PE${safe(snap.pe)} PB${safe(snap.pb)} 流通市值${safe(snap.float_mv)}
+
+## 分时走势
+${trendDetail}
+
+## 近15日K线(日期 开 高 低 收 量)
+${kSummary}
+
+## 技术指标(最新值)
+均线: ${maSummary}
+BOLL: ${bollStr}
+MACD: ${macdSummary}
+KDJ: ${kdjSummary}
+RSI: ${rsiVal != null ? rsiVal.toFixed(1) : '无'}
+
+## 今日资金流
+${flowSummary}
+
+## 关键价位
+压力: ${resistStr}
+支撑: ${supportStr}
+
+## 近期新闻/事件
+${newsSummary}
+
+---
+请严格按以下5个板块输出，每部分100-200字，重点数值用**加粗**：
+**[综合判断]** 多空方向+置信度+核心逻辑（结合量价、指标、资金面综合判断）
+**[趋势分析]** 均线形态+MACD/KDJ状态+量价配合+板块联动
+**[买卖点建议]** 具体买入价区间+目标价位+止损价位（给出明确数值）
+**[压力支撑]** 最重要的2-3个关键价位+技术含义
+**[风险提示]** 2-3个核心风险因素`
+}
+
+/**
+ * 解析 AI 分段输出（兼容 **[综合判断]** / ### 综合判断 等）
+ * @param {string} text
+ */
+function parseAiResult(text) {
+  const sections = { summary: '', trend: '', buy_sell: '', support_resistance: '', risk: '' }
+  const patterns = [
+    { key: 'summary', re: /^\s*(?:#{1,3}\s*)?(?:\*{0,2})\[?\s*综合判断\s*\]?(?:\*{0,2})\s*[：:]?\s*/i },
+    { key: 'trend', re: /^\s*(?:#{1,3}\s*)?(?:\*{0,2})\[?\s*趋势分析\s*\]?(?:\*{0,2})\s*[：:]?\s*/i },
+    { key: 'buy_sell', re: /^\s*(?:#{1,3}\s*)?(?:\*{0,2})\[?\s*买卖点建议\s*\]?(?:\*{0,2})\s*[：:]?\s*/i },
+    { key: 'support_resistance', re: /^\s*(?:#{1,3}\s*)?(?:\*{0,2})\[?\s*压力支撑\s*\]?(?:\*{0,2})\s*[：:]?\s*/i },
+    { key: 'risk', re: /^\s*(?:#{1,3}\s*)?(?:\*{0,2})\[?\s*风险提示\s*\]?(?:\*{0,2})\s*[：:]?\s*/i },
+  ]
+  const lines = String(text || '').split('\n')
+  let currentKey = 'summary'
+  let sawHeader = false
+  for (const line of lines) {
+    let matched = false
+    for (const p of patterns) {
+      if (p.re.test(line)) {
+        currentKey = p.key
+        sawHeader = true
+        const content = line.replace(p.re, '').trim()
+        if (content) sections[currentKey] += content + '\n'
+        matched = true
+        break
+      }
+    }
+    if (!matched) sections[currentKey] += line + '\n'
+  }
+  for (const k of Object.keys(sections)) sections[k] = sections[k].trim()
+  if (!sawHeader && text) sections.summary = String(text).trim()
+  return sections
+}
+
+async function runAnalysis() {
+  if (!hasConfig.value) {
+    error.value = '未配置 AI API Key，请前往设置页配置'
+    return
+  }
+  loading.value = true
+  error.value = ''
+  debugInfo.value = ''
+  result.value = null
+  streamText.value = ''
+  reasoning.value = ''
+  thinking.value = ''
+  thinkOpen.value = false
+  thinkSeconds.value = 0
+  elapsed.value = 0
+  const t0 = Date.now()
+  let thinkStart = 0
+
+  try {
+    let data = {}
+    try {
+      data = await api.analysisData(props.code) || {}
+    } catch (e) {
+      console.warn('[AI] 分析数据获取部分失败:', e.message)
+    }
+
+    if (!data.snapshot && !data.kline) {
+      throw new Error('未获取到任何股票数据，请检查网络或稍后重试')
+    }
+
+    const prompt = buildPrompt(data)
+    const resp = await fetch('/api/ai/chat', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        model: settingsState.aiModel || 'deepseek-chat',
+        messages: [
+          { role: 'system', content: '你是资深A股短线技术分析师，擅长量价分析、技术指标研判和资金面解读。请基于提供的数据给出明确的操作建议。输出全程中文，关键价格和百分比用**加粗**标注。如果某项数据缺失，跳过相关分析即可，不要提及数据不足。' },
+          { role: 'user', content: prompt },
+        ],
+        temperature: 0.3,
+        max_tokens: 4000,
+        stream: true,
+      }),
+    })
+
+    if (!resp.ok) {
+      const errData = await resp.json().catch(() => ({}))
+      throw new Error(errData.error?.message || `后端错误 ${resp.status}`)
+    }
+
+    const reader = resp.body.getReader()
+    const decoder = new TextDecoder()
+    let fullText = ''
+    let reasoningText = ''
+    let buffer = ''
+
+    while (true) {
+      const { done, value } = await reader.read()
+      if (done) break
+      buffer += decoder.decode(value, { stream: true })
+      const lines = buffer.split('\n')
+      buffer = lines.pop() || ''
+
+      for (const line of lines) {
+        if (!line.startsWith('data: ')) continue
+        const payload = line.slice(6).trim()
+        if (!payload || payload === '[DONE]') continue
+        try {
+          const chunk = JSON.parse(payload)
+          if (chunk.error?.message) throw new Error(chunk.error.message)
+          const delta = chunk.choices?.[0]?.delta || {}
+          const contentDelta = delta.content || ''
+          const reasonDelta = delta.reasoning_content || ''
+          if (reasonDelta) {
+            if (!thinkStart) thinkStart = Date.now()
+            reasoningText += reasonDelta
+            thinking.value = reasoningText
+            reasoning.value = reasoningText
+          }
+          if (contentDelta) {
+            if (thinkStart && !thinkSeconds.value) {
+              thinkSeconds.value = Math.max(1, Math.round((Date.now() - thinkStart) / 1000))
+            }
+            fullText += contentDelta
+            streamText.value = fullText
+          }
+        } catch (e) {
+          if (e && e.message && !(e instanceof SyntaxError)) throw e
+        }
+      }
+    }
+
+    if (thinkStart && !thinkSeconds.value) {
+      thinkSeconds.value = Math.max(1, Math.round((Date.now() - thinkStart) / 1000))
+    }
+    reasoning.value = reasoningText
+    thinking.value = ''
+
+    if (!fullText && reasoningText) fullText = reasoningText
+    if (!fullText) {
+      throw new Error('AI 未返回正文。若使用推理模型，请在设置中改用 DeepSeek Chat，或稍后重试')
+    }
+    result.value = parseAiResult(fullText)
+    streamText.value = ''
+    elapsed.value = ((Date.now() - t0) / 1000).toFixed(1)
+  } catch (e) {
+    console.error('[AI] 分析失败:', e)
+    error.value = e.message || '分析失败'
+    debugInfo.value = `code=${props.code} model=${settingsState.aiModel}`
+  } finally {
+    loading.value = false
+  }
+}
+</script>
+
+<style scoped>
+.ai-panel { padding: 0; position: relative; }
+.ai-panel.card { padding: 14px 16px; }
+.ai-header {
+  display: flex; align-items: center; gap: 10px; margin-bottom: 12px; flex-wrap: wrap;
+  padding-right: 36px; /* 给右上角截图留位 */
+}
+.ai-title { font-size: 15px; font-weight: 600; color: var(--text); }
+.btn-ai {
+  padding: 6px 16px; border-radius: 6px; border: none; cursor: pointer;
+  background: linear-gradient(135deg, #6366f1, #8b5cf6); color: #fff;
+  font-size: 13px; font-weight: 500; transition: opacity .2s;
+}
+.btn-ai:hover:not(:disabled) { opacity: .85; }
+.btn-ai:disabled { opacity: .5; cursor: not-allowed; }
+.ai-shot {
+  position: absolute; top: 10px; right: 10px; z-index: 2;
+  border: none; background: transparent; cursor: pointer;
+  padding: 4px 6px; border-radius: 6px; opacity: .75; color: var(--text);
+}
+.ai-shot:hover { opacity: 1; background: var(--bg-hover); }
+.btn-screenshot {
+  border: none; background: transparent; cursor: pointer; font-size: 16px;
+  padding: 2px 6px; border-radius: 4px; opacity: .7; color: var(--text);
+}
+.btn-screenshot:hover { opacity: 1; background: var(--bg-hover); }
+.ai-elapsed { font-size: 12px; color: var(--text-dim); }
+.ai-tip { font-size: 13px; color: var(--text-dim); padding: 16px 0; }
+.ai-tip .link { color: var(--accent); text-decoration: underline; }
+.ai-error { font-size: 13px; color: var(--down); padding: 12px; background: var(--down-bg); border-radius: 8px; margin-bottom: 10px; }
+.ai-debug { font-size: 11px; color: var(--text-dim); margin-top: 6px; word-break: break-all; }
+.ai-empty { font-size: 13px; color: var(--text-dim); padding: 20px 0; }
+.ai-loading { display: flex; align-items: center; gap: 10px; padding: 12px 0; color: var(--text-dim); font-size: 13px; }
+.ai-spinner {
+  width: 18px; height: 18px; border: 2px solid var(--border); border-top-color: var(--accent);
+  border-radius: 50%; animation: spin .8s linear infinite;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+
+.ai-think {
+  margin-bottom: 12px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--kv-bg);
+  overflow: hidden;
+}
+.ai-think-toggle {
+  width: 100%; display: flex; align-items: center; gap: 8px;
+  padding: 10px 12px; border: none; background: transparent;
+  color: var(--text-dim); font-size: 13px; cursor: pointer; text-align: left;
+}
+.ai-think-toggle:hover { color: var(--text); }
+.ai-think-icon {
+  display: inline-block; transition: transform .15s; font-size: 12px; color: var(--accent);
+}
+.ai-think-icon.open { transform: rotate(90deg); }
+.ai-think-hint { margin-left: auto; font-size: 12px; opacity: .7; }
+.ai-think-body {
+  padding: 0 12px 12px;
+  border-top: 1px dashed var(--border);
+}
+.ai-think-text {
+  margin-top: 10px; font-size: 12px; line-height: 1.65; color: var(--text-dim);
+  white-space: pre-wrap; max-height: 280px; overflow-y: auto;
+}
+
+.ai-stream { font-size: 13px; line-height: 1.7; color: var(--text); padding: 8px 0; }
+.ai-section { margin-bottom: 16px; }
+.ai-section-title { font-size: 13px; font-weight: 600; color: var(--accent); margin-bottom: 6px; }
+.ai-text { font-size: 13px; line-height: 1.7; color: var(--text); }
+.ai-text :deep(strong) { color: var(--text); font-weight: 700; }
+.ai-text :deep(.ai-num) { color: var(--accent); font-weight: 600; }
+.ai-text :deep(.ai-price) { color: #f5a623; font-weight: 600; }
+.ai-text :deep(.ai-bull) { color: var(--up); font-weight: 600; }
+.ai-text :deep(.ai-bear) { color: var(--down); font-weight: 600; }
+.ai-text :deep(.ai-neutral) { color: var(--text-dim); font-weight: 600; }
+.ai-text :deep(.ai-warn) { color: #f59e0b; font-weight: 600; }
+.ai-disclaimer { font-size: 11px; color: var(--text-dim); padding: 10px; background: var(--kv-bg); border-radius: 6px; margin-top: 12px; }
+</style>

@@ -1,0 +1,172 @@
+"""自选与持仓路由
+@author ygw
+"""
+from fastapi import APIRouter, HTTPException, Query
+
+from ...db import store as db
+
+from .common import ttl_cache, WatchBody, WatchImportBody, PositionBody
+
+router = APIRouter()
+
+@router.get("/watchlist")
+def watchlist_get():
+    """自选股代码列表（SQLite）"""
+    return {"codes": db.watchlist_codes()}
+
+
+@router.post("/watchlist")
+def watchlist_post(body: WatchBody):
+    """添加自选股"""
+    code = body.code.strip()
+    if not code.isdigit():
+        raise HTTPException(status_code=400, detail="股票代码须为 6 位数字")
+    db.watchlist_add(code)
+    return {"ok": True, "codes": db.watchlist_codes()}
+
+
+@router.delete("/watchlist/{code}")
+def watchlist_delete(code: str):
+    """删除自选股"""
+    db.watchlist_remove(code)
+    return {"ok": True, "codes": db.watchlist_codes()}
+
+
+@router.post("/watchlist/import")
+def watchlist_import(body: WatchImportBody):
+    """批量导入自选股"""
+    codes = [str(c).strip() for c in (body.codes or []) if str(c).strip().isdigit() and len(str(c).strip()) == 6]
+    n = db.watchlist_import(codes)
+    return {"ok": True, "count": n, "codes": db.watchlist_codes()}
+
+
+@router.post("/watchlist/clear")
+def watchlist_clear():
+    """清空自选股"""
+    db.watchlist_clear()
+    return {"ok": True, "codes": []}
+
+
+def _is_etf_row(d: dict) -> bool:
+    name = str(d.get("name") or "")
+    code = str(d.get("code") or "")
+    return d.get("classify") == "Fund" or d.get("type") == "ETF" or "ETF" in name.upper() or bool(
+        code.startswith(("15", "16", "51", "56", "58"))
+    )
+
+
+def _pnl_bucket(items: list) -> dict:
+    mv = sum(float(x.get("market_value") or 0) for x in items)
+    cv = sum(float(x.get("cost_value") or 0) for x in items)
+    pnl = mv - cv
+    pct = (pnl / cv * 100.0) if cv else None
+    return {
+        "market_value": mv,
+        "cost_value": cv,
+        "pnl": pnl,
+        "pnl_pct": pct,
+        "count": len(items),
+    }
+
+
+@router.get("/positions")
+def positions_get():
+    """持仓列表。"""
+    return {"items": db.list_positions()}
+
+
+@router.put("/positions")
+def positions_put(body: PositionBody):
+    """录入/更新持仓（shares=0 清空）。同时确保在自选中。"""
+    code = body.code.strip()
+    if not code.isdigit():
+        raise HTTPException(status_code=400, detail="股票代码须为 6 位数字")
+    if body.shares < 0 or body.cost < 0:
+        raise HTTPException(status_code=400, detail="数量和成本价不能为负")
+    db.watchlist_add(code)
+    row = db.upsert_position(code, body.shares, body.cost, body.note or "")
+    return {"ok": True, "item": row, "codes": db.watchlist_codes()}
+
+
+@router.delete("/positions/snapshots")
+def positions_snapshots_clear():
+    """清空全部收益记录快照。"""
+    db.clear_pnl_snapshots()
+    return {"ok": True}
+
+
+@router.delete("/positions/snapshots/{snapshot_id}")
+def positions_snapshot_delete(snapshot_id: int):
+    """删除指定收益记录快照。"""
+    db.delete_pnl_snapshot(snapshot_id)
+    return {"ok": True}
+
+
+@router.delete("/positions/{code}")
+def positions_delete(code: str):
+    """清空该标的持仓（仍保留自选）。"""
+    db.delete_position(code)
+    return {"ok": True, "items": db.list_positions()}
+
+
+@router.get("/positions/summary")
+def positions_summary():
+    """持仓浮动盈亏（个股/ETF 分计 + 合计），并按日落快照。"""
+    pos = db.list_positions()
+    pos = [p for p in pos if float(p.get("shares") or 0) > 0]
+    if not pos:
+        empty = _pnl_bucket([])
+        return {
+            "all": empty, "stock": empty, "etf": empty,
+            "items": [], "snapshots": db.list_pnl_snapshots(14),
+        }
+    codes = [p["code"] for p in pos]
+    from .stocks import stocks_batch
+    quotes = {r.get("code"): r for r in stocks_batch(",".join(codes))}
+    items = []
+    for p in pos:
+        q = quotes.get(p["code"]) or {}
+        price = q.get("price")
+        shares = float(p.get("shares") or 0)
+        cost = float(p.get("cost") or 0)
+        mv = (price or 0) * shares
+        cv = cost * shares
+        pnl = mv - cv if price is not None else None
+        pct = (pnl / cv * 100.0) if (pnl is not None and cv) else None
+        row = {
+            **p,
+            "name": q.get("name") or p["code"],
+            "price": price,
+            "change_pct": q.get("change_pct"),
+            "market_value": mv,
+            "cost_value": cv,
+            "pnl": pnl,
+            "pnl_pct": pct,
+            "classify": q.get("classify"),
+            "board": q.get("board"),
+            "is_st": q.get("is_st"),
+            "industry": q.get("industry"),
+        }
+        items.append(row)
+    stocks = [x for x in items if not _is_etf_row(x)]
+    etfs = [x for x in items if _is_etf_row(x)]
+    summary = {
+        "all": _pnl_bucket(items),
+        "stock": _pnl_bucket(stocks),
+        "etf": _pnl_bucket(etfs),
+        "items": items,
+        "snapshots": db.list_pnl_snapshots(14),
+    }
+    db.maybe_daily_snapshot([
+        {"kind": "all", **summary["all"]},
+        {"kind": "stock", **summary["stock"]},
+        {"kind": "etf", **summary["etf"]},
+    ])
+    summary["snapshots"] = db.list_pnl_snapshots(14)
+    return summary
+
+
+@router.get("/positions/ledger")
+def positions_ledger(code: str = Query("", max_length=6), limit: int = Query(80, ge=1, le=300)):
+    """持仓流水。"""
+    return db.list_ledger(code or None, limit)

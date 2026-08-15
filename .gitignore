@@ -1,0 +1,30 @@
+# Python
+.venv/
+**/__pycache__/
+*.py[cod]
+*.egg-info/
+.pytest_cache/
+.mypy_cache/
+
+# Node
+node_modules/
+frontend/node_modules/
+frontend/.venv/
+
+# 运行时数据与日志（含 AI Key / 本地行情库，勿入库）
+data/
+logs/
+*.log
+
+# 构建与系统
+.DS_Store
+dist/
+*.local
+.env
+.env.*
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
