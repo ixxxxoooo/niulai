@@ -82,7 +82,10 @@
     </div>
 
     <div class="card mt16" v-if="lhb && lhb.date" ref="lhbEl">
-      <div class="card-title">龙虎榜 · {{ lhb.date }}　<span style="font-weight:400;color:var(--text-dim)">{{ lhb.reason }}</span>
+      <div class="card-title">
+        龙虎榜 · {{ lhb.date }}
+        <span v-if="lhb.appear_count > 1" class="lhb-freq">近期上榜 {{ lhb.appear_count }} 次</span>
+        <span style="font-weight:400;color:var(--text-dim)">{{ lhb.reason }}</span>
         <button class="btn-screenshot" @click="screenshotEl(lhbEl)" title="截图"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="12" cy="12" r="3"/></svg></button>
       </div>
       <div class="kv-grid mb12">
@@ -94,10 +97,14 @@
         <div>
           <div class="ob-title">买入前五</div>
           <table class="data-table">
-            <thead><tr><th>席位</th><th>买入</th><th>卖出</th><th>净额</th></tr></thead>
+            <thead><tr><th>席位</th><th>类型</th><th>买入</th><th>卖出</th><th>净额</th></tr></thead>
             <tbody>
               <tr v-for="(s, i) in (lhb.buy_seats || [])" :key="'b'+i" style="cursor:default">
-                <td class="analyse-td">{{ s.name }}</td>
+                <td class="analyse-td seat-name-cell">
+                  {{ s.name }}
+                  <span v-if="s.nickname" class="seat-nick" :title="s.style">{{ s.nickname }}</span>
+                </td>
+                <td><span :class="['seat-badge', 'seat-' + (s.type || 'broker')]">{{ s.label || '营业部' }}</span></td>
                 <td class="up">{{ fmtAmount(s.buy) }}</td>
                 <td>{{ fmtAmount(s.sell) }}</td>
                 <td :class="pctClass(s.net)">{{ fmtAmount(s.net) }}</td>
@@ -108,10 +115,14 @@
         <div>
           <div class="ob-title">卖出前五</div>
           <table class="data-table">
-            <thead><tr><th>席位</th><th>买入</th><th>卖出</th><th>净额</th></tr></thead>
+            <thead><tr><th>席位</th><th>类型</th><th>买入</th><th>卖出</th><th>净额</th></tr></thead>
             <tbody>
               <tr v-for="(s, i) in (lhb.sell_seats || [])" :key="'s'+i" style="cursor:default">
-                <td class="analyse-td">{{ s.name }}</td>
+                <td class="analyse-td seat-name-cell">
+                  {{ s.name }}
+                  <span v-if="s.nickname" class="seat-nick" :title="s.style">{{ s.nickname }}</span>
+                </td>
+                <td><span :class="['seat-badge', 'seat-' + (s.type || 'broker')]">{{ s.label || '营业部' }}</span></td>
                 <td>{{ fmtAmount(s.buy) }}</td>
                 <td class="down">{{ fmtAmount(s.sell) }}</td>
                 <td :class="pctClass(s.net)">{{ fmtAmount(s.net) }}</td>
@@ -120,6 +131,16 @@
           </table>
         </div>
       </div>
+      <details v-if="lhb.history && lhb.history.length > 1" class="lhb-history">
+        <summary style="font-size:12px;color:var(--text-dim);cursor:pointer;margin-top:10px">历史上榜（{{ lhb.history.length }}）</summary>
+        <div class="lhb-history-list">
+          <div v-for="h in lhb.history" :key="h.date" class="lhb-history-item">
+            <span>{{ h.date }}</span>
+            <span :class="pctClass(h.net)">{{ fmtAmount(h.net) }}</span>
+            <span style="color:var(--text-dim)">{{ h.reason }}</span>
+          </div>
+        </div>
+      </details>
     </div>
 
     <NewsAnnouncements :news="news" :announcements="announcements" />
@@ -438,7 +459,13 @@ async function loadSlow() {
     } else {
       flowSource.value = '暂不可用'
     }
-    lhb.value = lb && lb.date ? lb : null
+    if (lb && lb.latest) {
+      lhb.value = { ...lb.latest, appear_count: lb.appear_count, appear_dates: lb.appear_dates, history: lb.history }
+    } else if (lb && lb.date) {
+      lhb.value = lb
+    } else {
+      lhb.value = null
+    }
     announcements.value = ann || []
     if (kd && kd.points && kd.points.length) {
       klineDay.value = kd
@@ -499,4 +526,18 @@ onUnmounted(() => {
   padding: 2px 6px; border-radius: 4px; opacity: .7; transition: opacity .2s;
 }
 .btn-screenshot:hover { opacity: 1; background: var(--bg-hover); }
+
+/* 龙虎榜席位增强 */
+.lhb-freq { display: inline-block; font-size: 12px; background: var(--accent); color: #fff; padding: 1px 8px; border-radius: 10px; margin: 0 8px; font-weight: 500; }
+.seat-badge { display: inline-block; font-size: 11px; padding: 1px 6px; border-radius: 4px; white-space: nowrap; }
+.seat-legend { background: #f59e0b; color: #fff; }
+.seat-new_gen { background: #3b82f6; color: #fff; }
+.seat-regional { background: #8b5cf6; color: #fff; }
+.seat-institution { background: #10b981; color: #fff; }
+.seat-northbound { background: #06b6d4; color: #fff; }
+.seat-broker { background: var(--border); color: var(--text-dim); }
+.seat-nick { display: block; font-size: 11px; color: var(--accent); font-weight: 500; margin-top: 1px; }
+.seat-name-cell { min-width: 100px; }
+.lhb-history-list { display: flex; flex-direction: column; gap: 3px; margin-top: 6px; }
+.lhb-history-item { display: flex; gap: 12px; font-size: 12px; align-items: center; }
 </style>

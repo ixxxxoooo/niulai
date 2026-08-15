@@ -115,6 +115,23 @@ export const api = {
   baiduSr: (code, ktype = 'day') => get(`/stocks/${code}/baidu-sr?ktype=${ktype}`),
   stockNews: (code, limit = 10) => get(`/stocks/${code}/news?limit=${limit}`),
   stockAnnouncements: (code, limit = 8) => get(`/stocks/${code}/announcements?limit=${limit}`),
+
+  // 飞书通知
+  feishuTest: () => send('POST', '/notify/feishu/test'),
+
+  // 龙虎榜席位
+  lhbSeats: () => get('/lhb/seats'),
+  lhbSeatsSync: (force = false) => send('POST', '/lhb/seats/sync', { force }),
+
+  // 盘后选股
+  screenerRules: () => get('/screener/rules'),
+  screenerSyncBars: (lookback = 120, scope = 'all') =>
+    send('POST', '/screener/sync-bars', { lookback_days: lookback, scope }),
+  screenerSyncStatus: () => get('/screener/sync-status'),
+  screenerRun: (rules, scope = 'all', notifyFeishu = false, params = null) =>
+    send('POST', '/screener/run', { rules, scope, notify_feishu: notifyFeishu, params }),
+  screenerRuns: (limit = 20) => get(`/screener/runs?limit=${limit}`),
+  screenerRunDetail: (id) => get(`/screener/runs/${id}`),
 }
 
 /** 基础行情列配置（多个表格复用；数值列可点击排序） */

@@ -147,4 +147,12 @@ def alerts_check():
             "price": cur.get("price"),
             "note": alert.get("note") or "",
         })
+    # 飞书双通道推送
+    for item in triggered:
+        try:
+            from ...notify.feishu import send_alert
+            send_alert(item)
+        except Exception:
+            pass
+
     return {"triggered": triggered, "checked_at": time.strftime("%Y-%m-%d %H:%M:%S")}

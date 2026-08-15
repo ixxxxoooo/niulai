@@ -3,7 +3,7 @@
 """
 from fastapi import APIRouter
 
-from . import market, stocks, watchlist, alerts, ai, meta
+from . import market, stocks, watchlist, alerts, ai, meta, screener
 from .common import clear_cache, ttl_cache  # noqa: F401 — 供外部/测试复用
 
 router = APIRouter(prefix="/api")
@@ -13,3 +13,4 @@ router.include_router(stocks.router)
 router.include_router(watchlist.router)
 router.include_router(alerts.router)
 router.include_router(ai.router)
+router.include_router(screener.router)

@@ -138,6 +138,13 @@ def meta_tags_sync_status():
     return st
 
 
+@router.post("/notify/feishu/test")
+def notify_feishu_test():
+    """飞书推送测试：发送一条示例卡片验证 Webhook 配置。"""
+    from ...notify.feishu import send_test
+    return send_test()
+
+
 @router.get("/crawl-article")
 def crawl_article(url: str = Query(...)):
     """

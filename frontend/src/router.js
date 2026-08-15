@@ -13,6 +13,7 @@ export function parseHash() {
   if (segs[0] === 'watchlist') return { name: 'watchlist' }
   if (segs[0] === 'alerts') return { name: 'alerts' }
   if (segs[0] === 'settings') return { name: 'settings' }
+  if (segs[0] === 'screener') return { name: 'screener' }
   return { name: 'overview' }
 }
 

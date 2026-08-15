@@ -20,9 +20,14 @@ _SKIP_SQLITE_LOG = ("/api/log/action", "/api/logs/api", "/api/logs/actions", "/a
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    """启动：初始化 SQLite + 后台同步股票列表。"""
+    """启动：初始化 SQLite + 席位标签 + 后台同步股票列表。"""
     db.init_db()
-    logger.info("SQLite 已就绪 stocks=%s updated=%s", db.stock_count(), db.stocks_updated_at())
+    from .db.lhb_seats import ensure_tables, init_builtin_seats, seat_count
+    ensure_tables()
+    if seat_count() == 0:
+        init_builtin_seats()
+    logger.info("SQLite 已就绪 stocks=%s updated=%s seats=%s",
+                db.stock_count(), db.stocks_updated_at(), seat_count())
     start_background_sync()
     yield
 

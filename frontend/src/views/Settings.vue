@@ -233,6 +233,44 @@
     </div>
 
     <div class="card mt16">
+      <div class="card-title">飞书通知</div>
+      <div class="setting-row">
+        <span class="setting-label">启用飞书推送</span>
+        <div class="setting-control">
+          <div class="tab" :class="{ active: feishuEnabled }" @click="setFeishu('feishu_enabled', '1')">开启</div>
+          <div class="tab" :class="{ active: !feishuEnabled }" @click="setFeishu('feishu_enabled', '0')">关闭</div>
+        </div>
+      </div>
+      <div class="setting-row">
+        <span class="setting-label">Webhook URL</span>
+        <input class="setting-input" v-model="feishuWebhook" placeholder="https://open.feishu.cn/open-apis/bot/v2/hook/..." @change="setFeishu('feishu_webhook', feishuWebhook)" />
+      </div>
+      <div class="setting-row">
+        <span class="setting-label">测试推送</span>
+        <button class="btn" :disabled="feishuTesting" @click="testFeishu">{{ feishuTesting ? '发送中…' : '发送测试卡片' }}</button>
+        <span v-if="feishuTestMsg" style="margin-left:12px;font-size:12px;" :style="{ color: feishuTestOk ? 'var(--up-color,#22c55e)' : 'var(--down-color,#ef4444)' }">{{ feishuTestMsg }}</span>
+      </div>
+      <div class="setting-row">
+        <span class="setting-label" style="font-size:12px;color:var(--text-dim)">触发监控告警和盘后选股时，将自动推送飞书卡片消息</span>
+      </div>
+    </div>
+
+    <div class="card mt16">
+      <div class="card-title">龙虎榜席位标签</div>
+      <div class="setting-row">
+        <span class="setting-label">已有席位标签</span>
+        <span class="setting-value">{{ seatCount }} 条</span>
+      </div>
+      <div class="setting-row">
+        <span class="setting-label">重置为内置游资字典</span>
+        <button class="btn" :disabled="seatSyncing" @click="syncSeats">{{ seatSyncing ? '同步中…' : '重置同步' }}</button>
+      </div>
+      <div class="setting-row">
+        <span class="setting-label" style="font-size:12px;color:var(--text-dim)">席位标签用于龙虎榜页面自动识别知名游资（章盟主/赵老哥/炒股养家等）</span>
+      </div>
+    </div>
+
+    <div class="card mt16">
       <div class="card-title">关于</div>
       <div class="setting-row">
         <span class="setting-label">版本</span>
@@ -284,6 +322,17 @@ const logTab = ref('api')
 const apiLogs = ref([])
 const dsLogs = ref([])
 const actLogs = ref([])
+
+// 飞书通知
+const feishuEnabled = ref(false)
+const feishuWebhook = ref('')
+const feishuTesting = ref(false)
+const feishuTestMsg = ref('')
+const feishuTestOk = ref(false)
+
+// 席位标签
+const seatCount = ref(0)
+const seatSyncing = ref(false)
 
 function setTheme(light) {
   isLight.value = light
@@ -416,6 +465,40 @@ async function resync(scope = 'stocks') {
   }
 }
 
+function setFeishu(key, value) {
+  if (key === 'feishu_enabled') feishuEnabled.value = value === '1'
+  if (key === 'feishu_webhook') feishuWebhook.value = value
+  saveSetting(key, value)
+}
+
+async function testFeishu() {
+  feishuTesting.value = true
+  feishuTestMsg.value = ''
+  try {
+    const res = await api.feishuTest()
+    feishuTestOk.value = !!res.ok
+    feishuTestMsg.value = res.message || (res.ok ? '成功' : '失败')
+  } catch (e) {
+    feishuTestOk.value = false
+    feishuTestMsg.value = '请求失败：' + (e.message || e)
+  } finally {
+    feishuTesting.value = false
+  }
+}
+
+async function syncSeats() {
+  seatSyncing.value = true
+  try {
+    const res = await api.lhbSeatsSync(true)
+    seatCount.value = res.count || 0
+    alert(`席位标签同步完成，共 ${seatCount.value} 条`)
+  } catch (e) {
+    alert('同步失败：' + (e.message || e))
+  } finally {
+    seatSyncing.value = false
+  }
+}
+
 async function loadLogs() {
   try {
     if (logTab.value === 'api') apiLogs.value = await api.logsApi(80)
@@ -447,6 +530,12 @@ onMounted(async () => {
   }
   watchCount.value = watchState.codes.length
   try { stockMeta.value = await api.metaStocks() } catch (e) { /* ignore */ }
+  try {
+    const s = settingsState
+    feishuEnabled.value = s.feishu_enabled === '1' || s.feishu_enabled === true
+    feishuWebhook.value = s.feishu_webhook || ''
+  } catch {}
+  try { seatCount.value = (await api.lhbSeats()).count || 0 } catch {}
   loadLogs()
 })
 </script>

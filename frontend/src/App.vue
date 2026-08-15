@@ -17,6 +17,7 @@
         <a :class="{ active: route.name === 'ladder' }" @click="go('/ladder')">连板梯队</a>
         <a :class="{ active: route.name === 'watchlist' }" @click="go('/watchlist')">自选股</a>
         <a :class="{ active: route.name === 'alerts' }" @click="go('/alerts')">监控</a>
+        <a :class="{ active: route.name === 'screener' }" @click="go('/screener')">选股</a>
       </nav>
       <div class="topbar-right">
         <div
@@ -99,6 +100,7 @@ import Stock from './views/Stock.vue'
 import Watchlist from './views/Watchlist.vue'
 import Alerts from './views/Alerts.vue'
 import Settings from './views/Settings.vue'
+import Screener from './views/Screener.vue'
 import { startAlertWatcher, stopAlertWatcher } from './composables/useAlertNotify.js'
 
 const route = ref(parseHash())
@@ -111,7 +113,7 @@ const views = {
   overview: Overview, sectors: Sectors, sector: SectorDetail,
   sectorMoves: SectorMoves, index: IndexDetail,
   rank: Rank, ladder: Ladder, stock: Stock, watchlist: Watchlist,
-  alerts: Alerts, settings: Settings,
+  alerts: Alerts, settings: Settings, screener: Screener,
 }
 const viewComp = shallowRef(views[route.value.name] || Overview)
 
