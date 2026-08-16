@@ -365,5 +365,5 @@ usePolling(load, 3000)
 .rank-industry {
   font-weight: 700; cursor: pointer; white-space: nowrap; color: var(--accent);
 }
-.rank-industry:hover { text-decoration: underline; filter: brightness(1.15); }
+.rank-industry:hover { filter: brightness(1.15); }
 </style>

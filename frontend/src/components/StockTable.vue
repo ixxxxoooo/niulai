@@ -145,5 +145,5 @@ th.sorted { color: var(--accent); }
   font-weight: 700; cursor: pointer; white-space: nowrap;
   color: var(--accent);
 }
-.industry-link:hover { text-decoration: underline; filter: brightness(1.15); }
+.industry-link:hover { filter: brightness(1.15); }
 </style>
