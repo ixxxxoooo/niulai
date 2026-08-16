@@ -1,14 +1,14 @@
 <template>
   <div>
-    <div class="page-title" style="display:flex;align-items:center;gap:10px">
-      连板梯队
-      <button class="btn-screenshot" @click="doScreenshot" title="截图">
-        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="12" cy="12" r="3"/></svg>
-      </button>
-    </div>
+    <div class="page-title">连板梯队</div>
     <div class="error-banner" v-if="error">{{ error }}</div>
     <div class="card" ref="ladderCard">
-      <div class="card-title">按连板数分层（上高下低 · 共 {{ filtered.length }} 家涨停）</div>
+      <div class="card-title" style="display:flex;align-items:center;justify-content:space-between">
+        <span>按连板数分层（上高下低 · 共 {{ filtered.length }} 家涨停）</span>
+        <button class="btn-screenshot" @click="doScreenshotLadder" title="截图连板梯队">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="12" cy="12" r="3"/></svg>
+        </button>
+      </div>
       <div class="floor-wrap">
         <div v-for="g in floors" :key="g.lbc" class="floor">
           <div class="floor-head">
@@ -23,11 +23,13 @@
               :class="{ zb: p.zb_count > 0 }"
               @click="openFromLadder(p)"
             >
-              <MiniTrend :code="p.code" :name="p.name">
-                <span class="chip-name"><BoardBadges :row="p" />{{ p.name }}<span v-if="p.zb_count" class="zb-tag">炸{{ p.zb_count }}</span></span>
-              </MiniTrend>
+              <span class="chip-name">
+                <BoardBadges :row="p" />
+                <MiniTrend :code="p.code" :name="p.name"><span>{{ p.name }}</span></MiniTrend>
+                <LadderYouzi :youzi="p.youzi" />
+                <span v-if="p.zb_count" class="zb-tag">炸{{ p.zb_count }}</span>
+              </span>
               <span class="chip-ind">{{ p.industry || '—' }}</span>
-              <span v-for="y in (p.youzi || [])" :key="y" class="youzi-badge ladder-youzi" :class="{ lhasa: y.includes('拉萨') }" :data-tip="`点击查看该游资动向`" @click.stop="goSeat(y)">{{ y }}</span>
               <span class="chip-meta">
                 {{ p.first_time || '-' }}
               </span>
@@ -39,8 +41,13 @@
       </div>
     </div>
 
-    <div class="card mt16">
-      <div class="card-title">今日炸板（{{ zbFiltered.length }} 家 · 曾封板后打开）</div>
+    <div class="card mt16" ref="zbCard">
+      <div class="card-title" style="display:flex;align-items:center;justify-content:space-between">
+        <span>今日炸板（{{ zbFiltered.length }} 家 · 曾封板后打开）</span>
+        <button class="btn-screenshot" @click="doScreenshotZb" title="截图今日炸板">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="12" cy="12" r="3"/></svg>
+        </button>
+      </div>
       <div class="floor-chips" style="padding: 4px 0 8px">
         <span
           v-for="p in zbFiltered"
@@ -48,11 +55,13 @@
           class="chip zb"
           @click="openFromZb(p)"
         >
-          <MiniTrend :code="p.code" :name="p.name">
-            <span class="chip-name"><BoardBadges :row="p" />{{ p.name }}<span class="zb-tag">炸{{ p.zb_count || 1 }}</span></span>
-          </MiniTrend>
+          <span class="chip-name">
+            <BoardBadges :row="p" />
+            <MiniTrend :code="p.code" :name="p.name"><span>{{ p.name }}</span></MiniTrend>
+            <LadderYouzi :youzi="p.youzi" />
+            <span class="zb-tag">炸{{ p.zb_count || 1 }}</span>
+          </span>
           <span class="chip-ind">{{ p.industry || '—' }}</span>
-          <span v-for="y in (p.youzi || [])" :key="y" class="youzi-badge ladder-youzi" :class="{ lhasa: y.includes('拉萨') }" :data-tip="`点击查看该游资动向`" @click.stop="goSeat(y)">{{ y }}</span>
           <span class="chip-meta">
             {{ fmtPct(p.change_pct) }}
           </span>
@@ -69,17 +78,13 @@
 import { computed, ref } from 'vue'
 import { api } from '../api.js'
 import { fmtPct } from '../utils.js'
-import { navigate } from '../router.js'
 import { usePolling } from '../composables/usePolling.js'
 import { applyListFilter } from '../composables/useListFilter.js'
 import { openStock } from '../composables/useStockMeta.js'
 import MiniTrend from '../components/MiniTrend.vue'
 import BoardBadges from '../components/BoardBadges.vue'
+import LadderYouzi from '../components/LadderYouzi.vue'
 import { captureElement } from '../composables/useScreenshot.js'
-
-function goSeat(nickname) {
-  navigate('/seats?nick=' + encodeURIComponent(nickname))
-}
 
 /**
  * 连板梯队：在当前楼层内切换。
@@ -111,6 +116,7 @@ const rows = ref([])
 const zbRows = ref([])
 const error = ref('')
 const ladderCard = ref(null)
+const zbCard = ref(null)
 const filtered = computed(() => applyListFilter(rows.value))
 const zbFiltered = computed(() => applyListFilter(zbRows.value))
 
@@ -142,8 +148,12 @@ async function load() {
   }
 }
 
-async function doScreenshot() {
+async function doScreenshotLadder() {
   await captureElement(ladderCard, '连板梯队.png')
+}
+
+async function doScreenshotZb() {
+  await captureElement(zbCard, '今日炸板.png')
 }
 
 usePolling(load, 5000)
@@ -170,7 +180,7 @@ usePolling(load, 5000)
 .chip {
   display: inline-flex; flex-direction: column; gap: 3px;
   padding: 6px 10px; border: 1px solid var(--border); border-radius: 6px;
-  cursor: pointer; background: var(--bg-card); min-width: 150px;
+  cursor: pointer; background: var(--bg-card); min-width: 128px;
   transition: border-color .15s, background .15s;
 }
 .chip:hover { background: var(--bg-hover); border-color: var(--up); }
@@ -178,10 +188,6 @@ usePolling(load, 5000)
 .chip-name { font-weight: 600; color: var(--up); font-size: 13px; display: inline-flex; align-items: center; gap: 4px; }
 .chip-ind { font-size: 11px; color: var(--accent); }
 .chip-meta { font-size: 11px; color: var(--text-dim); display: flex; align-items: center; gap: 4px; }
-.ladder-youzi {
-  margin: 0; display: inline-flex; align-items: center; align-self: flex-start;
-  white-space: nowrap;
-}
 .zb-tag {
   font-size: 10px; font-weight: 700; color: var(--yellow);
   background: rgba(227, 179, 65, 0.16); border-radius: 3px; padding: 0 4px;
