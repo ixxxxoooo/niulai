@@ -126,14 +126,14 @@ a:hover { text-decoration: underline; }
 .ri-text { font-variant-numeric: tabular-nums; white-space: nowrap; }
 
 
-/* 主题切换按钮 */
-.theme-btn {
-  background: var(--bg-card); border: 1px solid var(--border);
-  border-radius: 8px; width: 32px; height: 32px; cursor: pointer;
-  font-size: 15px; display: flex; align-items: center; justify-content: center;
-  transition: all 0.15s; color: var(--text);
+/* 顶栏图标按钮（无边框轮廓） */
+.icon-btn {
+  border: none; background: transparent; cursor: pointer;
+  color: var(--text-dim); padding: 4px; border-radius: 6px;
+  display: flex; align-items: center; justify-content: center;
+  transition: color .15s, background .15s;
 }
-.theme-btn:hover { border-color: var(--accent); }
+.icon-btn:hover { color: var(--accent); background: var(--bg-hover); }
 
 .clock { color: var(--text-dim); font-size: 13px; text-align: right; }
 .clock-sub { display: flex; align-items: center; justify-content: flex-end; gap: 8px; margin-top: 2px; }

@@ -12,12 +12,30 @@
     <!-- ── 通用：主题 / 刷新 / 图表 / 过滤 / 关于 ── -->
     <div v-if="settingsTab === 'general'" class="settings-grid">
     <div class="card">
-      <div class="card-title">主题与外观</div>
+      <div class="card-title">外观与过滤</div>
       <div class="setting-row">
         <span class="setting-label">颜色主题</span>
         <div class="setting-control">
-          <div class="tab" :class="{ active: !isLight }" @click="setTheme(false)">深色</div>
-          <div class="tab" :class="{ active: isLight }" @click="setTheme(true)">浅色</div>
+          <div class="tab" :class="{ active: themeMode === 'dark' }" @click="setTheme('dark')">深色</div>
+          <div class="tab" :class="{ active: themeMode === 'light' }" @click="setTheme('light')">浅色</div>
+          <div class="tab" :class="{ active: themeMode === 'system' }" @click="setTheme('system')">跟随系统</div>
+        </div>
+      </div>
+      <div class="setting-row">
+        <span class="setting-label">过滤标的</span>
+        <div class="setting-control" style="flex-wrap:wrap">
+          <label class="filter-opt" :class="{ on: hideKcb }">
+            <input type="checkbox" :checked="hideKcb" @change="toggleHide('hideKcb')"> 科创板
+          </label>
+          <label class="filter-opt" :class="{ on: hideCyb }">
+            <input type="checkbox" :checked="hideCyb" @change="toggleHide('hideCyb')"> 创业板
+          </label>
+          <label class="filter-opt" :class="{ on: hideSt }">
+            <input type="checkbox" :checked="hideSt" @change="toggleHide('hideSt')"> ST
+          </label>
+          <label class="filter-opt" :class="{ on: hideBse }">
+            <input type="checkbox" :checked="hideBse" @change="toggleHide('hideBse')"> 北交所
+          </label>
         </div>
       </div>
     </div>
@@ -74,23 +92,18 @@
     </div>
 
     <div class="card">
-      <div class="card-title">列表过滤（勾选后从各界面列表中隐藏）</div>
+      <div class="card-title">关于</div>
       <div class="setting-row">
-        <span class="setting-label">过滤标的</span>
-        <div class="setting-control" style="flex-wrap:wrap">
-          <label class="filter-opt" :class="{ on: hideKcb }">
-            <input type="checkbox" :checked="hideKcb" @change="toggleHide('hideKcb')"> 科创板
-          </label>
-          <label class="filter-opt" :class="{ on: hideCyb }">
-            <input type="checkbox" :checked="hideCyb" @change="toggleHide('hideCyb')"> 创业板
-          </label>
-          <label class="filter-opt" :class="{ on: hideSt }">
-            <input type="checkbox" :checked="hideSt" @change="toggleHide('hideSt')"> ST
-          </label>
-          <label class="filter-opt" :class="{ on: hideBse }">
-            <input type="checkbox" :checked="hideBse" @change="toggleHide('hideBse')"> 北交所
-          </label>
-        </div>
+        <span class="setting-label">版本</span>
+        <span class="setting-value">v1.1.0</span>
+      </div>
+      <div class="setting-row">
+        <span class="setting-label">数据来源</span>
+        <span class="setting-value">东方财富 / 腾讯 / 同花顺 / TickFlow 免费（K线兜底）</span>
+      </div>
+      <div class="setting-row">
+        <span class="setting-label">声明</span>
+        <span class="setting-value">仅供个人学习，不构成投资建议</span>
       </div>
     </div>
     </div>
@@ -320,10 +333,10 @@
 // @author ygw
 import { ref, onMounted } from 'vue'
 import { api } from '../api.js'
-import { settingsState, saveSetting, loadSettings } from '../composables/useSettings.js'
+import { settingsState, saveSetting, loadSettings, applyThemeMode } from '../composables/useSettings.js'
 import { watchState, clearWatch, importWatch } from '../composables/useWatchlist.js'
 
-const isLight = ref(false)
+const themeMode = ref('dark')
 const settingsTab = ref('general')
 const refreshInterval = ref(5)
 const offInterval = ref(30000)
@@ -377,12 +390,10 @@ const changeTypeOptions = [
 ]
 const DEFAULT_WATCH_TYPES = '8201,8202,8193,8204,4,64,8208,8210'
 
-function setTheme(light) {
-  isLight.value = light
-  document.body.classList.toggle('light', light)
-  localStorage.setItem('theme', light ? 'light' : 'dark')
-  window.dispatchEvent(new CustomEvent('theme-change', { detail: { light } }))
-  saveSetting('theme', light ? 'light' : 'dark')
+function setTheme(mode) {
+  themeMode.value = mode
+  applyThemeMode(mode)
+  saveSetting('theme', mode)
 }
 
 function setRefresh(sec) {
@@ -550,7 +561,7 @@ async function loadLogs() {
 }
 
 onMounted(async () => {
-  isLight.value = document.body.classList.contains('light')
+  themeMode.value = ['light', 'dark', 'system'].includes(settingsState.theme) ? settingsState.theme : 'dark'
   await loadSettings()
   refreshInterval.value = settingsState.refreshInterval
   offInterval.value = settingsState.offMarketInterval
@@ -604,11 +615,13 @@ onMounted(async () => {
 .sn-item.active { color: var(--accent); background: var(--accent-bg); border-color: var(--accent); font-weight: 600; }
 
 /* 通用组短卡片两列并排 */
-.settings-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; align-items: start; }
+.settings-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; align-items: start; }
+.settings-grid .card { padding: 12px 14px; }
+.settings-grid .card-title { margin-bottom: 6px; }
 @media (max-width: 1000px) { .settings-grid { grid-template-columns: 1fr; } }
 .setting-row {
   display: flex; align-items: center; justify-content: space-between;
-  padding: 12px 0; border-bottom: 1px solid var(--border);
+  padding: 8px 0; border-bottom: 1px solid var(--border); gap: 10px;
 }
 .setting-row:last-child { border-bottom: none; }
 .setting-label { font-size: 14px; color: var(--text); }

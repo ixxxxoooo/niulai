@@ -24,19 +24,9 @@
       </nav>
       <div class="topbar-right">
         <SearchSuggest placeholder="代码 / 名称 / 拼音，如 茅台、gzmt" @select="onSearchSelect" />
-        <button class="theme-btn" title="设置" @click="go('/settings')">
+        <button class="icon-btn" title="设置" @click="go('/settings')">
           <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true">
             <circle cx="12" cy="12" r="3" /><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09a1.65 1.65 0 0 0-1.08-1.51 1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09a1.65 1.65 0 0 0 1.51-1.08 1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1.08 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1.08z" />
-          </svg>
-        </button>
-        <button class="theme-btn" :title="isLight ? '切换到深色模式' : '切换到浅色模式'" @click="toggleTheme">
-          <!-- 深色模式显示太阳（点击切浅色）；浅色模式显示月亮（点击切深色） -->
-          <svg v-if="!isLight" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true">
-            <circle cx="12" cy="12" r="4" />
-            <path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41" />
-          </svg>
-          <svg v-else viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-            <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z" />
           </svg>
         </button>
         <div class="clock">
@@ -88,7 +78,7 @@ import { api } from './api.js'
 import { globalPollingState, setTradingState, triggerPrimaryRefresh } from './composables/usePolling.js'
 import { logAction } from './composables/useActionLog.js'
 import { loadWatchlist } from './composables/useWatchlist.js'
-import { loadSettings, saveSetting, migrateFromLocalStorage, settingsState } from './composables/useSettings.js'
+import { loadSettings, migrateFromLocalStorage, settingsState, applyThemeMode, resolveThemeLight } from './composables/useSettings.js'
 import { openStock } from './composables/useStockMeta.js'
 import SearchSuggest from './components/SearchSuggest.vue'
 import IndexTicker from './components/IndexTicker.vue'
@@ -125,17 +115,18 @@ const views = {
 const viewComp = shallowRef(views[route.value.name] || Overview)
 
 // ---------- 主题 ----------
-function applyTheme(light) {
-  isLight.value = light
-  document.body.classList.toggle('light', light)
-  localStorage.setItem('theme', light ? 'light' : 'dark')
-  settingsState.theme = light ? 'light' : 'dark'
-  window.dispatchEvent(new CustomEvent('theme-change', { detail: { light } }))
+function applyTheme(mode) {
+  isLight.value = applyThemeMode(mode)
 }
-function toggleTheme() {
-  applyTheme(!isLight.value)
-  saveSetting('theme', isLight.value ? 'light' : 'dark')
-  logAction('theme_toggle', '', isLight.value ? 'light' : 'dark')
+
+// 跟随系统：系统主题变化时自动切换
+let mql = null
+function onSystemTheme() {
+  if (settingsState.theme === 'system') {
+    isLight.value = resolveThemeLight('system')
+    document.body.classList.toggle('light', isLight.value)
+    window.dispatchEvent(new CustomEvent('theme-change', { detail: { light: isLight.value, mode: 'system' } }))
+  }
 }
 
 // ---------- 路由 ----------
@@ -182,15 +173,19 @@ async function tickSession() {
 
 onMounted(async () => {
   const saved = localStorage.getItem('theme')
-  applyTheme(saved === 'light')
+  applyTheme(['light', 'dark', 'system'].includes(saved) ? saved : 'dark')
   window.addEventListener('hashchange', onHash)
   logAction('page_view', route.value.name, location.hash || '#/')
   try {
     await migrateFromLocalStorage()
     await loadSettings()
-    applyTheme(settingsState.theme === 'light')
+    applyTheme(settingsState.theme || 'dark')
     await loadWatchlist()
   } catch (e) { /* 迁移/加载失败不阻塞页面 */ }
+  try {
+    mql = window.matchMedia('(prefers-color-scheme: light)')
+    mql.addEventListener('change', onSystemTheme)
+  } catch (e) { /* 老浏览器不支持 */ }
   tickClock()
   tickSession()
   clockTimer = setInterval(tickClock, 1000)
@@ -202,5 +197,6 @@ onUnmounted(() => {
   clearInterval(clockTimer)
   clearInterval(sessionTimer)
   stopAlertWatcher()
+  if (mql && mql.removeEventListener) mql.removeEventListener('change', onSystemTheme)
 })
 </script>

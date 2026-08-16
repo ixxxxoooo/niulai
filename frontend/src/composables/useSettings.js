@@ -57,6 +57,36 @@ export async function loadSettings() {
 }
 
 /**
+ * 主题模式生效时的亮色判断：light=true / dark=false / system=跟随系统
+ * @param {string} mode
+ * @returns {boolean}
+ */
+export function resolveThemeLight(mode) {
+  if (mode === 'light') return true
+  if (mode === 'dark') return false
+  try {
+    return window.matchMedia('(prefers-color-scheme: light)').matches
+  } catch (e) {
+    return false
+  }
+}
+
+/**
+ * 应用主题模式（dark/light/system），同步 body class + localStorage + 内存状态 + 事件
+ * @param {string} mode
+ * @returns {boolean} 生效的亮色
+ */
+export function applyThemeMode(mode = 'system') {
+  const m = ['light', 'dark', 'system'].includes(mode) ? mode : 'system'
+  const light = resolveThemeLight(m)
+  document.body.classList.toggle('light', light)
+  localStorage.setItem('theme', m)
+  settingsState.theme = m
+  window.dispatchEvent(new CustomEvent('theme-change', { detail: { light, mode: m } }))
+  return light
+}
+
+/**
  * 写入单条设置
  * @param {string} key
  * @param {string|number} value
