@@ -98,6 +98,27 @@
         </div>
       </div>
     </div>
+    <!-- 贵金属 / 工业金属 -->
+    <div class="card mt16" ref="metalCard">
+      <div class="card-title" style="display:flex;align-items:center;justify-content:space-between">
+        <span>贵金属 / 工业金属</span>
+        <button class="btn-screenshot" @click="captureElement(metalCard, '贵金属工业金属.png')" title="截图">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="12" cy="12" r="3"/></svg>
+        </button>
+      </div>
+      <div class="theme-grid">
+        <div v-for="b in metalBoards" :key="b.key" class="theme-item">
+          <div class="theme-name">{{ b.name }}</div>
+          <div class="theme-pct" :class="pctClass(b.change_pct)">{{ fmtPct(b.change_pct) }}</div>
+          <div class="theme-pop">
+            <div v-for="s in b.stocks" :key="s.secid" class="pop-row">
+              <span class="pop-name">{{ s.name }}</span>
+              <span class="pop-pct" :class="pctClass(s.change_pct)">{{ s.change_pct != null ? fmtPct(s.change_pct) : '—' }}</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
   </div>
 </template>
 
@@ -113,6 +134,7 @@ const idxCard = ref(null)
 const usCard = ref(null)
 const jpCard = ref(null)
 const krCard = ref(null)
+const metalCard = ref(null)
 
 const indices = ref([])
 const allBoards = ref([])
@@ -125,6 +147,7 @@ const apIndices = computed(() => indices.value.filter(q => q.region !== '美股'
 const usBoards = computed(() => allBoards.value.filter(b => b.region === 'us'))
 const jpBoards = computed(() => allBoards.value.filter(b => b.region === 'jp'))
 const krBoards = computed(() => allBoards.value.filter(b => b.region === 'kr'))
+const metalBoards = computed(() => allBoards.value.filter(b => b.region === 'metal'))
 
 function goIndex(q) {
   const secid = q.secid
