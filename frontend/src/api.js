@@ -52,6 +52,13 @@ export const api = {
   kaipanlaSectorStrength: (code) => get(`/kaipanla/sector-strength?code=${encodeURIComponent(code)}`),
   kaipanlaSectorIntraday: (code) => get(`/kaipanla/sector-intraday?code=${encodeURIComponent(code)}`),
   kaipanlaSectorCodes: () => get('/kaipanla/sector-codes'),
+
+  // 申万行业分类（2021 版，本地入库）
+  swIndustries: (level = 1, parent = '') => get(`/meta/sw/industries?level=${level}${parent ? `&parent=${encodeURIComponent(parent)}` : ''}`),
+  swStocks: (code) => get(`/meta/sw/stocks?code=${encodeURIComponent(code)}`),
+  swCount: () => get('/meta/sw/count'),
+  swSync: () => send('POST', '/meta/sw/sync'),
+  swSyncStatus: () => get('/meta/sw/sync/status'),
   sectors: (type = 'industry', sort = 'change_pct', limit = 100) =>
     get(`/sectors?type=${type}&sort=${sort}&limit=${limit}`),
   sectorDetail: (code, limit = 100, sort = 'change_pct') =>

@@ -26,6 +26,16 @@ async def lifespan(app: FastAPI):
     ensure_tables()
     if seat_count() == 0:
         init_builtin_seats()
+    # 申万行业 / 东财板块表：空则后台自动同步
+    import threading
+    from .db.sw_industry import ensure_tables as sw_ensure, sw_count as sw_count, start_sw_sync
+    from .db.sectors import ensure_tables as sec_ensure, sector_count as sec_count, sync_sectors
+    sw_ensure()
+    sec_ensure()
+    if sw_count() == 0:
+        start_sw_sync()
+    if sec_count() == 0:
+        threading.Thread(target=sync_sectors, daemon=True).start()
     logger.info("SQLite 已就绪 stocks=%s updated=%s seats=%s",
                 db.stock_count(), db.stocks_updated_at(), seat_count())
     start_background_sync()
