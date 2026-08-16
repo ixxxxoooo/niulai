@@ -18,7 +18,7 @@
             <a :class="{ active: route.name === 'sectors' && route.strength }" @click="go('/sectors/strength'); sectorMenu = false">板块强度</a>
           </div>
         </span>
-        <a :class="{ active: route.name === 'rank' }" @click="go('/rank')">热门与资金</a>
+        <a :class="{ active: route.name === 'rank' }" @click="go('/rank')">榜单</a>
         <a :class="{ active: route.name === 'ladder' }" @click="go('/ladder')">连板梯队</a>
         <a :class="{ active: route.name === 'watchlist' }" @click="go('/watchlist')">自选股</a>
         <a :class="{ active: route.name === 'alerts' }" @click="go('/alerts')">监控</a>
@@ -86,7 +86,7 @@
         <a class="side-sub" :class="{ active: route.name === 'sectors' && !route.flow && !route.strength }" @click="go('/sectors')">板块分析</a>
         <a class="side-sub" :class="{ active: route.name === 'sectors' && route.flow }" @click="go('/sectors/flow')">板块资金</a>
         <a class="side-sub" :class="{ active: route.name === 'sectors' && route.strength }" @click="go('/sectors/strength')">板块强度</a>
-        <a :class="{ active: route.name === 'rank' }" @click="go('/rank')">热门与资金</a>
+        <a :class="{ active: route.name === 'rank' }" @click="go('/rank')">榜单</a>
         <a :class="{ active: route.name === 'ladder' }" @click="go('/ladder')">连板梯队</a>
         <a :class="{ active: route.name === 'watchlist' }" @click="go('/watchlist')">自选股</a>
         <a :class="{ active: route.name === 'alerts' }" @click="go('/alerts')">监控</a>
@@ -97,7 +97,7 @@
         <a :class="{ active: route.name === 'overview' }" @click="go('/')" title="盘面总览">盘</a>
         <a :class="{ active: route.name === 'global' }" @click="go('/global')" title="全球">全</a>
         <a :class="{ active: route.name === 'sectors' }" @click="go('/sectors')" title="板块分析">板</a>
-        <a :class="{ active: route.name === 'rank' }" @click="go('/rank')" title="热门与资金">热</a>
+        <a :class="{ active: route.name === 'rank' }" @click="go('/rank')" title="榜单">热</a>
         <a :class="{ active: route.name === 'ladder' }" @click="go('/ladder')" title="连板梯队">连</a>
         <a :class="{ active: route.name === 'watchlist' }" @click="go('/watchlist')" title="自选股">自</a>
         <a :class="{ active: route.name === 'alerts' }" @click="go('/alerts')" title="监控">监</a>
