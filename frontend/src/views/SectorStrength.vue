@@ -23,16 +23,7 @@
             <template v-for="(it, i) in items" :key="it.code">
               <tr>
                 <td class="kpl-rank" :class="rankClass(i)">{{ i + 1 }}</td>
-                <td class="stock-name">
-                  {{ it.name }}
-                  <span
-                    v-if="hasSub(it)"
-                    class="sub-toggle"
-                    :class="{ open: it._open }"
-                    :title="it._open ? '收起子板块' : '展开子板块'"
-                    @click="toggleSub(it)"
-                  >▾</span>
-                </td>
+                <td class="stock-name">{{ it.name }}</td>
                 <td><span class="kpl-strength" :class="strengthClass(it.strength)">{{ it.strength != null ? it.strength.toFixed(0) : '—' }}</span></td>
                 <td :class="pctClass(it.change_pct)">{{ it.change_pct != null ? fmtPct(it.change_pct) : '—' }}</td>
                 <td><span class="kpl-lb">{{ it.limit_up_count }}</span></td>
@@ -47,33 +38,6 @@
                       <span class="kpl-leader" :title="`查看 ${s.name}`" @click="openFromStrength(s)">{{ s.name }}</span>
                     </MiniTrend>
                   </span>
-                </td>
-              </tr>
-              <tr v-if="it._open && hasSub(it)" class="kpl-sub-row">
-                <td colspan="7">
-                  <div class="kpl-sub-head">
-                    <span>子板块</span>
-                    <span style="font-weight:400;color:var(--text-dim);font-size:11px" data-tip="子板块涨跌幅/主力净额取自东财对应概念板块，封单额为子板块涨停股封单合计">数据说明</span>
-                  </div>
-                  <table class="data-table kpl-sub-table">
-                    <thead><tr><th>子板块</th><th>涨跌幅</th><th>涨停</th><th>封单额</th><th>主力净额</th><th>领涨股</th></tr></thead>
-                    <tbody>
-                      <tr v-for="sub in it.sub_sectors" :key="sub.name">
-                        <td class="stock-name">{{ sub.name }}</td>
-                        <td :class="pctClass(sub.change_pct)">{{ sub.change_pct != null ? fmtPct(sub.change_pct) : '—' }}</td>
-                        <td><span class="kpl-lb">{{ sub.count }}</span></td>
-                        <td :class="pctClass(sub.seal_amount)">{{ fmtAmount(sub.seal_amount) }}</td>
-                        <td :class="pctClass(sub.main_inflow)">{{ fmtAmount(sub.main_inflow) }}</td>
-                        <td>
-                          <span v-for="s in sub.top_stocks" :key="s.code" class="kpl-leader-host">
-                            <MiniTrend :code="s.code" :name="s.name">
-                              <span class="kpl-leader" :title="`查看 ${s.name}`" @click="openFromStrength(s)">{{ s.name }}</span>
-                            </MiniTrend>
-                          </span>
-                        </td>
-                      </tr>
-                    </tbody>
-                  </table>
                 </td>
               </tr>
             </template>
@@ -107,7 +71,7 @@ async function doScreenshot() {
 async function load() {
   try {
     const d = await api.kaipanlaSectorStrengths()
-    items.value = (d.items || []).map(it => ({ ...it, _open: true }))
+    items.value = d.items || []
     kplDate.value = d.date || ''
     error.value = ''
   } catch (e) {
@@ -124,12 +88,6 @@ function strengthClass(v) {
   if (v >= 3000) return 's-low'
   return ''
 }
-
-// 子板块只在板块强度较高且存在子板块时展示
-function hasSub(it) {
-  return it.strength != null && it.strength >= 5000 && it.sub_sectors && it.sub_sectors.length > 0
-}
-function toggleSub(it) { it._open = !it._open }
 
 function openFromStrength(st) {
   if (st && st.code) openStock({ code: st.code, name: st.name }, { origin: '/sectors/strength', originLabel: '返回板块强度' })
@@ -163,15 +121,4 @@ usePolling(load, 30000)
   cursor: pointer; white-space: nowrap; border: 1px solid transparent;
 }
 .kpl-leader:hover { border-color: var(--accent); }
-.sub-toggle {
-  cursor: pointer; color: var(--text-dim); margin-left: 4px;
-  display: inline-block; font-size: 12px; transition: transform .15s, color .15s;
-}
-.sub-toggle:hover { color: var(--accent); }
-.sub-toggle.open { transform: rotate(180deg); color: var(--accent); }
-.kpl-sub-row td { background: var(--bg-hover); padding: 8px 12px; }
-.kpl-sub-head { display: flex; align-items: center; gap: 8px; font-size: 12px; font-weight: 600; color: var(--text-dim); padding: 2px 0 6px; }
-.kpl-sub-table { margin: 0; }
-.kpl-sub-table th, .kpl-sub-table td { padding: 4px 10px; font-size: 12px; }
-.kpl-sub-table .stock-name { white-space: nowrap; }
 </style>
