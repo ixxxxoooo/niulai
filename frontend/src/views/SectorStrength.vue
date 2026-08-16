@@ -26,7 +26,7 @@
                 <td class="stock-name">
                   {{ it.name }}
                   <span
-                    v-if="it.sub_sectors && it.sub_sectors.length"
+                    v-if="hasSub(it)"
                     class="sub-toggle"
                     :class="{ open: it._open }"
                     :title="it._open ? '收起子板块' : '展开子板块'"
@@ -49,29 +49,31 @@
                   </span>
                 </td>
               </tr>
-              <tr v-if="it._open" class="kpl-sub-row">
+              <tr v-if="it._open && hasSub(it)" class="kpl-sub-row">
                 <td colspan="7">
-                  <div class="kpl-sub-wrap">
-                    <span
-                      v-for="sub in (it.sub_sectors || [])"
-                      :key="sub.name"
-                      class="sub-chip"
-                      :class="{ on: it._activeSub === sub.name }"
-                      @click="toggleSubStock(it, sub)"
-                    >{{ sub.name }} <b>×{{ sub.count }}</b></span>
-                    <div v-if="it._activeSub" class="sub-stocks">
-                      <span
-                        v-for="st in subStocks(it, it._activeSub)"
-                        :key="st.code"
-                        class="kpl-leader-host"
-                      >
-                        <MiniTrend :code="st.code" :name="st.name">
-                          <span class="kpl-leader" :title="`查看 ${st.name}`" @click="openFromStrength(st)">{{ st.name }}</span>
-                        </MiniTrend>
-                      </span>
-                    </div>
-                    <div v-else class="kpl-sub-tip">点击上方子板块查看对应涨停股</div>
+                  <div class="kpl-sub-head">
+                    <span>子板块</span>
+                    <span style="font-weight:400;color:var(--text-dim);font-size:11px" data-tip="子板块涨跌幅/主力净额取自东财对应概念板块，封单额为子板块涨停股封单合计">数据说明</span>
                   </div>
+                  <table class="data-table kpl-sub-table">
+                    <thead><tr><th>子板块</th><th>涨跌幅</th><th>涨停</th><th>封单额</th><th>主力净额</th><th>领涨股</th></tr></thead>
+                    <tbody>
+                      <tr v-for="sub in it.sub_sectors" :key="sub.name">
+                        <td class="stock-name">{{ sub.name }}</td>
+                        <td :class="pctClass(sub.change_pct)">{{ sub.change_pct != null ? fmtPct(sub.change_pct) : '—' }}</td>
+                        <td><span class="kpl-lb">{{ sub.count }}</span></td>
+                        <td :class="pctClass(sub.seal_amount)">{{ fmtAmount(sub.seal_amount) }}</td>
+                        <td :class="pctClass(sub.main_inflow)">{{ fmtAmount(sub.main_inflow) }}</td>
+                        <td>
+                          <span v-for="s in sub.top_stocks" :key="s.code" class="kpl-leader-host">
+                            <MiniTrend :code="s.code" :name="s.name">
+                              <span class="kpl-leader" :title="`查看 ${s.name}`" @click="openFromStrength(s)">{{ s.name }}</span>
+                            </MiniTrend>
+                          </span>
+                        </td>
+                      </tr>
+                    </tbody>
+                  </table>
                 </td>
               </tr>
             </template>
@@ -105,7 +107,7 @@ async function doScreenshot() {
 async function load() {
   try {
     const d = await api.kaipanlaSectorStrengths()
-    items.value = d.items || []
+    items.value = (d.items || []).map(it => ({ ...it, _open: true }))
     kplDate.value = d.date || ''
     error.value = ''
   } catch (e) {
@@ -123,19 +125,14 @@ function strengthClass(v) {
   return ''
 }
 
+// 子板块只在板块强度较高且存在子板块时展示
+function hasSub(it) {
+  return it.strength != null && it.strength >= 5000 && it.sub_sectors && it.sub_sectors.length > 0
+}
+function toggleSub(it) { it._open = !it._open }
+
 function openFromStrength(st) {
   if (st && st.code) openStock({ code: st.code, name: st.name }, { origin: '/sectors/strength', originLabel: '返回板块强度' })
-}
-
-function toggleSub(it) {
-  it._open = !it._open
-  if (!it._open) it._activeSub = ''
-}
-function toggleSubStock(it, sub) {
-  it._activeSub = it._activeSub === sub.name ? '' : sub.name
-}
-function subStocks(it, subName) {
-  return (it.stocks || []).filter(st => (st.concepts || '').includes(subName))
 }
 
 usePolling(load, 30000)
@@ -173,15 +170,8 @@ usePolling(load, 30000)
 .sub-toggle:hover { color: var(--accent); }
 .sub-toggle.open { transform: rotate(180deg); color: var(--accent); }
 .kpl-sub-row td { background: var(--bg-hover); padding: 8px 12px; }
-.kpl-sub-wrap { display: flex; flex-wrap: wrap; align-items: center; gap: 4px; }
-.sub-chip {
-  display: inline-block; font-size: 12px; padding: 2px 10px; margin: 2px 2px 2px 0;
-  border-radius: 12px; background: var(--bg-card); border: 1px solid var(--border);
-  cursor: pointer; white-space: nowrap; transition: border-color .15s, color .15s;
-}
-.sub-chip:hover { border-color: var(--accent); color: var(--accent); }
-.sub-chip.on { background: var(--accent-bg); color: var(--accent); border-color: var(--accent); font-weight: 600; }
-.sub-chip b { font-variant-numeric: tabular-nums; }
-.sub-stocks { display: flex; flex-wrap: wrap; width: 100%; margin-top: 6px; padding-top: 6px; border-top: 1px dashed var(--border); }
-.kpl-sub-tip { width: 100%; font-size: 11px; color: var(--text-dim); padding: 4px 0 0; }
+.kpl-sub-head { display: flex; align-items: center; gap: 8px; font-size: 12px; font-weight: 600; color: var(--text-dim); padding: 2px 0 6px; }
+.kpl-sub-table { margin: 0; }
+.kpl-sub-table th, .kpl-sub-table td { padding: 4px 10px; font-size: 12px; }
+.kpl-sub-table .stock-name { white-space: nowrap; }
 </style>

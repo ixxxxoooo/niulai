@@ -263,6 +263,89 @@ def _sub_sectors(stocks: list) -> list:
     return [{"name": n, "count": cnt} for n, cnt in c.most_common()][:12]
 
 
+# 东财概念板块列表（每日缓存），用于给子板块补涨跌幅/主力净额
+_em_concept_cache: List[dict] = []
+_em_concept_ts = 0.0
+_em_concept_lock = threading.Lock()
+
+
+def _em_concepts() -> list:
+    """东财概念板块全量（code/name/change_pct/main_inflow），每日缓存。失败返回 []。"""
+    global _em_concept_cache, _em_concept_ts
+    now = time.monotonic()
+    with _em_concept_lock:
+        if _em_concept_cache and now - _em_concept_ts < 86400:
+            return _em_concept_cache
+        try:
+            from ..datasource import eastmoney
+            rows = eastmoney.get_client().sector_list("concept", 500, sort_by="main_inflow")
+            items = [{
+                "name": s.name or "",
+                "change_pct": s.change_pct,
+                "main_inflow": s.main_inflow,
+            } for s in rows if s.name]
+            if items:
+                _em_concept_cache = items
+                _em_concept_ts = now
+            return _em_concept_cache
+        except Exception:
+            return _em_concept_cache
+
+
+# 子板块名 → 东财概念板块名 别名（概念标签与东财板块命名差异）
+_EM_ALIAS = {
+    "光模块": "光通信模块",
+    "光芯片": "光通信模块",
+    "MPO": "CPO概念",
+    "CPO": "CPO概念",
+    "液冷": "液冷概念",
+    "覆铜板": "覆铜板",
+    "PCB": "PCB概念",
+    "存储": "存储芯片",
+}
+
+
+def _match_em_sector(name: str) -> Optional[dict]:
+    """按名称匹配东财概念板块（别名→精确→双向包含），用于子板块涨跌幅/主力净额。"""
+    if not name:
+        return None
+    cands = [name, _EM_ALIAS.get(name, "")]
+    for c in cands:
+        if not c:
+            continue
+        for s in _em_concepts():
+            if s["name"] == c:
+                return s
+    for s in _em_concepts():
+        if name in s["name"] or s["name"] in name:
+            return s
+    return None
+
+def _build_sub_sectors(stocks: list) -> list:
+    """涨停股 concepts 聚合子板块，并补东财概念板块的涨跌幅/主力净额、封单合计、领涨股。"""
+    from collections import defaultdict
+    groups: dict = defaultdict(list)
+    for st in stocks:
+        raw = (st.get("concepts") or "").replace("、", ",").replace("/", ",").replace("，", ",")
+        for tag in raw.split(","):
+            tag = tag.strip()
+            if tag:
+                groups[tag].append(st)
+    out = []
+    for name, sts in groups.items():
+        em = _match_em_sector(name)
+        out.append({
+            "name": name,
+            "count": len(sts),
+            "change_pct": (em or {}).get("change_pct"),
+            "main_inflow": (em or {}).get("main_inflow"),
+            "seal_amount": sum((x.get("seal_amount") or 0) for x in sts),
+            "top_stocks": [{"code": x["code"], "name": (x["name"] or "").strip()} for x in sts[:6]],
+        })
+    out.sort(key=lambda x: -x["count"])
+    return out[:12]
+
+
 def sector_strengths(date: Optional[str] = None) -> Optional[dict]:
     """板块强度榜：当日有涨停的板块列表 + 各板块强度，按强度降序。
 
@@ -297,9 +380,7 @@ def sector_strengths(date: Optional[str] = None) -> Optional[dict]:
             "amount": (cap or {}).get("amount"),
             "up_count": (cap or {}).get("up_count"),
             "down_count": (cap or {}).get("down_count"),
-            "sub_sectors": _sub_sectors(stocks),
-            "stocks": [{"code": st["code"], "name": (st["name"] or "").strip(),
-                        "concepts": st.get("concepts") or ""} for st in stocks],
+            "sub_sectors": _build_sub_sectors(stocks),
             "top_stocks": [{"code": st["code"], "name": (st["name"] or "").strip()} for st in stocks[:6]],
         }
 
