@@ -66,7 +66,7 @@
                     <span v-if="p.zb_count" class="zt-zb-badge" :title="`今日炸板 ${p.zb_count} 次，点击查看连板梯队`" @click.stop="goLadder()">炸{{ p.zb_count }}</span>
                   </span>
                 </td>
-                <td>{{ p.industry || '-' }}</td>
+                <td><span class="rank-industry" @click.stop="gotoIndustry(p.industry)">{{ p.industry || '-' }}</span></td>
                 <td :class="pctClass(p.seal_amount)">{{ fmtAmount(p.seal_amount) }}</td>
                 <td>{{ p.first_time || '-' }}</td>
                 <td>
@@ -232,6 +232,14 @@ function lbcLabel(n) {
   return v + '连板'
 }
 
+async function gotoIndustry(name) {
+  if (!name) return
+  try {
+    const res = await api.sectorConceptCode(name, 'industry')
+    if (res && res.code) navigate(`/sector/${res.code}`)
+  } catch (e) { /* 无映射时忽略 */ }
+}
+
 const rows = ref([])
 const etfTotal = ref(0)
 const lhbDate = ref('')
@@ -354,4 +362,8 @@ usePolling(load, 3000)
   padding: 1px 8px; cursor: pointer; white-space: nowrap;
 }
 .zt-zb-badge:hover { filter: brightness(1.1); box-shadow: 0 0 0 1px var(--yellow); }
+.rank-industry {
+  font-weight: 700; cursor: pointer; white-space: nowrap; color: var(--accent);
+}
+.rank-industry:hover { text-decoration: underline; filter: brightness(1.15); }
 </style>

@@ -418,7 +418,10 @@ const signalTags = computed(() => {
     else tags.push({ label: `主力流出 -${fmtV(absAmt)}`, cls: 'sig-down', desc: `超大单+大单净卖出${fmtV(absAmt)}，与下方主力资金流一致。持续流出压制股价；注意是否加速下跌` })
   }
   if (detail.limit_up != null && price != null) {
-    if (price >= detail.limit_up) tags.push({ label: '涨停', cls: 'sig-up sig-hot', desc: '已达涨停价，多方极强。关注封单量与开板次数，封死则次日高开概率大' })
+    const hasLb = limitTag.value && limitTag.value.kind === 'zt'
+    if (price >= detail.limit_up) {
+      if (!hasLb) tags.push({ label: '涨停', cls: 'sig-up sig-hot', desc: '已达涨停价，多方极强。关注封单量与开板次数，封死则次日高开概率大' })
+    }
     else if (price >= detail.limit_up * 0.97) {
       const pct = ((detail.limit_up - price) / price * 100).toFixed(1)
       tags.push({ label: `逼近涨停 ${pct}%`, cls: 'sig-up', desc: `距涨停仅${pct}%，有冲板意图。若量能跟上可能封板；关注封板资金量` })

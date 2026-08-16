@@ -35,6 +35,9 @@
               <span v-if="row.volume_ratio != null && row.volume_ratio > 1.5" class="vol-tag up">放量</span>
               <span v-else-if="row.volume_ratio != null && row.volume_ratio < 0.8" class="vol-tag down">缩量</span>
             </template>
+            <template v-else-if="c.key === 'industry'">
+              <span class="industry-link" :class="pctClass(row.change_pct)" @click.stop="gotoIndustry(row)">{{ row.industry || '-' }}</span>
+            </template>
             <template v-else>{{ fmtCell(row, c) }}</template>
           </td>
         </tr>
@@ -52,8 +55,19 @@ import { fmtAmount, fmtPrice, fmtPct, fmtNum, pctClass } from '../utils.js'
 import { tip } from '../indicatorTips.js'
 import { logAction } from '../composables/useActionLog.js'
 import { applyListFilter } from '../composables/useListFilter.js'
+import { navigate } from '../router.js'
+import { api } from '../api.js'
 import MiniTrend from './MiniTrend.vue'
 import BoardBadges from './BoardBadges.vue'
+
+async function gotoIndustry(row) {
+  const name = row.industry
+  if (!name) return
+  try {
+    const res = await api.sectorConceptCode(name, 'industry')
+    if (res && res.code) navigate(`/sector/${res.code}`)
+  } catch (e) { /* 无映射时忽略 */ }
+}
 
 function colTip(key) { return tip(key) }
 
@@ -127,4 +141,9 @@ th.sorted { color: var(--accent); }
 }
 .vol-tag.up { background: var(--up-bg); color: var(--up); }
 .vol-tag.down { background: var(--down-bg); color: var(--down); }
+.industry-link {
+  font-weight: 700; cursor: pointer; white-space: nowrap;
+  color: var(--accent);
+}
+.industry-link:hover { text-decoration: underline; filter: brightness(1.15); }
 </style>
