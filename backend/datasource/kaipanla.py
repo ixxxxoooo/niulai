@@ -222,6 +222,33 @@ def sector_codes() -> Dict[str, str]:
         return dict(_sector_map)
 
 
+def sector_capital(code: str, date: Optional[str] = None) -> Optional[dict]:
+    """板块资金盘口（GetPanKou）：成交额/涨跌幅/主力净额/涨跌家数。失败返回 None。
+
+    pankou 数组：0成交额 1涨跌幅 2市值 3主力净额 4主卖 5净额 6上涨 7下跌 8平盘 9流通市值 10总市值 11换手率
+    """
+    result = _post(REAL_URL if date is None else HIS_URL, {
+        "a": "GetPanKou",
+        "c": "ZhiShuL2Data",
+        "StockID": code,
+        "Day": date or "",
+    }, delay=0.2)
+    if not result or result.get("errcode") != "0":
+        return None
+    p = result.get("pankou") or []
+    if len(p) < 11:
+        return None
+    return {
+        "code": result.get("code", code),
+        "date": result.get("date", date or _today()),
+        "amount": float(p[0]) if p[0] else 0,
+        "change_pct": float(p[1]) if p[1] else 0,
+        "main_inflow": float(p[3]) if p[3] else 0,
+        "up_count": int(p[6]) if p[6] else 0,
+        "down_count": int(p[7]) if p[7] else 0,
+    }
+
+
 def sector_strengths(date: Optional[str] = None) -> Optional[dict]:
     """板块强度榜：当日有涨停的板块列表 + 各板块强度，按强度降序。
 
@@ -244,13 +271,17 @@ def sector_strengths(date: Optional[str] = None) -> Optional[dict]:
 
     def _one(sec: dict) -> dict:
         strength = sector_strength(sec["code"], date)
-        main = sum((st.get("main_inflow") or 0) for st in sec.get("stocks") or [])
+        cap = sector_capital(sec["code"], date)
         return {
             "code": sec["code"],
             "name": sec["name"],
             "strength": strength,
             "limit_up_count": sec.get("stock_count") or len(sec.get("stocks") or []),
-            "main_inflow": main,
+            "main_inflow": (cap or {}).get("main_inflow"),
+            "change_pct": (cap or {}).get("change_pct"),
+            "amount": (cap or {}).get("amount"),
+            "up_count": (cap or {}).get("up_count"),
+            "down_count": (cap or {}).get("down_count"),
             "top_stocks": [{"code": st["code"], "name": (st["name"] or "").strip()} for st in (sec.get("stocks") or [])[:6]],
         }
 

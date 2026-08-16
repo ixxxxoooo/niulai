@@ -16,7 +16,7 @@
         <table class="data-table">
           <thead>
             <tr>
-              <th>#</th><th>板块</th><th>强度</th><th>涨停</th><th>主力净额</th><th>领涨股</th>
+              <th>#</th><th>板块</th><th>强度</th><th>涨跌幅</th><th>涨停</th><th>主力净额</th><th>领涨股</th>
             </tr>
           </thead>
           <tbody>
@@ -24,6 +24,7 @@
               <td class="kpl-rank" :class="rankClass(i)">{{ i + 1 }}</td>
               <td class="stock-name">{{ it.name }}</td>
               <td><span class="kpl-strength" :class="strengthClass(it.strength)">{{ it.strength != null ? it.strength.toFixed(0) : '—' }}</span></td>
+              <td :class="pctClass(it.change_pct)">{{ it.change_pct != null ? fmtPct(it.change_pct) : '—' }}</td>
               <td><span class="kpl-lb">{{ it.limit_up_count }}</span></td>
               <td :class="pctClass(it.main_inflow)">{{ fmtAmount(it.main_inflow) }}</td>
               <td>
@@ -50,7 +51,7 @@
 // @author ygw
 import { ref } from 'vue'
 import { api } from '../api.js'
-import { fmtAmount, pctClass } from '../utils.js'
+import { fmtAmount, fmtPct, pctClass } from '../utils.js'
 import { usePolling } from '../composables/usePolling.js'
 import { openStock } from '../composables/useStockMeta.js'
 import MiniTrend from '../components/MiniTrend.vue'
