@@ -45,6 +45,12 @@ export const api = {
   overview: () => get('/market/overview'),
   marketVolume: () => get('/market/volume'),
   indicesTrends: () => get('/market/indices-trends'),
+
+  // 开盘啦（抓包接口，容错降级）
+  kaipanlaLimitUpSectors: (date = '') => get(`/kaipanla/limit-up-sectors?date=${date}`),
+  kaipanlaSectorStrength: (code) => get(`/kaipanla/sector-strength?code=${encodeURIComponent(code)}`),
+  kaipanlaSectorIntraday: (code) => get(`/kaipanla/sector-intraday?code=${encodeURIComponent(code)}`),
+  kaipanlaSectorCodes: () => get('/kaipanla/sector-codes'),
   sectors: (type = 'industry', sort = 'change_pct', limit = 100) =>
     get(`/sectors?type=${type}&sort=${sort}&limit=${limit}`),
   sectorDetail: (code, limit = 100, sort = 'change_pct') =>

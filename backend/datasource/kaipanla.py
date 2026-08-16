@@ -1,0 +1,222 @@
+"""开盘啦（kaipanla）数据层：抓包私有接口，容错降级、低频调用。
+
+说明：
+- 数据来自开盘啦 App 私有接口（longhuvip.com），仅供个人研究、低频使用；
+- 任何异常一律返回 None/空，绝不影响现有功能；
+- config.KAIPANLA_ENABLED=False 时全部返回空（一键关闭）。
+@author ygw
+"""
+import threading
+import time
+import uuid
+from datetime import datetime
+from typing import Dict, List, Optional
+
+import httpx
+
+from .. import config
+from ..logging_config import logger
+
+HIS_URL = "https://apphis.longhuvip.com/w1/api/index.php"    # 历史数据
+REAL_URL = "https://apphwhq.longhuvip.com/w1/api/index.php"  # 实时数据
+
+HEADERS = {
+    "Content-Type": "application/x-www-form-urlencoded; charset=UTF-8",
+    "User-Agent": "Dalvik/2.1.0 (Linux; U; Android 9; SHARK PRS-A0 Build/PQ3A.190605.01141736)",
+    "Accept-Encoding": "gzip",
+}
+
+
+def _enabled() -> bool:
+    """总开关：False 时整体停用。"""
+    return bool(getattr(config, "KAIPANLA_ENABLED", True))
+
+
+def _post(url: str, data: dict, timeout: float = 6.0, delay: float = 0.0) -> Optional[dict]:
+    """开盘啦 POST 请求（uuid 设备号 + apiv 版本），失败返回 None。"""
+    if not _enabled():
+        return None
+    if delay:
+        time.sleep(delay)
+    params = {"apiv": "w42", "PhoneOSNew": "1", "VerSion": "5.21.0.2"}
+    body = {
+        "apiv": "w42",
+        "PhoneOSNew": "1",
+        "VerSion": "5.21.0.2",
+        "DeviceID": str(uuid.uuid4()),
+    }
+    body.update(data)
+    try:
+        resp = httpx.post(
+            url, params=params, data=body, headers=HEADERS,
+            timeout=timeout, verify=False,
+        )
+        resp.raise_for_status()
+        return resp.json()
+    except Exception as e:  # noqa: BLE001 - 抓包接口异常不扩散
+        logger.debug("开盘啦请求失败 %s: %s", url, e)
+        return None
+
+
+def _today() -> str:
+    return datetime.now().strftime("%Y-%m-%d")
+
+
+def _fmt_seal_time(raw) -> str:
+    """封板时间：20.41 → 20:24。"""
+    if raw in (None, ""):
+        return ""
+    try:
+        hour = int(raw)
+        minute = int(round((raw - hour) * 60))
+        if minute >= 60:
+            hour += minute // 60
+            minute = minute % 60
+        if 0 <= hour <= 23:
+            return f"{hour:02d}:{minute:02d}"
+    except Exception:
+        pass
+    return str(raw)
+
+
+def limit_up_sectors(date: Optional[str] = None) -> Optional[dict]:
+    """涨停原因板块（GetPlateInfo_w38）：按题材聚合当日涨停股。
+
+    参数:
+        date: YYYY-MM-DD，默认当日
+
+    返回:
+        {"date", "summary", "sectors"}；失败返回 None
+    """
+    date = date or _today()
+    result = _post(REAL_URL, {
+        "a": "GetPlateInfo_w38",
+        "st": "100",
+        "c": "DailyLimitResumption",
+        "Index": "0",
+        "Day": date,
+    })
+    if not result or result.get("errcode") != "0":
+        return None
+
+    nums = result.get("nums") or {}
+    summary = {
+        "date": result.get("date", date),
+        "up_count": nums.get("SZJS", 0),
+        "down_count": nums.get("XDJS", 0),
+        "limit_up_count": nums.get("ZT", 0),
+        "limit_down_count": nums.get("DT", 0),
+        "up_down_ratio": nums.get("ZBL", 0),
+        "yesterday_ratio": nums.get("yestRase", 0),
+    }
+
+    sectors = []
+    for sd in result.get("list") or []:
+        code = sd.get("ZSCode") or ""
+        name = sd.get("ZSName") or ""
+        stocks = []
+        for st in sd.get("StockList") or []:
+            if len(st) < 19:
+                continue
+            stocks.append({
+                "code": st[0],
+                "name": st[1],
+                "limit_up_price": round(st[4], 2) if st[4] else 0,
+                "float_mv": st[8] if st[8] else 0,
+                "lbc": st[9],
+                "lbc_times": st[10],
+                "concepts": st[11] or "",
+                "seal_amount": st[12] if st[12] else 0,
+                "main_inflow": st[13] if st[13] else 0,
+                "seal_time": _fmt_seal_time(st[14]),
+                "total_mv": st[15] if st[15] else 0,
+                "reason": st[16] or "",
+                "theme": st[17] or "",
+                "is_first": 1 if st[18] else 0,
+            })
+        if code and name:
+            sectors.append({
+                "code": code,
+                "name": name,
+                "stock_count": sd.get("num") or len(stocks),
+                "stocks": stocks,
+            })
+    return {"date": result.get("date", date), "summary": summary, "sectors": sectors}
+
+
+def sector_strength(code: str, date: Optional[str] = None) -> Optional[float]:
+    """板块强度（GetPlate_Info_QJ），强度值在 List 第 2 位。失败返回 None。"""
+    date = date or _today()
+    result = _post(REAL_URL if date == _today() else HIS_URL, {
+        "a": "GetPlate_Info_QJ",
+        "c": "ZhiShuRanking",
+        "Date": date,
+        "PlateID": code,
+    }, delay=0.3)
+    if not result or result.get("errcode") != "0":
+        return None
+    lst = result.get("List") or []
+    if len(lst) < 2:
+        return None
+    try:
+        return float(lst[1])
+    except (TypeError, ValueError):
+        return None
+
+
+def sector_intraday(code: str, date: Optional[str] = None) -> Optional[dict]:
+    """板块分时（GetTrendIncremental）。失败返回 None。"""
+    result = _post(REAL_URL if date is None else HIS_URL, {
+        "a": "GetTrendIncremental",
+        "c": "ZhiShuL2Data",
+        "StockID": code,
+        "Day": date or "",
+    }, delay=0.3)
+    if not result or result.get("errcode") != "0":
+        return None
+    trend = result.get("trend") or []
+    points = []
+    for item in trend:
+        if len(item) < 5:
+            continue
+        points.append({
+            "time": item[0],
+            "price": float(item[1]),
+            "volume": int(item[2]),
+            "turnover": float(item[3]),
+            "trend": int(item[4]),
+        })
+    if not points:
+        return None
+    preclose = result.get("preclose") or points[0]["price"]
+    return {
+        "code": code,
+        "date": result.get("date", date or _today()),
+        "preclose": float(preclose),
+        "points": points,
+    }
+
+
+# ── 板块名称 → 申万代码 映射（每日缓存） ──
+_sector_map: Dict[str, str] = {}
+_sector_map_day = ""
+_sector_map_lock = threading.Lock()
+
+
+def sector_codes() -> Dict[str, str]:
+    """板块名称 → 开盘啦板块代码（每日从涨停原因板块列表构建，失败返回空）。"""
+    global _sector_map, _sector_map_day
+    now_day = _today()
+    with _sector_map_lock:
+        if _sector_map and _sector_map_day == now_day:
+            return dict(_sector_map)
+        data = limit_up_sectors(now_day)
+        mapping: Dict[str, str] = {}
+        if data:
+            for s in data.get("sectors") or []:
+                if s.get("name") and s.get("code"):
+                    mapping[s["name"]] = s["code"]
+        if mapping:
+            _sector_map = mapping
+            _sector_map_day = now_day
+        return dict(_sector_map)
