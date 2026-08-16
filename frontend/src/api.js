@@ -44,6 +44,7 @@ async function send(method, path, body) {
 export const api = {
   overview: () => get('/market/overview'),
   marketVolume: () => get('/market/volume'),
+  indicesTrends: () => get('/market/indices-trends'),
   sectors: (type = 'industry', sort = 'change_pct', limit = 100) =>
     get(`/sectors?type=${type}&sort=${sort}&limit=${limit}`),
   sectorDetail: (code, limit = 100, sort = 'change_pct') =>

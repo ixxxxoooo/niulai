@@ -3,6 +3,7 @@
 """
 from fastapi import APIRouter, HTTPException, Query
 
+from ... import config
 from ...analyzer import market as market_an
 from ...analyzer import rank as rank_an
 from ...analyzer import sector as sector_an
@@ -11,6 +12,41 @@ from ...datasource import eastmoney
 from .common import ttl_cache, _calc_indicators, _enrich_rows, cached_limit_up_pool, cached_limit_break_pool, attach_youzi
 
 router = APIRouter()
+
+
+@router.get("/market/indices-trends")
+@ttl_cache(ttl=30)
+def indices_trends():
+    """主要指数分时（盘面总览缩略图用），只返回绘制所需字段以减小体积。
+
+    @author ygw
+    返回:
+        {"items": [{code, secid, name, pre_close, points: [{time, price}]}]}
+    """
+    from concurrent.futures import ThreadPoolExecutor
+
+    client = eastmoney.get_client()
+
+    def _fetch(secid: str):
+        try:
+            t = client.intraday_trends(secid=secid)
+            if t is None or not t.points:
+                return None
+            return {
+                "code": t.code,
+                "secid": secid,
+                "name": t.name,
+                "pre_close": t.pre_close,
+                "points": [{"time": p.time, "price": p.price} for p in t.points],
+            }
+        except Exception:  # noqa: BLE001 - 单指数失败不影响其他指数
+            return None
+
+    secids = [s for s, _ in config.INDEX_SECIDS]
+    with ThreadPoolExecutor(max_workers=max(len(secids), 1)) as ex:
+        futures = [ex.submit(_fetch, s) for s in secids]
+        items = [f.result() for f in futures if f.result()]
+    return {"items": items}
 
 @router.get("/market/overview")
 @ttl_cache()

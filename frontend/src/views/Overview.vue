@@ -11,11 +11,7 @@
           {{ fmtPct(q.change_pct) }}
           <span style="font-size: 12px; font-weight: 400">{{ fmtNum(q.change) }}</span>
         </div>
-        <div class="index-sub">
-          成交 {{ fmtAmount(q.amount) }} · 振幅 {{ fmtPct(q.amplitude) }}<br />
-          高 {{ fmtPrice(q.high) }} · 低 {{ fmtPrice(q.low) }}<br />
-          涨 {{ q.up_count }} · 跌 {{ q.down_count }} · 平 {{ q.flat_count }}
-        </div>
+        <IndexSpark :trend="trendOf(q)" />
       </div>
     </div>
 
@@ -116,6 +112,7 @@ import { navigate } from '../router.js'
 import { usePolling } from '../composables/usePolling.js'
 import { openStock } from '../composables/useStockMeta.js'
 import StockTable from '../components/StockTable.vue'
+import IndexSpark from '../components/IndexSpark.vue'
 
 /**
  * 盘面榜单进入详情：在当前榜内切换，返回盘面。
@@ -180,6 +177,19 @@ async function load() {
 
 const poll = usePolling(load, 5000)
 
+// 指数分时缩略图：独立 30s 慢轮询（不随 5s load 高频拉取，后端 30s 缓存兜底）
+const indexTrends = ref({ items: [] })
+function trendOf(q) {
+  const secid = q.secid
+  const items = indexTrends.value?.items || []
+  return items.find(t => t.secid === secid || t.code === q.code) || null
+}
+async function loadIndexTrends() {
+  try {
+    indexTrends.value = await api.indicesTrends()
+  } catch (e) { /* 分时缩略图失败不影响总览 */ }
+}
+
 // 两市量能：30 秒慢轮询（后端 30s 缓存，变化慢无需高频）
 async function loadVolume() {
   try {
@@ -187,10 +197,16 @@ async function loadVolume() {
   } catch (e) { /* 量能失败不阻塞总览 */ }
 }
 let volTimer = null
+let trendTimer = null
 
 onMounted(() => {
   loadVolume()
   volTimer = setInterval(loadVolume, 30000)
+  loadIndexTrends()
+  trendTimer = setInterval(loadIndexTrends, 30000)
 })
-onUnmounted(() => clearInterval(volTimer))
+onUnmounted(() => {
+  clearInterval(volTimer)
+  clearInterval(trendTimer)
+})
 </script>
