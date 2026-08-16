@@ -225,7 +225,8 @@ def sector_codes() -> Dict[str, str]:
 def sector_capital(code: str, date: Optional[str] = None) -> Optional[dict]:
     """板块资金盘口（GetPanKou）：成交额/涨跌幅/主力净额/涨跌家数。失败返回 None。
 
-    pankou 数组：0成交额 1涨跌幅 2市值 3主力净额 4主卖 5净额 6上涨 7下跌 8平盘 9流通市值 10总市值 11换手率
+    pankou 数组（注意 [3] 是主力买入、[4] 主力卖出、[5] 才是净额 = [3]+[4]）：
+    0成交额 1涨跌幅 2主力净占比 3主力买入 4主力卖出 5净额 6上涨 7下跌 8平盘 9流通市值 10总市值 11换手率
     """
     result = _post(REAL_URL if date is None else HIS_URL, {
         "a": "GetPanKou",
@@ -243,7 +244,7 @@ def sector_capital(code: str, date: Optional[str] = None) -> Optional[dict]:
         "date": result.get("date", date or _today()),
         "amount": float(p[0]) if p[0] else 0,
         "change_pct": float(p[1]) if p[1] else 0,
-        "main_inflow": float(p[3]) if p[3] else 0,
+        "main_inflow": float(p[5]) if p[5] else 0,
         "up_count": int(p[6]) if p[6] else 0,
         "down_count": int(p[7]) if p[7] else 0,
     }
