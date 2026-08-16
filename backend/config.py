@@ -125,11 +125,23 @@ GLOBAL_THEME_SECTORS = [
      "secids": ["177.005930", "177.066570"]},
     {"key": "kr_internet", "name": "互联网·平台", "region": "kr",
      "secids": ["177.035420", "177.035720"]},
-    # ---------------- 贵金属 / 工业金属（metal，期货/现货） ----------------
-    {"key": "metal_precious", "name": "黄金白银", "region": "metal",
-     "secids": ["101.GC00Y", "101.SI00Y", "122.XAU"]},
-    {"key": "metal_industrial", "name": "工业金属", "region": "metal",
-     "secids": ["109.LCPT", "109.LALT", "109.LZNT", "109.LNKT", "109.LTNT", "101.HG00Y"]},
+    # ---------------- 金属（metal，期货/现货/代表股，每金属独立） ----------------
+    {"key": "metal_gold", "name": "黄金", "region": "metal",
+     "secids": ["101.GC00Y", "122.XAU"]},
+    {"key": "metal_silver", "name": "白银", "region": "metal",
+     "secids": ["101.SI00Y"]},
+    {"key": "metal_copper", "name": "铜", "region": "metal",
+     "secids": ["101.HG00Y", "109.LCPT"]},
+    {"key": "metal_aluminum", "name": "铝", "region": "metal",
+     "secids": ["109.LALT"]},
+    {"key": "metal_zinc", "name": "锌", "region": "metal",
+     "secids": ["109.LZNT"]},
+    {"key": "metal_nickel", "name": "镍", "region": "metal",
+     "secids": ["109.LNKT"]},
+    {"key": "metal_tin", "name": "锡", "region": "metal",
+     "secids": ["109.LTNT"]},
+    {"key": "metal_cobalt", "name": "钴", "region": "metal",
+     "secids": ["116.03993"]},
 ]
 
 # ---------- 交易时段 ----------
