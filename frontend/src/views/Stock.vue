@@ -101,11 +101,11 @@
           <table class="data-table">
             <thead><tr><th>席位</th><th>类型</th><th>买入</th><th>卖出</th><th>净额</th></tr></thead>
             <tbody>
-              <tr v-for="(s, i) in (lhb.buy_seats || [])" :key="'b'+i" style="cursor:default">
+              <tr v-for="(s, i) in seatDedup.buy" :key="'b'+i" style="cursor:default">
                 <td class="analyse-td seat-name-cell">
                   {{ s.name }}
                 </td>
-                <td><span :class="['seat-badge', 'seat-' + (s.type || 'broker')]">{{ s.label || '营业部' }}</span><span v-if="s.nickname" class="youzi-badge" :data-tip="youziTip(s)" @click.stop="goSeat(s.nickname)">{{ s.nickname }}</span></td>
+                <td><span :class="['seat-badge', 'seat-' + (s.type || 'broker')]">{{ s.label || '营业部' }}</span><span v-if="s.nickname && !s._dupNick" class="youzi-badge" :data-tip="youziTip(s)" @click.stop="goSeat(s.nickname)">{{ s.nickname }}</span></td>
                 <td class="up">{{ fmtAmount(s.buy, 2) }}</td>
                 <td class="down">{{ fmtAmount(s.sell, 2) }}</td>
                 <td :class="pctClass(s.net)">{{ fmtAmount(s.net, 2) }}</td>
@@ -118,11 +118,11 @@
           <table class="data-table">
             <thead><tr><th>席位</th><th>类型</th><th>买入</th><th>卖出</th><th>净额</th></tr></thead>
             <tbody>
-              <tr v-for="(s, i) in (lhb.sell_seats || [])" :key="'s'+i" style="cursor:default">
+              <tr v-for="(s, i) in seatDedup.sell" :key="'s'+i" style="cursor:default">
                 <td class="analyse-td seat-name-cell">
                   {{ s.name }}
                 </td>
-                <td><span :class="['seat-badge', 'seat-' + (s.type || 'broker')]">{{ s.label || '营业部' }}</span><span v-if="s.nickname" class="youzi-badge" :data-tip="youziTip(s)" @click.stop="goSeat(s.nickname)">{{ s.nickname }}</span></td>
+                <td><span :class="['seat-badge', 'seat-' + (s.type || 'broker')]">{{ s.label || '营业部' }}</span><span v-if="s.nickname && !s._dupNick" class="youzi-badge" :data-tip="youziTip(s)" @click.stop="goSeat(s.nickname)">{{ s.nickname }}</span></td>
                 <td class="up">{{ fmtAmount(s.buy, 2) }}</td>
                 <td class="down">{{ fmtAmount(s.sell, 2) }}</td>
                 <td :class="pctClass(s.net)">{{ fmtAmount(s.net, 2) }}</td>
@@ -210,6 +210,23 @@ function youziTip(s) {
   const st = s.style ? `风格：${s.style}` : '风格：待补充'
   return [p, st].filter(Boolean).join('\n')
 }
+
+function buildSeatDedup() {
+  const seen = new Set()
+  const buy = (lhb.value?.buy_seats || []).map(s => {
+    const dup = s.nickname && seen.has(s.nickname)
+    if (s.nickname) seen.add(s.nickname)
+    return { ...s, _dupNick: dup }
+  })
+  const sell = (lhb.value?.sell_seats || []).map(s => {
+    const dup = s.nickname && seen.has(s.nickname)
+    if (s.nickname) seen.add(s.nickname)
+    return { ...s, _dupNick: dup }
+  })
+  return { buy, sell }
+}
+
+const seatDedup = computed(() => buildSeatDedup())
 
 function goSeat(nickname) {
   navigate('/seats?nick=' + encodeURIComponent(nickname))

@@ -69,7 +69,7 @@
                 <td><span class="rank-industry" @click.stop="gotoIndustry(p.industry)">{{ p.industry || '-' }}</span></td>
                 <td :class="pctClass(p.seal_amount)">{{ fmtAmount(p.seal_amount) }}</td>
                 <td>{{ p.first_time || '-' }}</td>
-                <td>
+                <td class="youzi-cell">
                   <span v-for="y in (p.youzi || [])" :key="y" class="youzi-badge" :class="{ lhasa: y.includes('拉萨') }" :data-tip="`点击查看该游资动向`" @click.stop="goSeat(y)">{{ y }}</span>
                   <span v-if="!(p.youzi || []).length" class="seat-no">—</span>
                 </td>
@@ -366,4 +366,8 @@ usePolling(load, 3000)
   font-weight: 700; cursor: pointer; white-space: nowrap; color: var(--accent);
 }
 .rank-industry:hover { filter: brightness(1.15); }
+.youzi-cell {
+  display: flex; flex-wrap: wrap; gap: 2px 4px; justify-content: flex-end;
+  max-width: 260px; white-space: normal;
+}
 </style>
