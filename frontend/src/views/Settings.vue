@@ -277,12 +277,18 @@
         <input class="setting-input" v-model="feishuWebhook" placeholder="https://open.feishu.cn/open-apis/bot/v2/hook/..." @change="setFeishu('feishu_webhook', feishuWebhook)" />
       </div>
       <div class="setting-row">
+        <span class="setting-label">如何配置</span>
+        <div class="setting-control">
+          <a class="source-link" href="https://open.feishu.cn/document/client-docs/bot-v3/add-custom-bot" target="_blank" rel="noopener">官方文档：群聊添加自定义机器人 ↗</a>
+        </div>
+      </div>
+      <div class="setting-row">
         <span class="setting-label">测试推送</span>
         <button class="btn" :disabled="feishuTesting" @click="testFeishu">{{ feishuTesting ? '发送中…' : '发送测试卡片' }}</button>
         <span v-if="feishuTestMsg" style="margin-left:12px;font-size:12px;" :style="{ color: feishuTestOk ? 'var(--up-color,#22c55e)' : 'var(--down-color,#ef4444)' }">{{ feishuTestMsg }}</span>
       </div>
       <div class="setting-row">
-        <span class="setting-label" style="font-size:12px;color:var(--text-dim)">触发监控告警和盘后选股时，将自动推送飞书卡片消息</span>
+        <span class="setting-label" style="font-size:12px;color:var(--text-dim)">配置步骤：飞书群 → 设置 → 群机器人 → 添加自定义机器人（Webhook 机器人），复制 Webhook 地址填入上方。触发监控告警和盘后选股时，将自动推送飞书卡片消息。</span>
       </div>
     </div>
 
