@@ -105,7 +105,7 @@
                 <td class="analyse-td seat-name-cell">
                   {{ s.name }}
                 </td>
-                <td><span :class="['seat-badge', 'seat-' + (s.type || 'broker')]">{{ s.nickname ? '游资' : (s.label || '营业部') }}</span><span v-if="s.nickname && !s._dupNick" class="youzi-badge" :data-tip="youziTip(s)" @click.stop="goSeat(s.nickname)">{{ s.nickname }}</span></td>
+                <td><span v-if="!s.nickname" :class="['seat-badge', 'seat-' + (s.type || 'broker')]">{{ s.label || '营业部' }}</span><span v-if="s.nickname && !s._dupNick" class="youzi-badge" :data-tip="youziTip(s)" @click.stop="goSeat(s.nickname)">{{ s.nickname }}</span></td>
                 <td class="up">{{ fmtAmount(s.buy, 2) }}</td>
                 <td class="down">{{ fmtAmount(s.sell, 2) }}</td>
                 <td :class="pctClass(s.net)">{{ fmtAmount(s.net, 2) }}</td>
@@ -122,7 +122,7 @@
                 <td class="analyse-td seat-name-cell">
                   {{ s.name }}
                 </td>
-                <td><span :class="['seat-badge', 'seat-' + (s.type || 'broker')]">{{ s.nickname ? '游资' : (s.label || '营业部') }}</span><span v-if="s.nickname && !s._dupNick" class="youzi-badge" :data-tip="youziTip(s)" @click.stop="goSeat(s.nickname)">{{ s.nickname }}</span></td>
+                <td><span v-if="!s.nickname" :class="['seat-badge', 'seat-' + (s.type || 'broker')]">{{ s.label || '营业部' }}</span><span v-if="s.nickname && !s._dupNick" class="youzi-badge" :data-tip="youziTip(s)" @click.stop="goSeat(s.nickname)">{{ s.nickname }}</span></td>
                 <td class="up">{{ fmtAmount(s.buy, 2) }}</td>
                 <td class="down">{{ fmtAmount(s.sell, 2) }}</td>
                 <td :class="pctClass(s.net)">{{ fmtAmount(s.net, 2) }}</td>
