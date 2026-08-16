@@ -10,8 +10,9 @@
         <span class="nav-drop" @click.stop="sectorMenu = !sectorMenu">
           <a class="nav-drop-btn" :class="{ active: route.name === 'sectors' }">板块 <span class="caret">▾</span></a>
           <div v-if="sectorMenu" class="submenu" @click.stop>
-            <a :class="{ active: route.name === 'sectors' && !route.flow }" @click="go('/sectors'); sectorMenu = false">板块分析</a>
+            <a :class="{ active: route.name === 'sectors' && !route.flow && !route.strength }" @click="go('/sectors'); sectorMenu = false">板块分析</a>
             <a :class="{ active: route.name === 'sectors' && route.flow }" @click="go('/sectors/flow'); sectorMenu = false">板块资金</a>
+            <a :class="{ active: route.name === 'sectors' && route.strength }" @click="go('/sectors/strength'); sectorMenu = false">板块强度</a>
           </div>
         </span>
         <a :class="{ active: route.name === 'rank' }" @click="go('/rank')">热门与资金</a>
@@ -65,7 +66,7 @@
           : route.name === 'sector' ? { code: route.code }
           : route.name === 'index' ? { secid: route.secid }
           : route.name === 'rank' ? { tab: route.tab }
-          : (route.name === 'sectors' ? { sector: route.sector, flow: route.flow } : {})
+          : (route.name === 'sectors' ? { sector: route.sector, flow: route.flow, strength: route.strength } : {})
         "
       />
     </div>

@@ -48,6 +48,7 @@ export const api = {
 
   // 开盘啦（抓包接口，容错降级）
   kaipanlaLimitUpSectors: (date = '') => get(`/kaipanla/limit-up-sectors?date=${date}`),
+  kaipanlaSectorStrengths: (date = '') => get(`/kaipanla/sector-strengths?date=${date}`),
   kaipanlaSectorStrength: (code) => get(`/kaipanla/sector-strength?code=${encodeURIComponent(code)}`),
   kaipanlaSectorIntraday: (code) => get(`/kaipanla/sector-intraday?code=${encodeURIComponent(code)}`),
   kaipanlaSectorCodes: () => get('/kaipanla/sector-codes'),

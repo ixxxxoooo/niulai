@@ -220,3 +220,41 @@ def sector_codes() -> Dict[str, str]:
             _sector_map = mapping
             _sector_map_day = now_day
         return dict(_sector_map)
+
+
+def sector_strengths(date: Optional[str] = None) -> Optional[dict]:
+    """板块强度榜：当日有涨停的板块列表 + 各板块强度，按强度降序。
+
+    开盘啦没有全量板块强度排行单接口，这里用涨停原因板块列表（GetPlateInfo_w38）
+    为基础，并发批量取各板块强度（GetPlate_Info_QJ）合成。
+
+    参数:
+        date: YYYY-MM-DD，默认当日
+
+    返回:
+        {"date", "summary", "items": [{code, name, strength, limit_up_count,
+                                      main_inflow, top_stocks}]}；失败返回 None
+    """
+    from concurrent.futures import ThreadPoolExecutor
+
+    data = limit_up_sectors(date)
+    if not data or not data.get("sectors"):
+        return None
+    sectors = data["sectors"]
+
+    def _one(sec: dict) -> dict:
+        strength = sector_strength(sec["code"], date)
+        main = sum((st.get("main_inflow") or 0) for st in sec.get("stocks") or [])
+        return {
+            "code": sec["code"],
+            "name": sec["name"],
+            "strength": strength,
+            "limit_up_count": sec.get("stock_count") or len(sec.get("stocks") or []),
+            "main_inflow": main,
+            "top_stocks": [{"code": st["code"], "name": (st["name"] or "").strip()} for st in (sec.get("stocks") or [])[:6]],
+        }
+
+    with ThreadPoolExecutor(max_workers=8) as ex:
+        items = list(ex.map(_one, sectors))
+    items.sort(key=lambda x: -(x["strength"] if x["strength"] is not None else -1))
+    return {"date": data["date"], "summary": data["summary"], "items": items}

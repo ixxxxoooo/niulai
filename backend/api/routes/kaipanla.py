@@ -21,6 +21,17 @@ def kaipanla_limit_up_sectors(date: str = Query("", max_length=16)):
     return data
 
 
+@router.get("/kaipanla/sector-strengths")
+@ttl_cache(ttl=30)
+def kaipanla_sector_strengths(date: str = Query("", max_length=16)):
+    """板块强度榜：涨停相关板块按强度降序（含涨停数/主力净额/领涨股）。"""
+    from ...datasource.kaipanla import sector_strengths
+    data = sector_strengths(date or None)
+    if not data:
+        raise HTTPException(status_code=503, detail="开盘啦板块强度数据暂不可用")
+    return data
+
+
 @router.get("/kaipanla/sector-strength")
 @ttl_cache(ttl=30)
 def kaipanla_sector_strength(code: str = Query(..., min_length=5, max_length=16),

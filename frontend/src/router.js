@@ -8,6 +8,7 @@ export function parseHash() {
   if (segs[0] === 'sectors') {
     const sub = (segs[1] || '').toUpperCase()
     if (sub === 'FLOW') return { name: 'sectors', sector: null, flow: true }
+    if (sub === 'STRENGTH') return { name: 'sectors', sector: null, strength: true }
     return { name: 'sectors', sector: sub || null, flow: false }
   }
   if (segs[0] === 'index' && segs[1]) return { name: 'index', secid: segs[1].toUpperCase() }
