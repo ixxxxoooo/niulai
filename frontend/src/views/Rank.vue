@@ -48,6 +48,7 @@
               <th>行业</th>
               <th class="sortable" :class="{ sorted: ztSort.sortKey === 'seal_amount' }" @click="ztSort.toggleSort('seal_amount')">封单额</th>
               <th class="sortable" :class="{ sorted: ztSort.sortKey === 'first_time' }" @click="ztSort.toggleSort('first_time')">首次封板</th>
+              <th data-tip="当日龙虎榜上榜席位中命中的知名游资（如章盟主）。红色徽章=拉萨天团，属反向指标需谨慎。">游资</th>
             </tr></thead>
             <tbody>
               <tr v-for="p in ztSort.sorted" :key="p.code" @click="openFromRank(p)">
@@ -68,8 +69,12 @@
                 <td>{{ p.industry || '-' }}</td>
                 <td :class="pctClass(p.seal_amount)">{{ fmtAmount(p.seal_amount) }}</td>
                 <td>{{ p.first_time || '-' }}</td>
+                <td>
+                  <span v-for="y in (p.youzi || [])" :key="y" class="youzi-badge" :class="{ lhasa: y.includes('拉萨') }" :data-tip="`点击查看该游资动向`" @click.stop="goSeat(y)">{{ y }}</span>
+                  <span v-if="!(p.youzi || []).length" class="seat-no">—</span>
+                </td>
               </tr>
-              <tr v-if="!ztSort.sorted.length"><td colspan="8" class="empty">暂无数据</td></tr>
+              <tr v-if="!ztSort.sorted.length"><td colspan="9" class="empty">暂无数据</td></tr>
             </tbody>
           </table>
         </div>

@@ -131,6 +131,57 @@ def cached_limit_break_pool() -> list:
     return _enrich_rows(eastmoney.get_client().limit_break_pool(300))
 
 
+# 最近交易日游资动向缓存（复用龙虎榜游资徽章逻辑，避免每次查库）
+_youzi_map_cache: Dict[str, list] = {}
+_youzi_map_ts = 0.0
+_youzi_map_lock = threading.Lock()
+
+
+def attach_youzi(rows: list) -> list:
+    """给涨停/炸板池行附加游资徽章列表（youzi），来源最近已同步的龙虎榜交易日。
+
+    参数:
+        rows: 涨停/炸板股 dict 列表
+    返回:
+        原列表（每行带 youzi 字段，无命中则不带）
+    @author ygw
+    """
+    if not rows:
+        return rows
+    global _youzi_map_ts
+    now = time.monotonic()
+    with _youzi_map_lock:
+        if now - _youzi_map_ts > 60:
+            _youzi_map_ts = now
+            _youzi_map_cache.clear()
+            try:
+                from ...db.lhb_moves import list_dates, moves_by_date
+                dates = list_dates()
+                mapping: Dict[str, set] = {}
+                for day_row in dates[:3]:
+                    day = day_row["date"]
+                    for side in ("buy", "sell"):
+                        for g in moves_by_date(day, side, limit=500):
+                            st = mapping.setdefault(g["code"], set())
+                            for s in g.get("seats", []):
+                                if s.get("nickname"):
+                                    st.add(s["nickname"])
+                for code, names in mapping.items():
+                    _youzi_map_cache[code] = sorted(names)
+            except Exception as e:
+                _youzi_map_cache.clear()
+                from ...logging_config import logger
+                logger.warning("attach_youzi 构建失败: %s", e)
+    if not _youzi_map_cache:
+        return rows
+    for r in rows:
+        code = r.get("code") or ""
+        names = _youzi_map_cache.get(code)
+        if names:
+            r["youzi"] = names
+    return rows
+
+
 # ------------------------------------------------------------------ 技术指标
 def _calc_indicators(points: list) -> dict:
     """基于 K 线数据计算 MA/MACD/KDJ/RSI/BOLL。"""

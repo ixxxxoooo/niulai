@@ -27,6 +27,7 @@
                 <span class="chip-name"><BoardBadges :row="p" />{{ p.name }}</span>
               </MiniTrend>
               <span class="chip-ind">{{ p.industry || '—' }}</span>
+              <span v-for="y in (p.youzi || [])" :key="y" class="youzi-badge ladder-youzi" :class="{ lhasa: y.includes('拉萨') }" :title="y" @click.stop="goSeat(y)">{{ y }}</span>
               <span class="chip-meta">
                 {{ p.first_time || '-' }}
                 <span v-if="p.zb_count" class="zb-tag">炸{{ p.zb_count }}</span>
@@ -52,6 +53,7 @@
             <span class="chip-name"><BoardBadges :row="p" />{{ p.name }}</span>
           </MiniTrend>
           <span class="chip-ind">{{ p.industry || '—' }}</span>
+          <span v-for="y in (p.youzi || [])" :key="y" class="youzi-badge ladder-youzi" :class="{ lhasa: y.includes('拉萨') }" :title="y" @click.stop="goSeat(y)">{{ y }}</span>
           <span class="chip-meta">
             {{ fmtPct(p.change_pct) }}
             <span class="zb-tag">炸{{ p.zb_count || 1 }}</span>
@@ -69,12 +71,17 @@
 import { computed, ref } from 'vue'
 import { api } from '../api.js'
 import { fmtPct } from '../utils.js'
+import { navigate } from '../router.js'
 import { usePolling } from '../composables/usePolling.js'
 import { applyListFilter } from '../composables/useListFilter.js'
 import { openStock } from '../composables/useStockMeta.js'
 import MiniTrend from '../components/MiniTrend.vue'
 import BoardBadges from '../components/BoardBadges.vue'
 import { captureElement } from '../composables/useScreenshot.js'
+
+function goSeat(nickname) {
+  navigate('/seats?nick=' + encodeURIComponent(nickname))
+}
 
 /**
  * 连板梯队：在当前楼层内切换。
@@ -173,6 +180,7 @@ usePolling(load, 5000)
 .chip-name { font-weight: 600; color: var(--up); font-size: 13px; display: inline-flex; align-items: center; gap: 4px; }
 .chip-ind { font-size: 11px; color: var(--accent); }
 .chip-meta { font-size: 11px; color: var(--text-dim); display: flex; align-items: center; gap: 4px; }
+.ladder-youzi { margin: 0; display: inline-flex; align-items: center; align-self: flex-start; }
 .zb-tag {
   font-size: 10px; font-weight: 700; color: var(--yellow);
   background: rgba(227, 179, 65, 0.16); border-radius: 3px; padding: 0 4px;

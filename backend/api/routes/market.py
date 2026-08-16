@@ -8,7 +8,7 @@ from ...analyzer import rank as rank_an
 from ...analyzer import sector as sector_an
 from ...datasource import eastmoney
 
-from .common import ttl_cache, _calc_indicators, _enrich_rows, cached_limit_up_pool, cached_limit_break_pool
+from .common import ttl_cache, _calc_indicators, _enrich_rows, cached_limit_up_pool, cached_limit_break_pool, attach_youzi
 
 router = APIRouter()
 
@@ -201,15 +201,17 @@ def sector_moneyflow_history(code: str, days: int = Query(5, ge=1, le=30)):
 
 @router.get("/market/limit-up")
 def limit_up_pool(limit: int = Query(100, ge=1, le=300)):
-    """今日涨停池（共享缓存，limit 仅截断展示数量）。"""
+    """今日涨停池（共享缓存，limit 仅截断展示数量）。附带最近交易日游资徽章。"""
     rows = cached_limit_up_pool()
+    attach_youzi(rows)
     return rows[:limit] if limit < len(rows) else rows
 
 
 @router.get("/market/limit-break")
 def limit_break_pool(limit: int = Query(100, ge=1, le=300)):
-    """今日炸板池（共享缓存，limit 仅截断展示数量）。"""
+    """今日炸板池（共享缓存，limit 仅截断展示数量）。附带最近交易日游资徽章。"""
     rows = cached_limit_break_pool()
+    attach_youzi(rows)
     return rows[:limit] if limit < len(rows) else rows
 
 
