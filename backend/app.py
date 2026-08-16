@@ -95,12 +95,14 @@ def create_app() -> FastAPI:
             target = FRONTEND_DIST / full_path
             if full_path and target.is_file():
                 return FileResponse(target)
-            return FileResponse(FRONTEND_DIST / "index.html")
+            return FileResponse(FRONTEND_DIST / "index.html",
+                                headers={"Cache-Control": "no-cache"})
 
     @app.get("/", include_in_schema=False)
     def root():
         if FRONTEND_DIST.is_dir():
-            return FileResponse(FRONTEND_DIST / "index.html")
+            return FileResponse(FRONTEND_DIST / "index.html",
+                                headers={"Cache-Control": "no-cache"})
         return {
             "name": "牛来 niulai",
             "docs": "/docs",
