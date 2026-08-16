@@ -1,0 +1,38 @@
+# Python
+.venv/
+**/__pycache__/
+*.py[cod]
+*.egg-info/
+.pytest_cache/
+.mypy_cache/
+
+# Node
+node_modules/
+frontend/node_modules/
+frontend/.venv/
+
+# 运行时数据与日志（含 AI Key / 本地行情库，勿入镜像）
+data/
+logs/
+*.log
+
+# 构建产物（前端在镜像内重新构建）
+frontend/dist/
+
+# 系统
+.git/
+.gitignore
+.DS_Store
+*.local
+.env
+.env.*
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# 本地开发文件
+开发进度.md
+PLAN.md
+PERFORMANCE.md
+数据源说明.md

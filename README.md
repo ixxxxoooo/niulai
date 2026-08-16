@@ -56,10 +56,47 @@ python3 -m venv .venv && .venv/bin/pip install -r requirements.txt
 .venv/bin/uvicorn backend.app:app --host 0.0.0.0 --port 8088
 ```
 
+### Docker 运行（推荐）
+
+无需安装 Python / Node.js，一条命令启动：
+
+```bash
+docker compose up -d --build
+```
+
+首次构建会：构建前端 → 打包后端 → 启动服务。之后浏览器访问：**http://127.0.0.1:8088**
+
+停止 / 查看日志 / 重启：
+
+```bash
+docker compose down          # 停止
+docker compose logs -f       # 查看日志
+docker compose restart       # 重启
+```
+
+- **数据持久化**：`data/`（SQLite）与 `logs/` 通过卷挂载在宿主机，删除容器数据不丢失
+- **时区**：容器默认 `TZ=Asia/Shanghai`，与 A 股交易时段对齐
+- **升级**：`git pull` 后重新 `docker compose up -d --build` 即可
+
+### 手动启动
+
+```bash
+# 1. 创建虚拟环境并安装依赖
+python3 -m venv .venv && .venv/bin/pip install -r requirements.txt
+
+# 2. 构建前端
+(cd frontend && node_modules/.bin/vite build)
+
+# 3. 启动服务
+.venv/bin/uvicorn backend.app:app --host 0.0.0.0 --port 8088
+```
+
 ### 环境要求
 
-- Python 3.10+
-- Node.js 18+（仅构建前端需要）
+| 方式 | 要求 |
+|---|---|
+| Docker | Docker 20.10+（含 Compose v2） |
+| 本地 | Python 3.10+；Node.js 18+（仅构建前端需要） |
 
 ---
 
@@ -124,6 +161,9 @@ niulai/
 │   ├── notify/feishu.py      # 飞书自定义机器人推送
 │   └── api/routes/           # REST 按域拆分：market/stocks/watchlist/alerts/ai/meta/screener
 ├── data/stock.db             # 运行时生成（不入库）
+├── Dockerfile                # 多阶段构建（前端 → 后端）
+├── docker-compose.yml        # 一键编排（卷挂载 data/logs）
+├── .dockerignore
 ├── frontend/                 # Vue3 + Vite + ECharts（个股页拆为 stock/* 子组件）
 ├── scripts/verify.py         # 数据链路 CLI 验证脚本
 ├── tests/                    # 单元（mock）+ 端到端
