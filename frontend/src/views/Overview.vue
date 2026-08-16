@@ -101,45 +101,6 @@
         <StockTable :rows="etfTop" :columns="etfColumns" @row-click="(r) => openFromOverview(r, etfTop)" />
       </div>
     </div>
-
-    <!-- 全球市场 -->
-    <div class="grid-2 mt16">
-      <div class="card">
-        <div class="card-title">
-          <span>全球指数</span>
-        </div>
-        <div class="scroll-list">
-          <table class="data-table">
-            <thead><tr><th>指数</th><th>现价</th><th>涨跌幅</th></tr></thead>
-            <tbody>
-              <tr v-for="q in globalIndices" :key="q.secid || q.code" @click="goIndex(q)">
-                <td class="stock-name">{{ q.name }}</td>
-                <td>{{ fmtPrice(q.price) }}</td>
-                <td :class="pctClass(q.change_pct)">{{ fmtPct(q.change_pct) }}</td>
-              </tr>
-            </tbody>
-          </table>
-        </div>
-      </div>
-      <div class="card">
-        <div class="card-title">
-          <span>美股·题材板块</span>
-          <span class="card-sub">代表股平均涨跌</span>
-        </div>
-        <div class="scroll-list">
-          <table class="data-table">
-            <thead><tr><th>板块</th><th>涨跌幅</th><th>涨/跌</th></tr></thead>
-            <tbody>
-              <tr v-for="b in globalSectors" :key="b.key">
-                <td class="stock-name">{{ b.name }}</td>
-                <td :class="pctClass(b.change_pct)">{{ fmtPct(b.change_pct) }}</td>
-                <td><span class="up">{{ b.up_count }}</span>/<span class="down">{{ b.down_count }}</span></td>
-              </tr>
-            </tbody>
-          </table>
-        </div>
-      </div>
-    </div>
   </div>
 </template>
 
@@ -167,8 +128,6 @@ const overview = reactive({ indices: [], total_amount: null, up_count: null, dow
 const volume = ref(null) // 两市量能（独立 30s 慢轮询，避免每次刷新查指数K线）
 const industryTop = ref([])
 const conceptTop = ref([])
-const globalIndices = ref([])
-const globalSectors = ref([])
 const zhangsuTop = ref([])
 const etfTop = ref([])
 const error = ref('')
@@ -216,15 +175,6 @@ async function load() {
   }
 }
 
-// 全球市场：指数 + 题材板块，独立 10s 慢轮询（与 A 股盘面节奏解耦）
-async function loadGlobal() {
-  try {
-    const [gi, gs] = await Promise.all([api.globalIndices(), api.globalSectors()])
-    globalIndices.value = gi
-    globalSectors.value = gs
-  } catch (e) { /* 全球市场失败不影响盘面 */ }
-}
-
 const poll = usePolling(load, 5000)
 
 // 指数分时缩略图：独立 30s 慢轮询（不随 5s load 高频拉取，后端 30s 缓存兜底）
@@ -248,19 +198,15 @@ async function loadVolume() {
 }
 let volTimer = null
 let trendTimer = null
-let globalTimer = null
 
 onMounted(() => {
   loadVolume()
   volTimer = setInterval(loadVolume, 30000)
   loadIndexTrends()
   trendTimer = setInterval(loadIndexTrends, 30000)
-  loadGlobal()
-  globalTimer = setInterval(loadGlobal, 10000)
 })
 onUnmounted(() => {
   clearInterval(volTimer)
   clearInterval(trendTimer)
-  clearInterval(globalTimer)
 })
 </script>

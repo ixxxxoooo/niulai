@@ -204,9 +204,11 @@ def global_indices():
 
 @router.get("/global/sectors")
 @ttl_cache(ttl=10)
-def global_sectors():
-    """美股/日韩题材板块涨跌幅（代表股平均，含成分股快照）"""
-    return eastmoney.get_client().us_sector_boards()
+def global_sectors(
+    region: str = Query("", pattern="^(us|jp|kr|)$", description="us/jp/kr，空=全部"),
+):
+    """全球题材板块涨跌幅（代表股平均，含成分股快照）"""
+    return eastmoney.get_client().us_sector_boards(region or None)
 
 
 @router.get("/global/{secid}/trends")

@@ -14,6 +14,7 @@ export function parseHash() {
   if (segs[0] === 'index' && segs[1]) return { name: 'index', secid: segs[1].toUpperCase() }
   if (segs[0] === 'sector-moves') return { name: 'sectors', sector: null, flow: true }
   if (segs[0] === 'rank') return { name: 'rank', tab: segs[1] || '' }
+  if (segs[0] === 'global') return { name: 'global' }
   if (segs[0] === 'ladder') return { name: 'ladder' }
   if (segs[0] === 'watchlist') return { name: 'watchlist' }
   if (segs[0] === 'alerts') return { name: 'alerts' }

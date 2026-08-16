@@ -94,11 +94,13 @@ const indexSourceUrl = computed(() => {
 
 function prevIndex() {
   const idx = INDEX_LIST.indexOf(secid.value)
+  if (idx < 0) return
   const next = idx <= 0 ? INDEX_LIST[INDEX_LIST.length - 1] : INDEX_LIST[idx - 1]
   navigate('/index/' + next)
 }
 function nextIndex() {
   const idx = INDEX_LIST.indexOf(secid.value)
+  if (idx < 0) return
   const next = idx >= INDEX_LIST.length - 1 ? INDEX_LIST[0] : INDEX_LIST[idx + 1]
   navigate('/index/' + next)
 }

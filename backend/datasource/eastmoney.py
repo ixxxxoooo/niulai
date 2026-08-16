@@ -498,23 +498,39 @@ class EastMoneyClient:
             })
         return out
 
-    def us_sector_boards(self) -> List[dict]:
-        """美股/日韩题材板块涨跌幅（代表股简单平均，成分股一并返回）。
+    def us_sector_boards(self, region: Optional[str] = None) -> List[dict]:
+        """全球题材板块涨跌幅（代表股简单平均，成分股一并返回）。
 
-        东财无美股题材板块接口，采用 config.US_THEME_SECTORS 配置的代表股
+        东财无海外题材板块接口，采用 config.GLOBAL_THEME_SECTORS 配置的代表股
         拉实时快照，板块涨跌幅 = 有数据成分股涨跌幅的算术平均。
+        region 可选过滤：us/jp/kr；不传返回全部。
+        性能：所有板块代表股一次性合并为单个 ulist 请求，再按板块分组。
         """
-        cfg = getattr(config, "US_THEME_SECTORS", [])
+        cfg = getattr(config, "GLOBAL_THEME_SECTORS", [])
+        if region:
+            cfg = [b for b in cfg if b.get("region") == region]
+        if not cfg:
+            return []
+        # 合并全部代表股 secid → 一次批量拉取
+        all_secids: List[str] = []
+        seen: set = set()
+        for board in cfg:
+            for sid in board.get("secids") or []:
+                if sid and sid not in seen:
+                    seen.add(sid)
+                    all_secids.append(sid)
+        all_quotes = self.global_stock_quotes(all_secids)
+        by_secid = {q["secid"]: q for q in all_quotes}
+
         out: List[dict] = []
         for board in cfg:
             secids = board.get("secids") or []
-            if not secids:
-                continue
-            quotes = self.global_stock_quotes(secids)
+            quotes = [by_secid[s] for s in secids if s in by_secid]
             pcts = [q["change_pct"] for q in quotes if q.get("change_pct") is not None]
             out.append({
                 "key": board.get("key", ""),
                 "name": board.get("name", ""),
+                "region": board.get("region", ""),
                 "change_pct": round(sum(pcts) / len(pcts), 2) if pcts else None,
                 "up_count": sum(1 for p in pcts if p > 0),
                 "down_count": sum(1 for p in pcts if p < 0),

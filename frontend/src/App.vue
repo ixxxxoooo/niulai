@@ -16,6 +16,7 @@
           </div>
         </span>
         <a :class="{ active: route.name === 'rank' }" @click="go('/rank')">热门与资金</a>
+        <a :class="{ active: route.name === 'global' }" @click="go('/global')">全球</a>
         <a :class="{ active: route.name === 'ladder' }" @click="go('/ladder')">连板梯队</a>
         <a :class="{ active: route.name === 'watchlist' }" @click="go('/watchlist')">自选股</a>
         <a :class="{ active: route.name === 'alerts' }" @click="go('/alerts')">监控</a>
@@ -85,6 +86,7 @@ import IndexTicker from './components/IndexTicker.vue'
 import GlobalTip from './components/GlobalTip.vue'
 import ToastHost from './components/ToastHost.vue'
 import Overview from './views/Overview.vue'
+import Global from './views/Global.vue'
 import SectorHome from './views/SectorHome.vue'
 import SectorDetail from './views/SectorDetail.vue'
 import IndexDetail from './views/IndexDetail.vue'
@@ -106,7 +108,7 @@ const isLight = ref(false)
 const polling = globalPollingState
 
 const views = {
-  overview: Overview, sectors: SectorHome, sector: SectorDetail,
+  overview: Overview, global: Global, sectors: SectorHome, sector: SectorDetail,
   index: IndexDetail,
   rank: Rank, ladder: Ladder, stock: Stock, watchlist: Watchlist,
   alerts: Alerts, settings: Settings, screener: Screener,
