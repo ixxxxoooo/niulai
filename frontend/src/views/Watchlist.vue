@@ -3,10 +3,6 @@
     <div class="page-title">自选股</div>
     <div class="error-banner" v-if="error">{{ error }}</div>
 
-    <div class="watch-add">
-      <SearchSuggest placeholder="搜索添加：代码 / 中文名称，如 平安 / 招商 / 600519" @select="addBySearch" @toggle="load" />
-    </div>
-
     <div class="tabs">
       <button class="tab" :class="{ active: tab === 'watch' }" @click="tab = 'watch'">自选（{{ watchRows.length }}）</button>
       <button class="tab" :class="{ active: tab === 'hold' }" @click="tab = 'hold'">持仓（{{ holdings.length }}）</button>
@@ -101,7 +97,7 @@
       </div>
 
       <div class="card" v-if="!watchRows.length">
-        <div class="empty">暂无自选。在上方搜索添加，录入持仓后可在「持仓」页查看盈亏。</div>
+        <div class="empty">暂无自选。录入持仓后自动加入自选，或从其他页面搜索添加。</div>
       </div>
     </template>
 
@@ -303,11 +299,10 @@ import { api } from '../api.js'
 import { fmtAmount, fmtPrice, fmtPct, pctClass } from '../utils.js'
 import { usePolling } from '../composables/usePolling.js'
 import { useTableSort } from '../composables/useTableSort.js'
-import { loadWatchlist, addWatch, removeWatch, watchState } from '../composables/useWatchlist.js'
+import { loadWatchlist, removeWatch, watchState } from '../composables/useWatchlist.js'
 import { applyListFilter } from '../composables/useListFilter.js'
-import { openStock, rememberStock } from '../composables/useStockMeta.js'
+import { openStock } from '../composables/useStockMeta.js'
 import { captureElement } from '../composables/useScreenshot.js'
-import SearchSuggest from '../components/SearchSuggest.vue'
 import MiniTrend from '../components/MiniTrend.vue'
 import BoardBadges from '../components/BoardBadges.vue'
 
@@ -501,13 +496,6 @@ async function clearSnapshots() {
   } catch (e) { alert('清空失败：' + e.message) }
 }
 
-async function addBySearch(s) {
-  if (!s || !s.code || !/^\d{6}$/.test(s.code)) { alert('请从搜索建议中选择一只股票'); return }
-  rememberStock(s)
-  await addWatch(s.code)
-  load()
-}
-
 async function removeStock(code) {
   await removeWatch(code)
   load()
@@ -539,7 +527,6 @@ usePolling(load, 3000)
 </script>
 
 <style scoped>
-.watch-add :deep(.suggest-wrap) { flex: 1; max-width: 360px; }
 .name-cell { display: inline-flex; align-items: center; gap: 4px; }
 .card-title-sub { font-size: 12px; color: var(--text-dim); font-weight: 400; }
 

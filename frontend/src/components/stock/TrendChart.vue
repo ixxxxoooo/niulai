@@ -61,6 +61,9 @@ function buildBuySellMarks(tc) {
 
 function render() {
   if (!chart) return
+  const cw = el.value?.clientWidth || 0
+  const ch = el.value?.clientHeight || 0
+  if (cw > 0 && (cw !== chart.getWidth() || ch !== chart.getHeight())) chart.resize()
   const t = props.trend
   if (!t || !t.points || !t.points.length) return
   const tc = themeColors()

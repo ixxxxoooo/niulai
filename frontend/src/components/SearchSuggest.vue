@@ -2,6 +2,7 @@
   <div class="suggest-wrap">
     <div class="search-box">
       <input
+        ref="inputEl"
         v-model="kw"
         :placeholder="placeholder"
         @input="onInput"
@@ -12,7 +13,6 @@
         @keydown.up.prevent="move(-1)"
         @keydown.down.prevent="move(1)"
       />
-      <span class="go" @mousedown.prevent @click="onEnter">查询</span>
     </div>
     <div v-if="show" class="suggest-dropdown">
       <template v-if="kw.trim()">
@@ -66,13 +66,14 @@
 </template>
 
 <script setup>
-import { ref, computed } from 'vue'
+import { ref, computed, watch, nextTick } from 'vue'
 import { api } from '../api.js'
 import { isWatched, toggleWatch as tw } from '../composables/useWatchlist.js'
 import { logAction } from '../composables/useActionLog.js'
 
 const props = defineProps({
   placeholder: { type: String, default: '代码 / 名称 / 拼音（首字母或全拼）' },
+  autofocus: { type: Boolean, default: false },
 })
 const emit = defineEmits(['select', 'toggle'])
 
@@ -80,7 +81,15 @@ const kw = ref('')
 const suggestions = ref([])
 const show = ref(false)
 const activeIndex = ref(0)
+const inputEl = ref(null)
 let debounceTimer = null
+
+watch(() => props.autofocus, async (v) => {
+  if (v) {
+    await nextTick()
+    inputEl.value && inputEl.value.focus()
+  }
+}, { immediate: true })
 
 // ---------------- 搜索历史（localStorage） ----------------
 const HISTORY_KEY = 'search_history'
@@ -184,13 +193,6 @@ function select(s) {
   width: 100%; font-size: 13px;
 }
 .search-box input::placeholder { color: var(--text-dim); }
-.search-box .go {
-  cursor: pointer; color: var(--accent); font-size: 12px; font-weight: 700;
-  background: var(--accent-bg); border: none; border-radius: 5px;
-  padding: 4px 12px; user-select: none; white-space: nowrap; flex-shrink: 0;
-  transition: opacity 0.15s;
-}
-.search-box .go:hover { opacity: 0.85; }
 
 .suggest-dropdown {
   position: absolute; top: 38px; left: 0; z-index: 300;

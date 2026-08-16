@@ -6,6 +6,7 @@ import { logAction } from './useActionLog.js'
 
 export const settingsState = reactive({
   theme: 'dark',
+  navMode: 'top',
   refreshInterval: 5,
   offMarketInterval: 30000,
   chartTopN: 20,
@@ -33,6 +34,7 @@ export async function loadSettings() {
     const r = await api.settings()
     const items = r.items || {}
     if (items.theme) settingsState.theme = items.theme
+    if (items.navMode && ['top', 'side'].includes(items.navMode)) settingsState.navMode = items.navMode
     if (items.refreshInterval) settingsState.refreshInterval = parseInt(items.refreshInterval, 10) || 5
     if (items.offMarketInterval) settingsState.offMarketInterval = parseInt(items.offMarketInterval, 10) || 30000
     if (items.chartTopN) settingsState.chartTopN = parseInt(items.chartTopN, 10) || 20

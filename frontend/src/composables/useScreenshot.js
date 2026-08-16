@@ -103,6 +103,43 @@ function roundedRect(ctx, x, y, w, h, r) {
   ctx.closePath()
 }
 
+// 牛来 logo（缓存 Image 实例，避免重复加载）
+let logoPromise = null
+function loadLogo() {
+  if (!logoPromise) {
+    logoPromise = new Promise((resolve, reject) => {
+      const img = new Image()
+      img.onload = () => resolve(img)
+      img.onerror = (e) => { logoPromise = null; reject(e) }
+      img.src = '/niulai.png'
+    })
+  }
+  return logoPromise
+}
+
+/**
+ * 在截图 canvas 右下角绘制「牛来」logo 水印（半透明）。
+ * 水印尺寸按 canvas 宽度自适应（宽度约 6%）；加载失败不影响截图本身。
+ * @param {HTMLCanvasElement} canvas
+ * @param {{ bottom?: number, right?: number, heightRatio?: number, alpha?: number }} [opts]
+ * @returns {Promise<HTMLCanvasElement>}
+ * @author ygw
+ */
+export async function applyWatermark(canvas, { bottom = 12, right = 12, heightRatio = 0.06, alpha = 0.5 } = {}) {
+  try {
+    const logo = await loadLogo()
+    const ctx = canvas.getContext('2d')
+    const ratio = logo.naturalHeight ? logo.naturalWidth / logo.naturalHeight : 2.67
+    const lh = Math.max(14, Math.round(canvas.width * heightRatio))
+    const lw = Math.round(lh * ratio)
+    ctx.save()
+    ctx.globalAlpha = alpha
+    ctx.drawImage(logo, canvas.width - lw - right, canvas.height - lh - bottom, lw, lh)
+    ctx.restore()
+  } catch (e) { /* 水印失败忽略 */ }
+  return canvas
+}
+
 /**
  * 对 DOM 元素截图，结果复制到剪贴板（降级下载），并弹出 toast。
  * 页面零改动；可选在结果图上加卡片轮廓留白。
@@ -130,6 +167,7 @@ export async function captureElement(el, filename, opts = {}) {
       },
     })
     if (withFrame) canvas = frameCanvas(canvas, 14, scale)
+    await applyWatermark(canvas)
 
     const copied = await copyCanvas(canvas, filename)
     showToast(copied ? '截图成功，已复制到剪贴板' : `截图成功，已下载 ${filename || '截图.png'}`, 'success')

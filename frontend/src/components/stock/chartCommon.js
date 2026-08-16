@@ -140,8 +140,9 @@ export function buildMarkLines(tc, srOptions, selectedSR) {
  * @param {object|null} prev 前一根
  * @param {object} tc 主题色
  * @param {number|null} turnoverHint 当日换手兜底
+ * @param {number|null} lastClose 最后一根 K 的收盘价（用于计算「至今涨跌幅」）
  */
-export function formatKlineTooltip(p, prev, tc, turnoverHint = null) {
+export function formatKlineTooltip(p, prev, tc, turnoverHint = null, lastClose = null) {
   const pre = (p.change_pct != null && p.change_amount != null)
     ? null
     : (prev ? prev.close : null)
@@ -164,6 +165,10 @@ export function formatKlineTooltip(p, prev, tc, turnoverHint = null) {
     if (v >= 1e4) return (v / 1e4).toFixed(2) + '万手'
     return fmtNum(v, 0) + '手'
   })()
+  // 至今涨跌幅：选中的那天 → 最新一根 K 的收盘价
+  const sinceChgPct = (lastClose != null && p.close != null)
+    ? +((lastClose - p.close) / p.close * 100).toFixed(2)
+    : null
   let html = `<div style="min-width:168px;font-size:12px">`
   html += row('时间', `<b>${p.date}</b>`)
   html += row('开盘', `<b style="color:${vsPre(p.open)}">${fmtPrice(p.open)}</b>`)
@@ -172,6 +177,7 @@ export function formatKlineTooltip(p, prev, tc, turnoverHint = null) {
   html += row('最低', `<b style="color:${vsPre(p.low)}">${fmtPrice(p.low)}</b>`)
   if (chgAmt != null) html += row('涨跌额', `<b style="color:${col(chgAmt)}">${sign(chgAmt)}${fmtPrice(Math.abs(chgAmt))}</b>`)
   if (chgPct != null) html += row('涨跌幅', `<b style="color:${col(chgPct)}">${sign(chgPct)}${Number(chgPct).toFixed(2)}%</b>`)
+  if (sinceChgPct != null) html += row('至今涨跌幅', `<b style="color:${col(sinceChgPct)}">${sign(sinceChgPct)}${sinceChgPct.toFixed(2)}%</b>`)
   html += row('成交量', volText)
   if (p.amount != null) html += row('成交额', fmtAmount(p.amount))
   const turnVal = p.turnover != null ? p.turnover : turnoverHint

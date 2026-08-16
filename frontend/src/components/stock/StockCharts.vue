@@ -58,6 +58,7 @@
 import { ref, reactive, computed, watch, onMounted, onUnmounted, nextTick } from 'vue'
 import { getCachedKline } from '../../composables/useKlineCache.js'
 import { showToast } from '../../composables/useToast.js'
+import { applyWatermark } from '../../composables/useScreenshot.js'
 import TrendChart from './TrendChart.vue'
 import KlineChart from './KlineChart.vue'
 
@@ -165,7 +166,35 @@ function redraw() {
   else klineRef.value?.render()
 }
 
+async function screenshotChart() {
+  const inst = chartPeriod.value === 'trend' ? trendRef.value : klineRef.value
+  const chart = inst?.getChart?.()
+  if (!chart) return
+  const bg = getComputedStyle(document.body).getPropertyValue('--bg-card').trim() || '#1a1b26'
+  const url = chart.getDataURL({ type: 'png', pixelRatio: 2, backgroundColor: bg })
+  const ok = await captureToClipboard(url, `${props.displayName}_${chartTitle.value}.png`)
+  showToast(ok ? '截图成功，已复制到剪贴板' : '截图失败', ok ? 'success' : 'error')
+}
+
+/**
+ * 截图复制/下载前在图上绘制「牛来」logo 水印。
+ * 加载 dataURL → canvas → 打水印 → 输出新 dataURL。
+ * @param {string} dataUrl
+ * @param {string} filename
+ * @returns {Promise<boolean>}
+ */
 async function captureToClipboard(dataUrl, filename) {
+  try {
+    const img = new Image()
+    await new Promise((res, rej) => { img.onload = res; img.onerror = rej; img.src = dataUrl })
+    const canvas = document.createElement('canvas')
+    canvas.width = img.naturalWidth
+    canvas.height = img.naturalHeight
+    const ctx = canvas.getContext('2d')
+    ctx.drawImage(img, 0, 0)
+    await applyWatermark(canvas, { right: 18, bottom: 16, heightRatio: 0.05 })
+    dataUrl = canvas.toDataURL('image/png')
+  } catch (e) { /* 水印失败仍用原图 */ }
   try {
     const resp = await fetch(dataUrl)
     const blob = await resp.blob()
@@ -182,16 +211,6 @@ async function captureToClipboard(dataUrl, filename) {
       return false
     }
   }
-}
-
-async function screenshotChart() {
-  const inst = chartPeriod.value === 'trend' ? trendRef.value : klineRef.value
-  const chart = inst?.getChart?.()
-  if (!chart) return
-  const bg = getComputedStyle(document.body).getPropertyValue('--bg-card').trim() || '#1a1b26'
-  const url = chart.getDataURL({ type: 'png', pixelRatio: 2, backgroundColor: bg })
-  const ok = await captureToClipboard(url, `${props.displayName}_${chartTitle.value}.png`)
-  showToast(ok ? '截图成功，已复制到剪贴板' : '截图失败', ok ? 'success' : 'error')
 }
 
 function onThemeChange() { redraw() }

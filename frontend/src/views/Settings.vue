@@ -22,6 +22,13 @@
         </div>
       </div>
       <div class="setting-row">
+        <span class="setting-label">导航布局</span>
+        <div class="setting-control">
+          <div class="tab" :class="{ active: navMode === 'top' }" @click="setNavMode('top')">顶部导航</div>
+          <div class="tab" :class="{ active: navMode === 'side' }" @click="setNavMode('side')">左侧导航</div>
+        </div>
+      </div>
+      <div class="setting-row">
         <span class="setting-label">过滤标的</span>
         <div class="setting-control" style="flex-wrap:wrap">
           <label class="filter-opt" :class="{ on: hideKcb }">
@@ -108,25 +115,29 @@
     </div>
     </div>
 
-    <!-- ── 数据：自选股 / 同步 / 游资榜单 ── -->
+    <!-- ── 数据：备份 / 同步 / 游资榜单 ── -->
     <div v-if="settingsTab === 'data'">
     <div class="card">
-      <div class="card-title">自选股管理（SQLite）</div>
+      <div class="card-title">数据备份（JSON · 用于 iCloud 多设备同步）</div>
       <div class="setting-row">
-        <span class="setting-label">当前自选股数量</span>
-        <span class="setting-value">{{ watchCount }} 只</span>
+        <span class="setting-label">备份内容</span>
+        <span class="setting-value">自选 · 持仓 · 监控 · 设置 · 流水 · 游资 · 选股记录 · AI历史</span>
       </div>
       <div class="setting-row">
-        <span class="setting-label">清空自选股</span>
-        <button class="btn danger" @click="onClearWatch">清空全部</button>
+        <span class="setting-label">导出自选股（旧格式）</span>
+        <button class="btn" @click="exportWatch">导出代码列表</button>
       </div>
       <div class="setting-row">
-        <span class="setting-label">导出自选股</span>
-        <button class="btn" @click="exportWatch">导出 JSON</button>
+        <span class="setting-label">完整导出</span>
+        <button class="btn" @click="exportBackup" :disabled="backupBusy">{{ backupBusy ? '导出中…' : '导出全部数据 JSON' }}</button>
       </div>
       <div class="setting-row">
-        <span class="setting-label">导入自选股</span>
-        <input type="file" accept=".json" @change="importWatchFile" style="font-size: 12px;" />
+        <span class="setting-label">完整导入</span>
+        <input type="file" accept=".json" @change="importBackupFile" style="font-size: 12px;" :disabled="backupBusy" />
+      </div>
+      <div class="setting-row">
+        <span class="setting-label">导入说明</span>
+        <span class="setting-value">完整导入会<strong>覆盖</strong>本机对应的自选/持仓/监控/设置等数据，建议先导出一份备份。</span>
       </div>
     </div>
 
@@ -343,6 +354,7 @@ import { settingsState, saveSetting, loadSettings, applyThemeMode } from '../com
 import { watchState, clearWatch, importWatch } from '../composables/useWatchlist.js'
 
 const themeMode = ref('dark')
+const navMode = ref('top')
 const settingsTab = ref('general')
 const refreshInterval = ref(5)
 const offInterval = ref(30000)
@@ -370,6 +382,7 @@ const logTab = ref('api')
 const apiLogs = ref([])
 const dsLogs = ref([])
 const actLogs = ref([])
+const backupBusy = ref(false)
 
 // 飞书通知
 const feishuEnabled = ref(false)
@@ -400,6 +413,11 @@ function setTheme(mode) {
   themeMode.value = mode
   applyThemeMode(mode)
   saveSetting('theme', mode)
+}
+
+function setNavMode(mode) {
+  navMode.value = mode
+  saveSetting('navMode', mode)
 }
 
 function setRefresh(sec) {
@@ -478,6 +496,52 @@ function importWatchFile(e) {
       }
     } catch (err) {
       alert('导入失败：文件格式不正确')
+    }
+  }
+  reader.readAsText(file)
+}
+
+async function exportBackup() {
+  backupBusy.value = true
+  try {
+    const data = await api.backupExport()
+    const json = JSON.stringify(data, null, 2)
+    const blob = new Blob([json], { type: 'application/json' })
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    const d = new Date()
+    const p = (n) => String(n).padStart(2, '0')
+    a.download = `niulai-backup-${d.getFullYear()}${p(d.getMonth() + 1)}${p(d.getDate())}_${p(d.getHours())}${p(d.getMinutes())}.json`
+    a.click()
+    URL.revokeObjectURL(url)
+    alert('备份导出成功')
+  } catch (e) {
+    alert('导出失败：' + e.message)
+  } finally {
+    backupBusy.value = false
+  }
+}
+
+function importBackupFile(e) {
+  const file = e.target.files[0]
+  if (!file) return
+  if (!confirm('完整导入将覆盖本机的自选/持仓/监控/设置等数据，确定继续吗？')) { e.target.value = ''; return }
+  const reader = new FileReader()
+  reader.onload = async () => {
+    backupBusy.value = true
+    try {
+      const payload = JSON.parse(reader.result)
+      const res = await api.backupImport(payload)
+      const count = Object.values(res.imported || {}).reduce((a, b) => a + b, 0)
+      await loadSettings()
+      watchCount.value = (await api.watchlist().catch(() => ({ codes: [] }))).codes?.length || 0
+      alert(`导入成功：共恢复 ${count} 条数据`)
+    } catch (err) {
+      alert('导入失败：文件格式不正确或数据版本不兼容')
+    } finally {
+      backupBusy.value = false
+      e.target.value = ''
     }
   }
   reader.readAsText(file)
@@ -567,8 +631,9 @@ async function loadLogs() {
 }
 
 onMounted(async () => {
-  themeMode.value = ['light', 'dark', 'system'].includes(settingsState.theme) ? settingsState.theme : 'dark'
   await loadSettings()
+  themeMode.value = ['light', 'dark', 'system'].includes(settingsState.theme) ? settingsState.theme : 'dark'
+  navMode.value = settingsState.navMode === 'side' ? 'side' : 'top'
   refreshInterval.value = settingsState.refreshInterval
   offInterval.value = settingsState.offMarketInterval
   chartTopN.value = settingsState.chartTopN

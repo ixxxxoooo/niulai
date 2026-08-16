@@ -76,7 +76,8 @@ function render() {
       extraCssText: 'box-shadow:0 6px 20px rgba(0,0,0,.18);border-radius:8px;',
       formatter: (ps) => {
         const i = ps[0].dataIndex
-        return formatKlineTooltip(pts[i], pts[i - 1], tc, turnoverHint)
+        const lastClose = pts[pts.length - 1]?.close ?? null
+        return formatKlineTooltip(pts[i], pts[i - 1], tc, turnoverHint, lastClose)
       },
     },
     legend: {

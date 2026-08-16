@@ -1,12 +1,15 @@
 <template>
-  <div>
+  <div class="app-shell" :class="[navMode === 'side' ? 'nav-side' : 'nav-top', { 'sidebar-collapsed': sideCollapsed }]">
     <div v-if="sectorMenu" class="nav-overlay" @click="sectorMenu = false"></div>
-    <div class="topbar">
+
+    <!-- ========== 顶部导航栏（仅 top 模式） ========== -->
+    <div v-if="navMode === 'top'" class="topbar">
       <div class="brand" @click="go('/')">
         <img class="brand-logo" src="/niulai.png" alt="牛来" />
       </div>
       <nav class="nav">
         <a :class="{ active: route.name === 'overview' }" @click="go('/')">盘面总览</a>
+        <a :class="{ active: route.name === 'global' }" @click="go('/global')">全球</a>
         <span class="nav-drop" @click.stop="sectorMenu = !sectorMenu">
           <a class="nav-drop-btn" :class="{ active: route.name === 'sectors' }">板块 <span class="caret">▾</span></a>
           <div v-if="sectorMenu" class="submenu" @click.stop>
@@ -16,7 +19,6 @@
           </div>
         </span>
         <a :class="{ active: route.name === 'rank' }" @click="go('/rank')">热门与资金</a>
-        <a :class="{ active: route.name === 'global' }" @click="go('/global')">全球</a>
         <a :class="{ active: route.name === 'ladder' }" @click="go('/ladder')">连板梯队</a>
         <a :class="{ active: route.name === 'watchlist' }" @click="go('/watchlist')">自选股</a>
         <a :class="{ active: route.name === 'alerts' }" @click="go('/alerts')">监控</a>
@@ -24,7 +26,7 @@
         <a :class="{ active: route.name === 'screener' }" @click="go('/screener')">选股</a>
       </nav>
       <div class="topbar-right">
-        <SearchSuggest placeholder="代码 / 名称 / 拼音，如 茅台、gzmt" @select="onSearchSelect" />
+        <SearchSuggest placeholder="代码 / 名称 / 拼音" @select="onSearchSelect" />
         <button class="icon-btn" title="设置" @click="go('/settings')">
           <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true">
             <circle cx="12" cy="12" r="3" /><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09a1.65 1.65 0 0 0-1.08-1.51 1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09a1.65 1.65 0 0 0 1.51-1.08 1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1.08 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1.08z" />
@@ -49,6 +51,90 @@
         </div>
       </div>
     </div>
+
+    <!-- ========== 左侧导航栏（仅 side 模式） ========== -->
+    <aside v-if="navMode === 'side'" class="sidebar" :class="{ collapsed: sideCollapsed }">
+      <div class="side-head">
+        <div class="brand" :class="{ 'brand-collapsed': sideCollapsed }" :title="sideCollapsed ? '展开导航' : '牛来'" @click="onSideBrandClick">
+          <img class="brand-logo" :src="sideCollapsed ? '/favicon.png' : '/niulai.png'" :alt="sideCollapsed ? '牛来' : '牛来'" />
+        </div>
+        <button v-if="!sideCollapsed" class="icon-btn side-toggle" title="收起导航" @click="sideCollapsed = true">
+          <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true">
+            <line x1="3" y1="6" x2="21" y2="6" /><line x1="3" y1="12" x2="21" y2="12" /><line x1="3" y1="18" x2="21" y2="18" />
+          </svg>
+        </button>
+      </div>
+
+      <!-- 搜索：展开状态直接显示输入框，收起状态显示放大镜图标 -->
+      <div class="side-search">
+        <button v-if="sideCollapsed" class="side-search-btn" title="搜索股票" @click="onOpenSearch">
+          <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true">
+            <circle cx="11" cy="11" r="7" /><line x1="21" y1="21" x2="16.5" y2="16.5" />
+          </svg>
+        </button>
+        <SearchSuggest
+          v-else
+          placeholder="代码 / 名称 / 拼音"
+          @select="onSearchSelect"
+        />
+      </div>
+
+      <nav class="side-nav" v-if="!sideCollapsed">
+        <a :class="{ active: route.name === 'overview' }" @click="go('/')">盘面总览</a>
+        <a :class="{ active: route.name === 'global' }" @click="go('/global')">全球</a>
+        <span class="side-group">板块</span>
+        <a class="side-sub" :class="{ active: route.name === 'sectors' && !route.flow && !route.strength }" @click="go('/sectors')">板块分析</a>
+        <a class="side-sub" :class="{ active: route.name === 'sectors' && route.flow }" @click="go('/sectors/flow')">板块资金</a>
+        <a class="side-sub" :class="{ active: route.name === 'sectors' && route.strength }" @click="go('/sectors/strength')">板块强度</a>
+        <a :class="{ active: route.name === 'rank' }" @click="go('/rank')">热门与资金</a>
+        <a :class="{ active: route.name === 'ladder' }" @click="go('/ladder')">连板梯队</a>
+        <a :class="{ active: route.name === 'watchlist' }" @click="go('/watchlist')">自选股</a>
+        <a :class="{ active: route.name === 'alerts' }" @click="go('/alerts')">监控</a>
+        <a :class="{ active: route.name === 'seats' }" @click="go('/seats')">游资</a>
+        <a :class="{ active: route.name === 'screener' }" @click="go('/screener')">选股</a>
+      </nav>
+      <nav class="side-nav side-collapsed-nav" v-else>
+        <a :class="{ active: route.name === 'overview' }" @click="go('/')" title="盘面总览">盘</a>
+        <a :class="{ active: route.name === 'global' }" @click="go('/global')" title="全球">全</a>
+        <a :class="{ active: route.name === 'sectors' }" @click="go('/sectors')" title="板块分析">板</a>
+        <a :class="{ active: route.name === 'rank' }" @click="go('/rank')" title="热门与资金">热</a>
+        <a :class="{ active: route.name === 'ladder' }" @click="go('/ladder')" title="连板梯队">连</a>
+        <a :class="{ active: route.name === 'watchlist' }" @click="go('/watchlist')" title="自选股">自</a>
+        <a :class="{ active: route.name === 'alerts' }" @click="go('/alerts')" title="监控">监</a>
+        <a :class="{ active: route.name === 'seats' }" @click="go('/seats')" title="游资">游</a>
+        <a :class="{ active: route.name === 'screener' }" @click="go('/screener')" title="选股">选</a>
+      </nav>
+
+      <!-- 侧边栏底部：设置 + 时间 -->
+      <div class="side-foot">
+        <button class="side-foot-btn" title="设置" @click="go('/settings')">
+          <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true">
+            <circle cx="12" cy="12" r="3" /><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09a1.65 1.65 0 0 0-1.08-1.51 1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09a1.65 1.65 0 0 0 1.51-1.08 1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1.08 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1.08z" />
+          </svg>
+          <span v-if="!sideCollapsed">设置</span>
+        </button>
+        <div class="side-clock" v-if="!sideCollapsed">
+          <div class="clock">
+            <div>{{ now }}</div>
+            <div class="clock-sub">
+              <span class="session">{{ session }}</span>
+              <span
+                class="clock-count"
+                role="button"
+                tabindex="0"
+                title="点击立即刷新"
+                @click="manualRefresh"
+                @keydown.enter.prevent="manualRefresh"
+              >
+                <span class="ri-dot" :class="{ active: polling.refreshing }"></span>
+                <span>{{ polling.countdown }}s</span>
+              </span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </aside>
+
     <div class="container">
       <component
         :is="viewComp"
@@ -62,7 +148,7 @@
       />
     </div>
     <div class="footer">
-      牛来 · 数据来源：东方财富 / 腾讯 / 同花顺公开行情（免费，仅个人学习使用，不构成投资建议）
+      <img class="footer-logo" src="/niulai.png" alt="牛来" />
     </div>
     <div class="bottom-index-bar">
       <IndexTicker />
@@ -73,7 +159,7 @@
 </template>
 
 <script setup>
-import { ref, onMounted, onUnmounted, shallowRef } from 'vue'
+import { ref, onMounted, onUnmounted, shallowRef, computed, watch } from 'vue'
 import { parseHash, navigate } from './router.js'
 import { api } from './api.js'
 import { globalPollingState, setTradingState, triggerPrimaryRefresh } from './composables/usePolling.js'
@@ -106,6 +192,8 @@ const now = ref('')
 const session = ref('')
 const isLight = ref(false)
 const polling = globalPollingState
+const navMode = computed(() => settingsState.navMode === 'side' ? 'side' : 'top')
+const sideCollapsed = ref(localStorage.getItem('niulai_side_collapsed') === '1')
 
 const views = {
   overview: Overview, global: Global, sectors: SectorHome, sector: SectorDetail,
@@ -139,6 +227,17 @@ function onHash() {
 }
 function go(p) { navigate(p) }
 
+/** 收起状态下点击放大镜：展开导航栏即可看到搜索框 */
+function onOpenSearch() {
+  sideCollapsed.value = false
+}
+
+/** 点击侧边栏 logo：收起时先展开，展开时回首页 */
+function onSideBrandClick() {
+  if (sideCollapsed.value) sideCollapsed.value = false
+  else go('/')
+}
+
 /** 点击倒计时：手动触发当前页主轮询刷新 */
 function manualRefresh() {
   if (polling.refreshing) return
@@ -156,6 +255,14 @@ function onSearchSelect(s) {
 
 let clockTimer = null
 let sessionTimer = null
+let collapseWatch = null
+
+// 收起状态持久化到 localStorage；布局变化会改变容器宽度，通知图表重新适配
+collapseWatch = watch(sideCollapsed, v => {
+  try { localStorage.setItem('niulai_side_collapsed', v ? '1' : '0') } catch (e) { /* ignore */ }
+  window.dispatchEvent(new Event('resize'))
+})
+watch(navMode, () => window.dispatchEvent(new Event('resize')))
 
 // 时钟：每秒刷新（纯本地时间，无需接口）
 function tickClock() {
@@ -199,6 +306,7 @@ onUnmounted(() => {
   clearInterval(clockTimer)
   clearInterval(sessionTimer)
   stopAlertWatcher()
+  if (collapseWatch) collapseWatch()
   if (mql && mql.removeEventListener) mql.removeEventListener('change', onSystemTheme)
 })
 </script>
