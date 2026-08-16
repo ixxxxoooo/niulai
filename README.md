@@ -1,15 +1,39 @@
-# 牛来 niulai
+<p align="center">
+  <img src="frontend/public/niulai.png" width="128" alt="牛来 niulai logo">
+</p>
 
-一个**自用的 A 股盘中分析 Web 工具**：浏览器打开即可一屏查看大盘概况、板块轮动、热门股与资金流向，盘中自动 3~5 秒刷新，随时查询任意个股的实时行情（分时图、五档盘口、成交明细、资金流），并支持监控提醒、持仓盈亏与 AI 分析。
+<h1 align="center">牛来 niulai</h1>
 
-- 数据来源：东方财富 / 腾讯**免费公开行情接口**（无需账号、无需付费）；K 线失败时降级 TickFlow 免费日K；压力/支撑可走百度公开接口
-- 本地存储：SQLite（`data/stock.db`）保存全 A 股名称（含拼音首字母/全拼）、自选、持仓、监控、设置与运行日志
-- 形态：Web 应用（FastAPI 后端 + Vue3 前端，单端口启动）
-- 合规说明：仅个人学习与行情分析，不构成投资建议；数据版权归数据源所有，请勿商业分发；**勿将 `data/` 或含 AI Key 的明文备份提交到仓库**
+<p align="center">
+  <b>A 股盘中实时行情分析 Web 工具</b><br>
+  浏览器打开即用的一屏式 A 股行情分析平台：大盘概况、板块轮动、热门股与资金流向实时刷新，支持个股深度行情、自选持仓管理、价格监控与 AI 智能分析。
+</p>
+
+<p align="center">
+  <b>免费数据源 · 本地存储 · 单端口部署 · 零成本上手</b>
+</p>
+
+数据全部来自东方财富 / 腾讯等**免费公开行情接口**（无需账号、无需付费），业务数据存本地 SQLite，无需任何外部数据库。个人自用或作为学习 A 股行情数据接口的最佳实践参考。
 
 ---
 
-## 快速启动
+## 核心特性
+
+- **一屏看盘**：指数、情绪指标、板块涨幅 TOP、涨速榜、全球指数，盘中 3~5 秒自动刷新
+- **板块轮动**：行业 / 概念板块排行（涨幅 / 主力净流入 / 成交额），板块异动 5 分钟涨速拉升 / 跳水榜
+- **热门与资金**：涨速榜、主力净流入、热门股多维度榜、涨停池、连板梯队、同花顺热榜
+- **个股深度行情**：搜索（代码 / 名称 / 拼音首字母 / 全拼）→ 分时图、K 线、五档盘口、成交明细、资金流、龙虎榜、新闻公告、筹码分布、百度压力 / 支撑
+- **自选与持仓**：独立 Tab 管理，持仓盈亏与收益快照，录入持仓自动加自选
+- **价格监控**：价格 / 点数 / 涨跌幅 / 涨速阈值触发，浏览器桌面通知 + 飞书推送；持仓异动监控（大笔买卖、急速拉升跳水）
+- **盘后选股**：全 A 日 K 增量同步到本地，突破 / 金叉 / 放量三规则扫描，结果可推飞书
+- **AI 分析**：本地配置 API Key，聚合快照 / 分时 / K 线 / 资金流 / 压力支撑后流式分析（兼容 reasoning 输出）
+- **强容错**：东财 / 腾讯多数据源并发取数 + 故障转移 + 节点健康管理，免费接口抖动不影响页面
+
+---
+
+## 快速开始
+
+### 一键启动
 
 ```bash
 ./start.sh
@@ -19,16 +43,27 @@
 
 启动后浏览器访问：**http://127.0.0.1:8088**
 
-> 手动方式：
-> ```bash
-> python3 -m venv .venv && .venv/bin/pip install -r requirements.txt
-> (cd frontend && node_modules/.bin/vite build)   # 推荐直调 vite，避免管道卡死
-> .venv/bin/uvicorn backend.app:app --host 0.0.0.0 --port 8088
-> ```
+### 手动启动
+
+```bash
+# 1. 创建虚拟环境并安装依赖
+python3 -m venv .venv && .venv/bin/pip install -r requirements.txt
+
+# 2. 构建前端
+(cd frontend && node_modules/.bin/vite build)
+
+# 3. 启动服务
+.venv/bin/uvicorn backend.app:app --host 0.0.0.0 --port 8088
+```
+
+### 环境要求
+
+- Python 3.10+
+- Node.js 18+（仅构建前端需要）
 
 ---
 
-## 功能总览
+## 界面功能
 
 | 页面 | 功能 |
 |---|---|
@@ -36,15 +71,26 @@
 | **板块分析** | 行业/概念板块排行（按涨幅/主力净流入/成交额排序）；点击板块展开成分股列表 |
 | **板块异动** | 5 分钟板块涨速拉升/跳水榜（约 5s 轮询） |
 | **热门与资金** | 涨速榜、个股主力净流入榜、热门股多维度榜、涨停池、连板梯队、板块资金流榜、同花顺热榜 |
-| **个股实时** | 搜索（代码/名称/拼音首字母/全拼）→ 快照、分时/K线、五档、成交明细、资金流、龙虎榜（席位标签/上榜次数）、新闻公告、百度压力支撑、**筹码分布**、数据源标签 |
+| **个股实时** | 搜索（代码/名称/拼音首字母/全拼）→ 快照、分时/K线、五档、成交明细、资金流、龙虎榜（席位标签/上榜次数）、新闻公告、百度压力支撑、筹码分布、数据源标签 |
 | **自选 / 持仓** | 自选与持仓 Tab 分离；持仓盈亏与收益快照；录入持仓自动加自选 |
-| **价格监控** | 价格 / 点数 / 涨跌幅 / **涨速** 阈值 + 浏览器桌面通知；**持仓异动监控**（大笔买卖/急速拉升跳水等，桌面 + 飞书提醒） |
+| **价格监控** | 价格 / 点数 / 涨跌幅 / 涨速阈值 + 浏览器桌面通知；持仓异动监控（大笔买卖/急速拉升跳水等，桌面 + 飞书提醒） |
 | **飞书通知** | 监控告警 / 持仓异动 / 盘后选股结果推送飞书自定义机器人卡片；设置页测试推送 |
 | **盘后选股** | 全 A 日 K 增量同步到 SQLite；突破 / 金叉 / 放量三规则扫描，结果可推飞书 |
 | **AI 分析** | 设置页配置 API Key（仅本地）；个股页流式分析（兼容 reasoning）；聚合快照/分时/K线/资金流/压力支撑后分析 |
 | **设置** | 主题、刷新间隔、分时/K线坐标、自选导入导出、股票列表/概念同步、接口/行为/数据源日志、飞书 Webhook |
 
 **轮询策略**：总览/板块 5 秒，板块异动 5 秒，榜单/个股快照 3 秒，个股明细/资金流 10 秒，监控/持仓异动检查 8 秒；非交易时段自动降频。
+
+---
+
+## 技术栈
+
+| 层 | 技术 |
+|---|---|
+| 后端 | Python 3 · FastAPI · Pydantic · SQLite |
+| 前端 | Vue 3 · Vite · ECharts |
+| 测试 | pytest（mock 数据源，CI 友好） |
+| 数据源 | 东方财富、腾讯、新浪、百度、同花顺（免费公开接口） |
 
 ---
 
@@ -89,7 +135,11 @@ niulai/
 
 ---
 
-## 接口一览（REST）
+## API 一览（REST）
+
+启动后访问 **http://127.0.0.1:8088/docs** 查看交互式接口文档（Swagger）。
+
+**大盘与指数**
 
 | 接口 | 说明 |
 |---|---|
@@ -100,6 +150,16 @@ niulai/
 | `GET /api/market/limit-break` | 炸板池 |
 | `GET /api/market/stock-changes` | 盘中个股异动（大笔买卖/急速拉升跳水） |
 | `GET /api/market/lhb` | 东财龙虎榜（最近交易日） |
+| `GET /api/global/indices` | 全球指数（日韩/亚太/美股） |
+| `GET /api/global/{secid}/trends` | 全球指数分时 |
+| `GET /api/global/{secid}/kline` | 全球指数 K 线 |
+| `GET /api/indices/quote` | 单指数快照 |
+| `GET /api/indices/quotes` | 批量指数快照（导航栏） |
+
+**板块与榜单**
+
+| 接口 | 说明 |
+|---|---|
 | `GET /api/sectors?type=industry\|concept&sort=...` | 板块排行 |
 | `GET /api/sectors/{code}` | 板块详情（成分股） |
 | `GET /api/sectors/moneyflow` | 板块主力净流入榜 |
@@ -110,13 +170,11 @@ niulai/
 | `GET /api/rank/zhangsu` | 涨速榜 |
 | `GET /api/rank/moneyflow` | 个股主力净流入榜 |
 | `GET /api/ths/hot` | 同花顺热榜 |
-| `GET /api/global/indices` | 全球指数（日韩/亚太/美股） |
-| `GET /api/global/{secid}/trends` | 全球指数分时 |
-| `GET /api/global/{secid}/kline` | 全球指数 K 线 |
-| `GET /api/indices/quote` | 单指数快照 |
-| `GET /api/indices/quotes` | 批量指数快照（导航栏） |
-| `GET /api/quotes/trends` | 指数分时（query 传 secid） |
-| `GET /api/quotes/kline` | 指数 K 线 |
+
+**个股**
+
+| 接口 | 说明 |
+|---|---|
 | `GET /api/stocks/{code}` | 个股实时详情（含五档盘口、`data_source`） |
 | `GET /api/stocks/{code}/trends` | 分时数据 |
 | `GET /api/stocks/{code}/kline` | K 线 + 指标（百度补额/涨跌） |
@@ -130,22 +188,33 @@ niulai/
 | `GET /api/stocks/{code}/analysis-data` | AI 分析全维度聚合数据 |
 | `GET /api/stocks/batch?codes=...` | 批量快照（自选股） |
 | `GET /api/search?q=` | 股票搜索（SQLite 优先，支持全拼） |
+
+**自选 / 持仓 / 监控**
+
+| 接口 | 说明 |
+|---|---|
 | `GET/POST/DELETE /api/watchlist` | 自选股 |
 | `GET/PUT/DELETE /api/positions*` | 持仓与盈亏摘要 / 收益快照 / 流水 |
 | `GET/POST/PUT/DELETE /api/alerts*` | 价格/涨跌幅/涨速监控 |
 | `GET /api/alerts/check` | 监控触发检查（前端轮询） |
 | `GET /api/alerts/check-changes` | 持仓异动检查（前端轮询 + 飞书推送） |
+
+**AI 与选股**
+
+| 接口 | 说明 |
+|---|---|
 | `POST /api/ai/chat` | AI 流式代理（Key 存本地设置） |
-| `GET/POST /api/settings` | 用户设置 |
-| `POST /api/notify/feishu/test` | 飞书推送测试 |
-| `GET /api/lhb/seats` | 龙虎榜席位标签库 |
-| `POST /api/lhb/seats/sync` | 重置/同步席位标签库 |
 | `POST /api/screener/sync-bars` | 触发全 A 日 K 后台同步 |
 | `GET /api/screener/sync-status` | 日 K 同步进度 |
 | `POST /api/screener/run` | 执行选股扫描 |
 | `GET /api/screener/rules` | 选股规则列表 |
 | `GET /api/screener/runs` | 历史选股任务 |
 | `GET /api/screener/runs/{id}` | 选股任务详情 |
+
+**元数据与系统**
+
+| 接口 | 说明 |
+|---|---|
 | `GET /api/meta/stocks` | 股票列表同步状态 |
 | `POST /api/meta/stocks/sync` | 手动同步全 A + ETF 列表 |
 | `POST /api/meta/tags/sync` | 后台同步概念标签 |
@@ -158,8 +227,10 @@ niulai/
 | `GET /api/crawl-article` | 代理抓取新闻/公告正文 |
 | `GET /api/trading/time` | 交易时段状态 |
 | `GET /api/health` | 健康检查 |
-
-交互式接口文档：启动后访问 `http://127.0.0.1:8088/docs`
+| `GET/POST /api/settings` | 用户设置 |
+| `POST /api/notify/feishu/test` | 飞书推送测试 |
+| `GET /api/lhb/seats` | 龙虎榜席位标签库 |
+| `POST /api/lhb/seats/sync` | 重置/同步席位标签库 |
 
 ---
 
@@ -195,13 +266,26 @@ niulai/
 
 免费接口偶有风控/抖动，以上容错保证页面不崩；接口全部不可用时返回 503 并提示。
 
-## 已知说明
+---
 
-- **北向资金不做**：交易所已停止盘中披露北向资金，公开接口无实时值。
+## 已知限制
+
+- **北向资金**：交易所已停止盘中披露北向资金，公开接口无实时值。
 - **跌停池**：东财对应接口曾 404，情绪指标偏涨停侧。
 - **日经/韩综分时**：腾讯不支持，依赖东财历史节点是否被风控。
-- **同花顺热榜解读**：上游仅对部分标的提供 `analyse`，无正文时降级展示标题/概念。
-- **节假日配置**：`backend/config.py` 的 `TRADING_HOLIDAYS` 预置主要节假日，可按交易所公告增删。
-- **自选跨端口**：自选/设置存 SQLite；首次打开可迁移 localStorage。
 - **选股日 K 同步**：首次全 A 同步较慢（约 50~80 分钟，受免费接口限速），增量很快；`daily_bars` 的 `amount` 在腾讯降级时可能缺失，突破规则依赖成交额，可能漏命中。
-- **前端构建**：优先 `frontend/node_modules/.bin/vite build`；产物在 `frontend/dist`。
+- **节假日配置**：`backend/config.py` 的 `TRADING_HOLIDAYS` 预置主要节假日，可按交易所公告增删。
+
+---
+
+## 免责声明
+
+本项目仅供个人学习与行情分析使用，**不构成任何投资建议**。股市有风险，入市需谨慎。
+
+数据版权归各数据源所有，请勿商业分发。**请勿将 `data/` 目录或含 AI Key 的明文备份提交到仓库**（`.gitignore` 已默认忽略）。
+
+---
+
+## License
+
+[MIT](LICENSE)
