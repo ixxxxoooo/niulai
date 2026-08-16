@@ -156,3 +156,85 @@ def alerts_check():
             pass
 
     return {"triggered": triggered, "checked_at": time.strftime("%Y-%m-%d %H:%M:%S")}
+
+
+# ── 持仓股异动监控 ──
+
+_change_notified: dict = {}  # {code:type_code: last_ts} 避免重复通知
+_CHANGE_COOLDOWN = 120       # 同一只股票同类异动冷却 120 秒
+
+
+@router.get("/alerts/check-changes")
+def alerts_check_changes():
+    """
+    检查持仓股是否出现异动（大笔买卖/急速拉升跳水等），
+    命中后返回 + 飞书推送。前端轮询调用。
+    @author ygw
+    """
+    enabled = db.get_setting("changes_monitor_enabled", "1")
+    if enabled != "1":
+        return {"changes": [], "checked_at": time.strftime("%Y-%m-%d %H:%M:%S")}
+
+    # 取持仓代码集合
+    positions = db.list_positions()
+    if not positions:
+        return {"changes": [], "checked_at": time.strftime("%Y-%m-%d %H:%M:%S")}
+    pos_codes = {p["code"] for p in positions}
+
+    # 关注的异动类型（可配置，默认只关注大笔和急速类）
+    watch_types_str = db.get_setting("changes_watch_types",
+                                     "8201,8202,8193,8204,8203,8211,8212,4,64,8208,8210")
+    watch_types = set(watch_types_str.split(",")) if watch_types_str else set()
+
+    # 拉取最新异动
+    all_changes = eastmoney.get_client().stock_changes(200)
+
+    now_ts = time.time()
+    matched = []
+    for c in all_changes:
+        code = c.get("code") or ""
+        if code not in pos_codes:
+            continue
+        type_code = c.get("type_code") or ""
+        if watch_types and type_code not in watch_types:
+            continue
+
+        # 冷却判断
+        ck = f"{code}:{type_code}"
+        last = _change_notified.get(ck, 0)
+        if now_ts - last < _CHANGE_COOLDOWN:
+            continue
+        _change_notified[ck] = now_ts
+
+        matched.append(c)
+
+    # 清理过期冷却记录
+    for k in list(_change_notified):
+        if now_ts - _change_notified[k] > 600:
+            del _change_notified[k]
+
+    # 飞书推送
+    if matched:
+        try:
+            from ...notify.feishu import send_card, _get_webhook, _base_url
+            webhook = _get_webhook()
+            if webhook:
+                base = _base_url()
+                fields = []
+                for m in matched[:10]:
+                    name = m.get("name") or m.get("code")
+                    code = m.get("code") or ""
+                    pct = m.get("change_pct")
+                    pct_str = f" ({pct}%)" if pct is not None else ""
+                    fields.append({
+                        "label": m.get("type_name") or "异动",
+                        "value": f"[{name}]({base}/#/stock/{code}){pct_str}  {m.get('time', '')}",
+                    })
+                if len(matched) > 10:
+                    fields.append({"label": "更多", "value": f"共 {len(matched)} 条异动"})
+                send_card(webhook, "盯盘 · 持仓异动提醒", fields,
+                          link=f"{base}/#/rank/changes", color="red")
+        except Exception:
+            pass
+
+    return {"changes": matched, "checked_at": time.strftime("%Y-%m-%d %H:%M:%S")}

@@ -256,6 +256,30 @@
     </div>
 
     <div class="card mt16">
+      <div class="card-title">持仓异动监控</div>
+      <div class="setting-row">
+        <span class="setting-label">启用异动监控</span>
+        <div class="setting-control">
+          <div class="tab" :class="{ active: changesMonitorEnabled }" @click="setChangesMon('changes_monitor_enabled', '1')">开启</div>
+          <div class="tab" :class="{ active: !changesMonitorEnabled }" @click="setChangesMon('changes_monitor_enabled', '0')">关闭</div>
+        </div>
+      </div>
+      <div class="setting-row">
+        <span class="setting-label">监控异动类型</span>
+        <div class="setting-control" style="flex-wrap:wrap">
+          <label class="filter-opt" :class="{ on: watchTypes.includes(t.code) }" v-for="t in changeTypeOptions" :key="t.code">
+            <input type="checkbox" :checked="watchTypes.includes(t.code)" @change="toggleChangeType(t.code)"> {{ t.label }}
+          </label>
+        </div>
+      </div>
+      <div class="setting-row">
+        <span class="setting-label" style="font-size:12px;color:var(--text-dim)">
+          开启后，系统每 8 秒检查一次持仓股异动。命中时弹出桌面通知，飞书同步推送。
+        </span>
+      </div>
+    </div>
+
+    <div class="card mt16">
       <div class="card-title">龙虎榜席位标签</div>
       <div class="setting-row">
         <span class="setting-label">已有席位标签</span>
@@ -329,6 +353,24 @@ const feishuWebhook = ref('')
 const feishuTesting = ref(false)
 const feishuTestMsg = ref('')
 const feishuTestOk = ref(false)
+
+// 持仓异动监控
+const changesMonitorEnabled = ref(true)
+const watchTypes = ref([])
+const changeTypeOptions = [
+  { code: '8201', label: '大笔买入' },
+  { code: '8202', label: '大笔卖出' },
+  { code: '8193', label: '有大买盘' },
+  { code: '8204', label: '有大卖盘' },
+  { code: '8203', label: '竞价上涨' },
+  { code: '8211', label: '高开5日线' },
+  { code: '8212', label: '低开5日线' },
+  { code: '4', label: '急速拉升' },
+  { code: '64', label: '急速跳水' },
+  { code: '8208', label: '封涨停板' },
+  { code: '8210', label: '打开涨停' },
+]
+const DEFAULT_WATCH_TYPES = '8201,8202,8193,8204,4,64,8208,8210'
 
 // 席位标签
 const seatCount = ref(0)
@@ -486,6 +528,18 @@ async function testFeishu() {
   }
 }
 
+function setChangesMon(key, value) {
+  if (key === 'changes_monitor_enabled') changesMonitorEnabled.value = value === '1'
+  saveSetting(key, value)
+}
+
+function toggleChangeType(code) {
+  const idx = watchTypes.value.indexOf(code)
+  if (idx >= 0) watchTypes.value.splice(idx, 1)
+  else watchTypes.value.push(code)
+  saveSetting('changes_watch_types', watchTypes.value.join(','))
+}
+
 async function syncSeats() {
   seatSyncing.value = true
   try {
@@ -534,6 +588,12 @@ onMounted(async () => {
     const s = settingsState
     feishuEnabled.value = s.feishu_enabled === '1' || s.feishu_enabled === true
     feishuWebhook.value = s.feishu_webhook || ''
+  } catch {}
+  // 异动监控
+  try {
+    changesMonitorEnabled.value = (s.changes_monitor_enabled || '1') === '1'
+    const wt = s.changes_watch_types || DEFAULT_WATCH_TYPES
+    watchTypes.value = wt ? wt.split(',') : []
   } catch {}
   try { seatCount.value = (await api.lhbSeats()).count || 0 } catch {}
   loadLogs()

@@ -111,6 +111,7 @@ export const api = {
   alertUpdate: (id, body) => send('PUT', `/alerts/${id}`, body),
   alertDelete: (id) => send('DELETE', `/alerts/${id}`),
   alertsCheck: () => get('/alerts/check'),
+  alertsCheckChanges: () => get('/alerts/check-changes'),
   analysisData: (code) => get(`/stocks/${code}/analysis-data`),
   baiduSr: (code, ktype = 'day') => get(`/stocks/${code}/baidu-sr?ktype=${ktype}`),
   stockChanges: (limit = 80) => get(`/market/stock-changes?limit=${limit}`),

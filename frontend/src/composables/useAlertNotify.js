@@ -1,12 +1,15 @@
 /**
- * 价格监控：轮询后端 /alerts/check，触发时发 Chrome/macOS 桌面通知。
+ * 价格监控 + 持仓异动监控：
+ * 轮询后端 /alerts/check 和 /alerts/check-changes，
+ * 触发时发 Chrome/macOS 桌面通知。
  * @author ygw
  */
 import { api } from '../api.js'
 
 let timer = null
 let permissionAsked = false
-const notifiedIds = new Set() // 本会话已弹过的触发，避免同一次结果重复弹
+const notifiedIds = new Set()
+const changeNotifiedKeys = new Set()
 
 const METRIC_LABEL = {
   price: '价格',
@@ -65,16 +68,61 @@ function fireNotify(item) {
   } catch (e) { /* ignore */ }
 }
 
+/**
+ * 持仓异动桌面通知
+ * @param {Object} item - 后端返回的异动项
+ */
+function fireChangeNotify(item) {
+  const key = `${item.code}:${item.type_code}:${item.time || ''}`
+  if (changeNotifiedKeys.has(key)) return
+  changeNotifiedKeys.add(key)
+  if (changeNotifiedKeys.size > 200) {
+    const first = changeNotifiedKeys.values().next().value
+    changeNotifiedKeys.delete(first)
+  }
+
+  const name = item.name || item.code
+  const typeName = item.type_name || '异动'
+  const pct = item.change_pct
+  const pctStr = pct != null ? `（涨跌 ${pct > 0 ? '+' : ''}${Number(pct).toFixed(2)}%）` : ''
+  const title = `盯盘异动 · ${name}`
+  const body = `${typeName}${pctStr}\n时间 ${item.time || '-'}`
+
+  try {
+    const n = new Notification(title, {
+      body,
+      tag: `change-${item.code}-${item.type_code}`,
+      requireInteraction: true,
+    })
+    n.onclick = () => {
+      window.focus()
+      location.hash = '/stock/' + item.code
+      n.close()
+    }
+  } catch (e) { /* ignore */ }
+}
+
 async function tick() {
   try {
     const ok = await ensurePermission()
     if (!ok) return
+
+    // 价格告警
     const res = await api.alertsCheck()
     const list = (res && res.triggered) || []
     for (const it of list) {
       it.checked_at = res.checked_at
       fireNotify(it)
     }
+
+    // 持仓异动
+    try {
+      const cr = await api.alertsCheckChanges()
+      const changes = (cr && cr.changes) || []
+      for (const c of changes) {
+        fireChangeNotify(c)
+      }
+    } catch (_) { /* 静默 */ }
   } catch (e) { /* 静默 */ }
 }
 
