@@ -1,10 +1,15 @@
 <template>
   <div>
     <div class="error-banner" v-if="error">{{ error }}</div>
-    <div class="card">
-      <div class="card-title">
+    <div class="card" ref="strengthCard">
+      <div class="card-title" style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px">
         <span>板块强度榜 · 开盘啦{{ kplDate ? `（${kplDate} · 当日涨停相关板块）` : '' }}</span>
-        <span style="font-weight:400;color:var(--text-dim);font-size:12px" data-tip="开盘啦板块强度指标，数值越高代表该板块资金与连板情绪越强。仅统计当日有涨停的板块。">强度说明</span>
+        <span style="display:flex;align-items:center;gap:10px">
+          <span style="font-weight:400;color:var(--text-dim);font-size:12px" data-tip="开盘啦板块强度指标，数值越高代表该板块资金与连板情绪越强。仅统计当日有涨停的板块。">强度说明</span>
+          <button class="btn-screenshot" @click="doScreenshot" title="截图">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="12" cy="12" r="3"/></svg>
+          </button>
+        </span>
       </div>
       <div class="empty" v-if="!items.length">{{ error || '暂无数据' }}</div>
       <div class="table-wrap" v-else>
@@ -46,10 +51,16 @@ import { api } from '../api.js'
 import { fmtAmount, pctClass } from '../utils.js'
 import { usePolling } from '../composables/usePolling.js'
 import { openStock } from '../composables/useStockMeta.js'
+import { captureElement } from '../composables/useScreenshot.js'
 
 const items = ref([])
 const kplDate = ref('')
 const error = ref('')
+const strengthCard = ref(null)
+
+async function doScreenshot() {
+  await captureElement(strengthCard, '板块强度榜.png')
+}
 
 async function load() {
   try {
@@ -80,6 +91,11 @@ usePolling(load, 30000)
 </script>
 
 <style scoped>
+.btn-screenshot {
+  border: none; background: transparent; cursor: pointer; color: var(--text-dim);
+  padding: 2px 6px; border-radius: 4px; opacity: .7;
+}
+.btn-screenshot:hover { opacity: 1; background: var(--bg-hover); }
 .table-wrap { overflow-x: auto; }
 .kpl-rank { font-weight: 700; color: var(--text-dim); font-variant-numeric: tabular-nums; }
 .kpl-rank.top { color: var(--yellow); }
