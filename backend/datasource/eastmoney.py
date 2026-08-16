@@ -442,7 +442,8 @@ class EastMoneyClient:
         ("100.N225", "日经225", "日韩"),
         ("100.KS11", "韩国KOSPI", "日韩"),
         ("100.HSI", "恒生指数", "亚太"),
-        ("100.NDX", "纳斯达克100", "美股"),
+        ("100.NDX", "纳斯达克", "美股"),
+        ("100.NDX100", "纳斯达克100", "美股"),
         ("100.SPX", "标普500", "美股"),
         ("100.DJIA", "道琼斯", "美股"),
     ]
@@ -458,6 +459,68 @@ class EastMoneyClient:
                     if not q.name:
                         q.name = name
         return quotes
+
+    def global_stock_quotes(self, secids: List[str]) -> List[dict]:
+        """美股/日韩个股批量快照（secid 前缀：105/106/107=美股，176=日股，177=韩股）。
+
+        返回 [{secid, code, name, market, price, change, change_pct, amount,
+               high, low, open, prev_close, industry}]，仅保留有数据的标的。
+        """
+        if not secids:
+            return []
+        fields = "f2,f3,f4,f5,f6,f12,f13,f14,f15,f16,f17,f18,f100"
+        data = self._q.get("/ulist.np/get", {
+            "fltt": 2, "invt": 2, "secids": ",".join(secids), "fields": fields,
+        })
+        diff = (data or {}).get("data", {}).get("diff") or []
+        if isinstance(diff, dict):
+            diff = [diff]
+        out: List[dict] = []
+        for it in diff:
+            code = str(it.get("f12", ""))
+            if not code:
+                continue
+            out.append({
+                "secid": f"{it.get('f13')}.{code}",
+                "code": code,
+                "name": it.get("f14") or "",
+                "market": _num(it.get("f13")),
+                "price": _num(it.get("f2")),
+                "change": _num(it.get("f4")),
+                "change_pct": _num(it.get("f3")),
+                "volume": _num(it.get("f5")),
+                "amount": _num(it.get("f6")),
+                "high": _num(it.get("f15")),
+                "low": _num(it.get("f16")),
+                "open": _num(it.get("f17")),
+                "prev_close": _num(it.get("f18")),
+                "industry": it.get("f100") or "",
+            })
+        return out
+
+    def us_sector_boards(self) -> List[dict]:
+        """美股/日韩题材板块涨跌幅（代表股简单平均，成分股一并返回）。
+
+        东财无美股题材板块接口，采用 config.US_THEME_SECTORS 配置的代表股
+        拉实时快照，板块涨跌幅 = 有数据成分股涨跌幅的算术平均。
+        """
+        cfg = getattr(config, "US_THEME_SECTORS", [])
+        out: List[dict] = []
+        for board in cfg:
+            secids = board.get("secids") or []
+            if not secids:
+                continue
+            quotes = self.global_stock_quotes(secids)
+            pcts = [q["change_pct"] for q in quotes if q.get("change_pct") is not None]
+            out.append({
+                "key": board.get("key", ""),
+                "name": board.get("name", ""),
+                "change_pct": round(sum(pcts) / len(pcts), 2) if pcts else None,
+                "up_count": sum(1 for p in pcts if p > 0),
+                "down_count": sum(1 for p in pcts if p < 0),
+                "stocks": quotes,
+            })
+        return out
 
     # ---------------------------------------------------------------- 榜单
     def clist(self, fs: str, fid: str, limit: int = 100, po: int = 1,

@@ -85,6 +85,7 @@ export const api = {
   tradingTime: () => get('/trading/time'),
   search: (q, limit = 10) => get(`/search?q=${encodeURIComponent(q)}&limit=${limit}`),
   globalIndices: () => get('/global/indices'),
+  globalSectors: () => get('/global/sectors'),
   globalTrends: (secid) => get(`/global/${secid}/trends`),
   globalKline: (secid, period = 'day', limit = 120) => get(`/global/${secid}/kline?period=${period}&limit=${limit}`),
   sectorMoves: (dir = 'up', limit = 30) => get(`/sector-moves?dir=${dir}&limit=${limit}`),

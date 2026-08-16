@@ -202,6 +202,13 @@ def global_indices():
     return [q.model_dump() for q in eastmoney.get_client().global_indices()]
 
 
+@router.get("/global/sectors")
+@ttl_cache(ttl=10)
+def global_sectors():
+    """美股/日韩题材板块涨跌幅（代表股平均，含成分股快照）"""
+    return eastmoney.get_client().us_sector_boards()
+
+
 @router.get("/global/{secid}/trends")
 @ttl_cache()
 def global_trends(secid: str):
