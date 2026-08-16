@@ -3,7 +3,7 @@
     <div class="page-title">全球市场</div>
     <div class="error-banner" v-if="error">{{ error }}</div>
 
-    <!-- 全球指数 -->
+    <!-- 全球指数（卡片块） -->
     <div class="card" ref="idxCard">
       <div class="card-title" style="display:flex;align-items:center;justify-content:space-between">
         <span>全球指数</span>
@@ -11,18 +11,15 @@
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="12" cy="12" r="3"/></svg>
         </button>
       </div>
-      <div class="scroll-list">
-        <table class="data-table">
-          <thead><tr><th>指数</th><th>最新</th><th>涨跌幅</th><th>涨跌</th></tr></thead>
-          <tbody>
-            <tr v-for="q in indices" :key="q.secid || q.code" @click="goIndex(q)">
-              <td class="stock-name">{{ q.name }}</td>
-              <td :class="pctClass(q.change_pct)">{{ fmtPrice(q.price) }}</td>
-              <td :class="pctClass(q.change_pct)">{{ fmtPct(q.change_pct) }}</td>
-              <td :class="pctClass(q.change_pct)">{{ fmtNum(q.change) }}</td>
-            </tr>
-          </tbody>
-        </table>
+      <div class="index-grid">
+        <div v-for="q in indices" :key="q.secid || q.code" class="card index-card" @click="goIndex(q)">
+          <div class="index-name">{{ q.name }}</div>
+          <div class="index-price" :class="pctClass(q.change_pct)">{{ fmtPrice(q.price) }}</div>
+          <div class="index-pct" :class="pctClass(q.change_pct)">
+            {{ fmtPct(q.change_pct) }}
+            <span style="font-size:12px;font-weight:400">{{ fmtNum(q.change) }}</span>
+          </div>
+        </div>
       </div>
     </div>
 
@@ -38,11 +35,11 @@
         <div v-for="b in usBoards" :key="b.key" class="theme-item">
           <div class="theme-name">{{ b.name }}</div>
           <div class="theme-pct" :class="pctClass(b.change_pct)">{{ fmtPct(b.change_pct) }}</div>
-          <div class="theme-stocks">
-            <span v-for="s in b.stocks" :key="s.secid" class="theme-stock" :class="pctClass(s.change_pct)">
-              {{ s.name }}
-              <span class="theme-stock-pct">{{ s.change_pct != null ? fmtPct(s.change_pct) : '' }}</span>
-            </span>
+          <div class="theme-pop">
+            <div v-for="s in b.stocks" :key="s.secid" class="pop-row">
+              <span class="pop-name">{{ s.name }}</span>
+              <span class="pop-pct" :class="pctClass(s.change_pct)">{{ s.change_pct != null ? fmtPct(s.change_pct) : '—' }}</span>
+            </div>
           </div>
         </div>
       </div>
@@ -60,11 +57,11 @@
         <div v-for="b in jpBoards" :key="b.key" class="theme-item">
           <div class="theme-name">{{ b.name }}</div>
           <div class="theme-pct" :class="pctClass(b.change_pct)">{{ fmtPct(b.change_pct) }}</div>
-          <div class="theme-stocks">
-            <span v-for="s in b.stocks" :key="s.secid" class="theme-stock" :class="pctClass(s.change_pct)">
-              {{ s.name }}
-              <span class="theme-stock-pct">{{ s.change_pct != null ? fmtPct(s.change_pct) : '' }}</span>
-            </span>
+          <div class="theme-pop">
+            <div v-for="s in b.stocks" :key="s.secid" class="pop-row">
+              <span class="pop-name">{{ s.name }}</span>
+              <span class="pop-pct" :class="pctClass(s.change_pct)">{{ s.change_pct != null ? fmtPct(s.change_pct) : '—' }}</span>
+            </div>
           </div>
         </div>
       </div>
@@ -82,11 +79,11 @@
         <div v-for="b in krBoards" :key="b.key" class="theme-item">
           <div class="theme-name">{{ b.name }}</div>
           <div class="theme-pct" :class="pctClass(b.change_pct)">{{ fmtPct(b.change_pct) }}</div>
-          <div class="theme-stocks">
-            <span v-for="s in b.stocks" :key="s.secid" class="theme-stock" :class="pctClass(s.change_pct)">
-              {{ s.name }}
-              <span class="theme-stock-pct">{{ s.change_pct != null ? fmtPct(s.change_pct) : '' }}</span>
-            </span>
+          <div class="theme-pop">
+            <div v-for="s in b.stocks" :key="s.secid" class="pop-row">
+              <span class="pop-name">{{ s.name }}</span>
+              <span class="pop-pct" :class="pctClass(s.change_pct)">{{ s.change_pct != null ? fmtPct(s.change_pct) : '—' }}</span>
+            </div>
           </div>
         </div>
       </div>
@@ -137,36 +134,54 @@ const poll = usePolling(load, 10000)
 <style scoped>
 .theme-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
   gap: 10px;
 }
 .theme-item {
+  position: relative;
   border: 1px solid var(--border);
   border-radius: 8px;
   padding: 10px 12px;
   background: var(--bg);
+  cursor: default;
+  transition: border-color 0.12s;
 }
+.theme-item:hover { border-color: var(--accent); }
 .theme-name {
   font-size: 13px;
   font-weight: 600;
   color: var(--text);
 }
 .theme-pct {
-  font-size: 18px;
+  font-size: 20px;
   font-weight: 700;
-  margin: 2px 0 8px;
+  margin-top: 2px;
 }
-.theme-stocks {
+/* 悬浮弹层：显示成分股涨跌 */
+.theme-pop {
+  display: none;
+  position: absolute;
+  left: 0;
+  top: calc(100% + 6px);
+  z-index: 20;
+  min-width: 150px;
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 8px 10px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.35);
+}
+body.light .theme-pop { box-shadow: 0 8px 24px rgba(31, 36, 43, 0.15); }
+.theme-item:hover .theme-pop { display: block; }
+.pop-row {
   display: flex;
-  flex-wrap: wrap;
-  gap: 4px 8px;
-}
-.theme-stock {
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
   font-size: 12px;
-  color: var(--text);
+  line-height: 1.9;
+  white-space: nowrap;
 }
-.theme-stock-pct {
-  margin-left: 2px;
-  font-weight: 600;
-}
+.pop-name { color: var(--text); }
+.pop-pct { font-weight: 600; }
 </style>
