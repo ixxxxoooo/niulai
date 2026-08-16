@@ -67,6 +67,12 @@
               <td><span class="seat-activity" :class="{ hot: g.activity > 0 }">{{ g.activity || 0 }}</span></td>
               <td>
                 <div v-for="s in g.seats" :key="s" class="seat-line">{{ s }}</div>
+                <template v-if="g.real_seats && g.real_seats.length">
+                  <div class="seat-real-title">实际出现（{{ g.real_seats.length }}）</div>
+                  <div v-for="rs in g.real_seats" :key="rs.name" class="seat-line seat-real" :title="'最近 ' + rs.last_date">
+                    {{ rs.name }}<span class="seat-real-date">{{ rs.last_date }}</span>
+                  </div>
+                </template>
               </td>
               <td>
                 <span v-if="g.source === 'builtin'" class="src-builtin">内置</span>
@@ -315,11 +321,14 @@ async function loadSeatGroups() {
     const map = new Map()
     for (const s of (res.seats || [])) {
       const k = s.nickname
-      if (!map.has(k)) map.set(k, { nickname: k, real_name: s.real_name || '', tier: s.tier, style: s.style || '', premium: s.premium || 'neutral', source: s.source || 'builtin', activity: s.activity || 0, seats: [] })
+      if (!map.has(k)) map.set(k, { nickname: k, real_name: s.real_name || '', tier: s.tier, style: s.style || '', premium: s.premium || 'neutral', source: s.source || 'builtin', activity: s.activity || 0, seats: [], real_seats: [] })
       const g = map.get(k)
       if (!g.real_name && s.real_name) g.real_name = s.real_name
       if ((s.activity || 0) > g.activity) g.activity = s.activity
       g.seats.push(s.seat_name)
+      for (const rs of (s.real_seats || [])) {
+        if (!g.real_seats.some(x => x.name === rs.name)) g.real_seats.push(rs)
+      }
     }
     seatGroups.value = [...map.values()]
     sortSeatGroups()
@@ -569,6 +578,9 @@ onUnmounted(() => {
 .seat-activity { font-weight: 700; color: var(--text-dim); }
 .seat-activity.hot { color: #b45309; }
 .seat-line { color: var(--text-dim); line-height: 1.5; }
+.seat-real-title { margin-top: 6px; font-size: 12px; color: var(--accent); font-weight: 600; }
+.seat-real { font-size: 12px; }
+.seat-real-date { margin-left: 6px; font-size: 11px; color: var(--text-dim); }
 .seat-tag { display: inline-block; padding: 2px 8px; border-radius: 10px; font-size: 12px; }
 .seat-tag.tier-legend { background: #ffd70033; color: #b8860b; border: 1px solid #ffd70066; }
 .seat-tag.tier-new_gen { background: #1a56a81a; color: var(--accent); border: 1px solid var(--accent); }

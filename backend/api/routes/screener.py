@@ -123,10 +123,11 @@ def screener_run_detail(run_id: int):
 
 @router.get("/lhb/seats")
 def lhb_seats_list():
-    """席位标签库列表（含近期活跃度：近30天在 lhb_records 中出现的次数）。"""
+    """席位标签库列表（含近期活跃度 + 实际出现过的营业部）。"""
     from ...db.lhb_seats import list_seats, seat_count
     seats = list_seats()
     activity: dict = {}
+    real_seats: dict = {}
     try:
         from ...db import store
         conn = store.get_conn()
@@ -135,10 +136,20 @@ def lhb_seats_list():
             "WHERE nickname != '' AND date >= date('now', '-30 day') GROUP BY nickname"
         ).fetchall()
         activity = {r["nickname"]: r["c"] for r in rows}
+        rrows = conn.execute(
+            "SELECT nickname, seat_name, MAX(date) AS last_date FROM lhb_records "
+            "WHERE nickname != '' AND seat_name != '' GROUP BY nickname, seat_name"
+        ).fetchall()
+        real_seats = {}
+        for r in rrows:
+            real_seats.setdefault(r["nickname"], []).append({
+                "name": r["seat_name"], "last_date": r["last_date"],
+            })
     except Exception:
         pass
     for s in seats:
         s["activity"] = activity.get(s["nickname"], 0)
+        s["real_seats"] = real_seats.get(s["nickname"], [])
     return {"count": seat_count(), "seats": seats}
 
 
