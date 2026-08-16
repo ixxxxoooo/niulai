@@ -45,7 +45,6 @@
               <th class="sortable" :class="{ sorted: ztSort.sortKey === 'price' }" @click="ztSort.toggleSort('price')">现价</th>
               <th class="sortable" :class="{ sorted: ztSort.sortKey === 'change_pct' }" @click="ztSort.toggleSort('change_pct')">涨幅</th>
               <th class="sortable" :class="{ sorted: ztSort.sortKey === 'lbc' }" @click="ztSort.toggleSort('lbc')">连板</th>
-              <th class="sortable" :class="{ sorted: ztSort.sortKey === 'zb_count' }" @click="ztSort.toggleSort('zb_count')">炸板</th>
               <th>行业</th>
               <th class="sortable" :class="{ sorted: ztSort.sortKey === 'seal_amount' }" @click="ztSort.toggleSort('seal_amount')">封单额</th>
               <th class="sortable" :class="{ sorted: ztSort.sortKey === 'first_time' }" @click="ztSort.toggleSort('first_time')">首次封板</th>
@@ -60,13 +59,17 @@
                 <td>{{ p.code }}</td>
                 <td>{{ fmtPrice(p.price) }}</td>
                 <td class="up">{{ fmtPct(p.change_pct) }}</td>
-                <td><span class="zt-lb-badge" :title="`连板数：${p.lbc}，点击查看连板梯队`" @click.stop="goLadder()">{{ lbcLabel(p.lbc) }}</span></td>
-                <td>{{ p.zb_count ? p.zb_count + '次' : '-' }}</td>
+                <td>
+                  <span class="zt-lb-wrap">
+                    <span class="zt-lb-badge" :title="`连板数：${p.lbc}，点击查看连板梯队`" @click.stop="goLadder()">{{ lbcLabel(p.lbc) }}</span>
+                    <span v-if="p.zb_count" class="zt-zb-badge" :title="`今日炸板 ${p.zb_count} 次，点击查看连板梯队`" @click.stop="goLadder()">炸{{ p.zb_count }}</span>
+                  </span>
+                </td>
                 <td>{{ p.industry || '-' }}</td>
                 <td :class="pctClass(p.seal_amount)">{{ fmtAmount(p.seal_amount) }}</td>
                 <td>{{ p.first_time || '-' }}</td>
               </tr>
-              <tr v-if="!ztSort.sorted.length"><td colspan="9" class="empty">暂无数据</td></tr>
+              <tr v-if="!ztSort.sorted.length"><td colspan="8" class="empty">暂无数据</td></tr>
             </tbody>
           </table>
         </div>
@@ -338,4 +341,12 @@ usePolling(load, 3000)
   padding: 1px 8px; cursor: pointer; white-space: nowrap;
 }
 .zt-lb-badge:hover { filter: brightness(1.08); box-shadow: 0 0 0 1px var(--up); }
+.zt-lb-wrap { display: inline-flex; align-items: center; gap: 4px; }
+.zt-zb-badge {
+  display: inline-block; font-size: 11px; font-weight: 700;
+  color: var(--yellow); background: rgba(227, 179, 65, 0.16);
+  border: 1px solid rgba(227, 179, 65, 0.45); border-radius: 10px;
+  padding: 1px 8px; cursor: pointer; white-space: nowrap;
+}
+.zt-zb-badge:hover { filter: brightness(1.1); box-shadow: 0 0 0 1px var(--yellow); }
 </style>
