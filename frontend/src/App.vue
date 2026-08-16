@@ -22,17 +22,6 @@
         <a :class="{ active: route.name === 'screener' }" @click="go('/screener')">选股</a>
       </nav>
       <div class="topbar-right">
-        <div
-          class="refresh-indicator"
-          title="点击立即刷新"
-          role="button"
-          tabindex="0"
-          @click="manualRefresh"
-          @keydown.enter.prevent="manualRefresh"
-        >
-          <span class="ri-dot" :class="{ active: polling.refreshing }"></span>
-          <span class="ri-text">{{ polling.countdown }}s</span>
-        </div>
         <SearchSuggest placeholder="代码 / 名称 / 拼音，如 茅台、gzmt" @select="onSearchSelect" />
         <button class="theme-btn" title="设置" @click="go('/settings')">
           <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true">
@@ -52,6 +41,17 @@
         <div class="clock">
           <div>{{ now }}</div>
           <div class="session">{{ session }}</div>
+          <div
+            class="clock-count"
+            role="button"
+            tabindex="0"
+            title="点击立即刷新"
+            @click="manualRefresh"
+            @keydown.enter.prevent="manualRefresh"
+          >
+            <span class="ri-dot" :class="{ active: polling.refreshing }"></span>
+            <span>刷新 {{ polling.countdown }}s</span>
+          </div>
         </div>
       </div>
     </div>

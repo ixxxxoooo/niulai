@@ -116,18 +116,7 @@ a:hover { text-decoration: underline; }
 
 .topbar-right { margin-left: auto; display: flex; align-items: center; gap: 12px; }
 
-/* 导航栏刷新指示器 */
-.refresh-indicator {
-  display: flex; align-items: center; gap: 6px;
-  font-size: 12px; color: var(--text-dim);
-  padding: 4px 10px; border-radius: 6px;
-  background: var(--bg-card); border: 1px solid var(--border);
-  cursor: pointer; user-select: none;
-  transition: border-color 0.15s, color 0.15s;
-}
-.refresh-indicator:hover {
-  border-color: var(--accent); color: var(--accent);
-}
+/* 导航栏刷新指示器（并入时钟区，纯文本无框） */
 .ri-dot {
   width: 7px; height: 7px; border-radius: 50%;
   background: var(--text-dim); flex-shrink: 0;
@@ -148,6 +137,13 @@ a:hover { text-decoration: underline; }
 
 .clock { color: var(--text-dim); font-size: 13px; text-align: right; }
 .clock .session { color: var(--yellow); font-weight: 600; }
+.clock-count {
+  display: inline-flex; align-items: center; gap: 5px;
+  font-size: 12px; color: var(--text-dim);
+  cursor: pointer; user-select: none; white-space: nowrap;
+  transition: color 0.15s;
+}
+.clock-count:hover { color: var(--accent); }
 
 /* 内容 */
 .container { max-width: 1400px; margin: 0 auto; padding: 16px 20px 40px; }
