@@ -1,72 +1,89 @@
 <template>
-  <div class="ai-panel card" ref="panelEl">
-    <div class="ai-header">
-      <span class="ai-title">AI 智能分析</span>
-      <button class="btn-ai" :disabled="loading" @click="runAnalysis">
-        {{ loading ? '分析中…' : (result || reasoning ? '重新分析' : '开始分析') }}
-      </button>
-      <span v-if="elapsed" class="ai-elapsed">耗时 {{ elapsed }}s</span>
-      <button
-        v-if="result || reasoning || streamText"
-        class="btn-screenshot ai-shot"
-        title="截图整块"
-        @click="screenshotAi"
-      >
-        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="12" cy="12" r="3"/></svg>
-      </button>
+  <Teleport to="body">
+    <div v-if="open" class="ai-modal-mask" @click.self="close">
+      <div class="ai-modal" ref="modalEl">
+        <div class="ai-modal-head">
+          <span class="ai-modal-title">AI 智能分析 · {{ name || code }}</span>
+          <select
+            v-if="history.length"
+            v-model="currentId"
+            class="ai-hist-select"
+            title="历史记录（最多 5 条，倒序）"
+            @change="onSelectHistory"
+          >
+            <option v-for="h in history" :key="h.id" :value="h.id">
+              {{ fmtHistTime(h.created_at) }}{{ h.id === latestId ? ' · 最新' : '' }}
+            </option>
+          </select>
+          <button class="btn-ai" :disabled="loading" @click="runAnalysis">
+            {{ loading ? '分析中…' : (hasContent ? '重新生成' : '开始分析') }}
+          </button>
+          <span v-if="elapsed" class="ai-elapsed">{{ elapsed }}s</span>
+          <button class="btn-shot" @click="screenshot" title="截图整个浮窗"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="12" cy="12" r="3"/></svg></button>
+          <button class="modal-close" @click="close" title="关闭">✕</button>
+        </div>
+
+        <div class="ai-modal-body">
+          <div v-if="!hasConfig" class="ai-tip">
+            请先在「设置」中开启 AI 分析并配置 API Key。
+            <a href="#/settings" class="link">前往设置 →</a>
+          </div>
+
+          <template v-else>
+            <div v-if="error" class="ai-error">
+              <div>{{ error }}</div>
+              <div v-if="debugInfo" class="ai-debug">{{ debugInfo }}</div>
+            </div>
+
+            <!-- 思考过程（Markdown 实时预览） -->
+            <div v-if="thinkingMd || currentReasoning" class="ai-think">
+              <button type="button" class="ai-think-toggle" @click="thinkOpen = !thinkOpen">
+                <span class="ai-think-icon" :class="{ open: thinkOpen }">▸</span>
+                <span v-if="loading && !currentReasoning">{{ thinkOpen ? '正在思考…' : '思考中（点击展开）' }}</span>
+                <span v-else>已深度思考{{ thinkSeconds ? `（用时约 ${thinkSeconds}s）` : '' }}</span>
+                <span class="ai-think-hint">{{ thinkOpen ? '收起' : '展开' }}</span>
+              </button>
+              <div v-show="thinkOpen" class="ai-think-body">
+                <div class="ai-think-text md" v-html="renderMd(thinkingMd || currentReasoning)"></div>
+              </div>
+            </div>
+
+            <div v-if="loading && !streamText && !thinkingMd" class="ai-loading">
+              <div class="ai-spinner"></div>
+              <span>正在获取数据并调用 AI…</span>
+            </div>
+
+            <div v-if="streamText && !showResult" class="ai-stream md" v-html="renderMd(streamText)"></div>
+
+            <div v-if="showResult" class="ai-result">
+              <div class="ai-section" v-for="sec in resultSections" :key="sec.key">
+                <div class="ai-section-title">{{ sec.title }}</div>
+                <div class="ai-text md" v-html="renderMd(sec.text)"></div>
+              </div>
+              <div class="ai-disclaimer">
+                ⚠️ AI 分析仅供参考，不构成投资建议。市场有风险，投资需谨慎。
+              </div>
+            </div>
+
+            <div v-else-if="!loading && !error && !hasContent && !thinkingMd" class="ai-empty">
+              <template v-if="history.length">
+                最近一次分析记录已展示（{{ fmtHistTime(latestTime) }}）。点击「重新生成」可获取最新判断。
+              </template>
+              <template v-else>
+                暂无历史记录。点击「开始分析」，AI 将综合分时、K线、资金流、技术指标等数据给出走势判断。
+              </template>
+            </div>
+          </template>
+        </div>
+      </div>
     </div>
-
-    <div v-if="!hasConfig" class="ai-tip">
-      请先在「设置」中开启 AI 分析并配置 API Key。
-      <a href="#/settings" class="link">前往设置 →</a>
-    </div>
-
-    <template v-else>
-      <div v-if="error" class="ai-error">
-        <div>{{ error }}</div>
-        <div v-if="debugInfo" class="ai-debug">{{ debugInfo }}</div>
-      </div>
-
-      <!-- 思维链：默认收起，可展开（类 DeepSeek / 豆包 思考块） -->
-      <div v-if="reasoning || (loading && thinking)" class="ai-think">
-        <button type="button" class="ai-think-toggle" @click="thinkOpen = !thinkOpen">
-          <span class="ai-think-icon" :class="{ open: thinkOpen }">▸</span>
-          <span v-if="loading && !result">{{ thinkOpen ? '正在思考…' : '思考中（点击展开）' }}</span>
-          <span v-else>已深度思考{{ thinkSeconds ? `（用时约 ${thinkSeconds}s）` : '' }}</span>
-          <span class="ai-think-hint">{{ thinkOpen ? '收起' : '展开' }}</span>
-        </button>
-        <div v-show="thinkOpen" class="ai-think-body">
-          <div class="ai-think-text">{{ reasoning || thinking }}</div>
-        </div>
-      </div>
-
-      <div v-if="loading && !streamText && !thinking" class="ai-loading">
-        <div class="ai-spinner"></div>
-        <span>正在获取数据并调用 AI…</span>
-      </div>
-
-      <div v-if="streamText && !result" class="ai-stream" v-html="renderRichText(streamText)"></div>
-
-      <div v-if="result" class="ai-result">
-        <div class="ai-section" v-for="sec in resultSections" :key="sec.key">
-          <div class="ai-section-title">{{ sec.title }}</div>
-          <div class="ai-text" v-html="renderRichText(sec.text)"></div>
-        </div>
-        <div class="ai-disclaimer">
-          ⚠️ AI 分析仅供参考，不构成投资建议。市场有风险，投资需谨慎。
-        </div>
-      </div>
-
-      <div v-else-if="!loading && !error && !reasoning" class="ai-empty">
-        点击「开始分析」，AI 将综合分时、K线、资金流、技术指标等数据给出走势判断。
-      </div>
-    </template>
-  </div>
+  </Teleport>
 </template>
 
 <script setup>
 // @author ygw
 import { ref, computed } from 'vue'
+import { marked } from 'marked'
 import { api } from '../api.js'
 import { settingsState } from '../composables/useSettings.js'
 import { captureElement } from '../composables/useScreenshot.js'
@@ -76,20 +93,39 @@ const props = defineProps({
   name: { type: String, default: '' },
 })
 
-const panelEl = ref(null)
+marked.setOptions({ breaks: true, gfm: true })
+
+// ── 弹窗与历史状态 ──
+const open = ref(false)
+const modalEl = ref(null)
+const history = ref([])
+const currentId = ref(null)
+const currentReasoning = ref('')
+const currentContent = ref('')
+const currentResult = ref({})
+const latestId = ref(null)
+const latestTime = ref('')
+
+// ── 生成状态 ──
 const loading = ref(false)
 const error = ref('')
 const debugInfo = ref('')
-const result = ref(null)
 const streamText = ref('')
-const reasoning = ref('')
-const thinking = ref('')
+const thinkingMd = ref('')
 const thinkOpen = ref(false)
 const thinkSeconds = ref(0)
 const elapsed = ref(0)
+const freshContent = ref('')
 
 const hasConfig = computed(() => {
   return settingsState.aiEnabled && settingsState.aiApiKey && settingsState.aiApiKey.length > 5
+})
+
+const hasContent = computed(() => !!(currentContent.value || currentReasoning.value || freshContent.value))
+
+const showResult = computed(() => {
+  if (loading.value) return false
+  return !!Object.keys(currentResult.value).filter(k => currentResult.value[k]).length
 })
 
 const SECTION_META = [
@@ -101,42 +137,115 @@ const SECTION_META = [
 ]
 
 const resultSections = computed(() => {
-  if (!result.value) return []
-  return SECTION_META
-    .map(m => ({ ...m, text: result.value[m.key] || '' }))
-    .filter(s => s.text)
+  const r = currentResult.value || {}
+  return SECTION_META.map(m => ({ ...m, text: r[m.key] || '' })).filter(s => s.text)
 })
 
+function fmtHistTime(t) {
+  if (!t) return ''
+  const m = String(t).match(/(\d{4})-(\d{2})-(\d{2})[ T](\d{2}):(\d{2})/)
+  if (m) return `${m[2]}-${m[3]} ${m[4]}:${m[5]}`
+  return String(t).slice(5, 16)
+}
+
+function renderMd(text) {
+  if (!text) return ''
+  let html = ''
+  try { html = marked.parse(text) } catch (e) { html = String(text).replace(/\n/g, '<br>') }
+  html = String(html)
+    .replace(/<script[\s\S]*?<\/script>/gi, '')
+    .replace(/<iframe[\s\S]*?<\/iframe>/gi, '')
+    .replace(/\son\w+\s*=\s*("[^"]*"|'[^']*'|[^\s>]+)/gi, '')
+  return mdHighlight(html)
+}
+
 /**
- * 富文本渲染：把 AI 输出转为带颜色标注的 HTML
- * @param {string} text
+ * 在 Markdown HTML 上做 AI 关键词着色：先占位所有 HTML 标签，
+ * 仅对纯文本着色，再还原标签，避免污染标签属性。
+ * @param {string} html
  * @returns {string}
  */
-function renderRichText(text) {
-  if (!text) return ''
-  let html = String(text)
-    .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
-    .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
-    .replace(/\n/g, '<br>')
-
-  html = html.replace(/([+-]?\d+\.?\d*%)/g, '<span class="ai-num">$1</span>')
-  html = html.replace(/(\d+\.?\d+)元/g, '<span class="ai-price">$1</span>元')
-  html = html.replace(/(看多|偏多|做多|买入|加仓|突破|金叉|放量上涨|强势|信心高)/g, '<span class="ai-bull">$1</span>')
-  html = html.replace(/(看空|偏空|做空|卖出|减仓|跌破|死叉|放量下跌|弱势)/g, '<span class="ai-bear">$1</span>')
-  html = html.replace(/(震荡|观望|等待|中性|持有)/g, '<span class="ai-neutral">$1</span>')
-  html = html.replace(/(止损|风险|警惕)/g, '<span class="ai-warn">$1</span>')
-  return html
+function mdHighlight(html) {
+  const tags = []
+  let s = String(html).replace(/<[^>]+>/g, m => { tags.push(m); return `\u0000${tags.length - 1}\u0000` })
+  s = s
+    .replace(/([+-]?\d+\.?\d*%)/g, '<span class="ai-num">$1</span>')
+    .replace(/(\d+\.?\d+)元/g, '<span class="ai-price">$1</span>元')
+    .replace(/(看多|偏多|做多|买入|加仓|突破|金叉|放量上涨|强势|信心高)/g, '<span class="ai-bull">$1</span>')
+    .replace(/(看空|偏空|做空|卖出|减仓|跌破|死叉|放量下跌|弱势)/g, '<span class="ai-bear">$1</span>')
+    .replace(/(震荡|观望|等待|中性|持有)/g, '<span class="ai-neutral">$1</span>')
+    .replace(/(止损|风险|警惕)/g, '<span class="ai-warn">$1</span>')
+  s = s.replace(/\u0000(\d+)\u0000/g, (_m, i) => tags[+i] || '')
+  return s
 }
 
-/**
- * 截图 AI 分析区域
- */
-async function screenshotAi() {
-  if (!panelEl.value) return
-  const name = (props.name || props.code || 'AI') + '_智能分析.png'
-  await captureElement(panelEl.value, name)
+function applyRecord(rec) {
+  if (!rec) return
+  currentId.value = rec.id ?? null
+  currentReasoning.value = rec.reasoning || ''
+  currentContent.value = rec.content || ''
+  currentResult.value = rec.result && Object.keys(rec.result).length ? rec.result : parseAiResult(rec.content || '')
+  freshContent.value = ''
+  thinkOpen.value = !!currentReasoning.value
 }
 
+async function loadHistory(selectFirst = true) {
+  try {
+    const res = await api.aiHistory(props.code)
+    history.value = res.items || []
+    if (history.value.length) {
+      latestId.value = history.value[0].id
+      latestTime.value = history.value[0].created_at || ''
+      if (selectFirst) applyRecord(history.value[0])
+    } else {
+      latestId.value = null
+      latestTime.value = ''
+    }
+  } catch (e) {
+    history.value = []
+  }
+}
+
+function onSelectHistory() {
+  const rec = history.value.find(h => h.id === currentId.value)
+  if (rec) applyRecord(rec)
+}
+
+async function openModal() {
+  open.value = true
+  error.value = ''
+  loading.value = false
+  streamText.value = ''
+  thinkingMd.value = ''
+  freshContent.value = ''
+  await loadHistory(true)
+  const last = history.value[0]
+  if (!last || !isToday(last.created_at)) {
+    runAnalysis()
+  }
+}
+
+function isToday(ts) {
+  if (!ts) return false
+  const now = new Date()
+  const ymd = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`
+  return String(ts).slice(0, 10) === ymd
+}
+
+function close() {
+  if (loading.value) return
+  open.value = false
+}
+
+async function screenshot() {
+  if (!modalEl.value) return
+  const name = (props.name || props.code || 'AI') + '_AI分析.png'
+  await captureElement(modalEl.value, name)
+}
+
+defineExpose({ open: openModal, close })
+
+// ── AI 生成 ──
 function buildPrompt(data) {
   const snap = data.snapshot || {}
   const kline = data.kline || {}
@@ -222,10 +331,6 @@ ${newsSummary}
 **[风险提示]** 2-3个核心风险因素`
 }
 
-/**
- * 解析 AI 分段输出（兼容 **[综合判断]** / ### 综合判断 等）
- * @param {string} text
- */
 function parseAiResult(text) {
   const sections = { summary: '', trend: '', buy_sell: '', support_resistance: '', risk: '' }
   const patterns = [
@@ -265,13 +370,15 @@ async function runAnalysis() {
   loading.value = true
   error.value = ''
   debugInfo.value = ''
-  result.value = null
   streamText.value = ''
-  reasoning.value = ''
-  thinking.value = ''
+  thinkingMd.value = ''
+  currentContent.value = ''
+  currentResult.value = {}
+  currentReasoning.value = ''
   thinkOpen.value = false
   thinkSeconds.value = 0
   elapsed.value = 0
+  freshContent.value = ''
   const t0 = Date.now()
   let thinkStart = 0
 
@@ -294,7 +401,7 @@ async function runAnalysis() {
       body: JSON.stringify({
         model: settingsState.aiModel || 'deepseek-chat',
         messages: [
-          { role: 'system', content: '你是资深A股短线技术分析师，擅长量价分析、技术指标研判和资金面解读。请基于提供的数据给出明确的操作建议。输出全程中文，关键价格和百分比用**加粗**标注。如果某项数据缺失，跳过相关分析即可，不要提及数据不足。' },
+          { role: 'system', content: '你是资深A股短线技术分析师，擅长量价分析、技术指标研判和资金面解读。请基于提供的数据给出明确的操作建议。输出全程中文，使用规范的 Markdown 排版（## 标题、**加粗**、- 列表、| 表格）。如果某项数据缺失，跳过相关分析即可，不要提及数据不足。' },
           { role: 'user', content: prompt },
         ],
         temperature: 0.3,
@@ -334,8 +441,7 @@ async function runAnalysis() {
           if (reasonDelta) {
             if (!thinkStart) thinkStart = Date.now()
             reasoningText += reasonDelta
-            thinking.value = reasoningText
-            reasoning.value = reasoningText
+            thinkingMd.value = reasoningText
           }
           if (contentDelta) {
             if (thinkStart && !thinkSeconds.value) {
@@ -353,16 +459,33 @@ async function runAnalysis() {
     if (thinkStart && !thinkSeconds.value) {
       thinkSeconds.value = Math.max(1, Math.round((Date.now() - thinkStart) / 1000))
     }
-    reasoning.value = reasoningText
-    thinking.value = ''
+    thinkingMd.value = ''
 
     if (!fullText && reasoningText) fullText = reasoningText
     if (!fullText) {
       throw new Error('AI 未返回正文。若使用推理模型，请在设置中改用 DeepSeek Chat，或稍后重试')
     }
-    result.value = parseAiResult(fullText)
+
+    const parsed = parseAiResult(fullText)
     streamText.value = ''
+    freshContent.value = fullText
+    currentReasoning.value = reasoningText
+    currentContent.value = fullText
+    currentResult.value = parsed
+    thinkOpen.value = !!reasoningText
     elapsed.value = ((Date.now() - t0) / 1000).toFixed(1)
+
+    try {
+      await api.aiSave({
+        code: props.code,
+        reasoning: reasoningText,
+        content: fullText,
+        result: parsed,
+      })
+      await loadHistory(true)
+    } catch (e) {
+      console.warn('[AI] 历史保存失败:', e.message)
+    }
   } catch (e) {
     console.error('[AI] 分析失败:', e)
     error.value = e.message || '分析失败'
@@ -374,37 +497,50 @@ async function runAnalysis() {
 </script>
 
 <style scoped>
-.ai-panel { padding: 0; position: relative; }
-.ai-panel.card { padding: 14px 16px; }
-.ai-header {
-  display: flex; align-items: center; gap: 10px; margin-bottom: 12px; flex-wrap: wrap;
-  padding-right: 36px; /* 给右上角截图留位 */
+.ai-modal-mask {
+  position: fixed; inset: 0; background: rgba(0, 0, 0, 0.5);
+  display: flex; align-items: center; justify-content: center; z-index: 999;
 }
-.ai-title { font-size: 15px; font-weight: 600; color: var(--text); }
+.ai-modal {
+  background: var(--bg); border: 1px solid var(--border); border-radius: 12px;
+  width: 720px; max-width: 94vw; max-height: 88vh; display: flex; flex-direction: column;
+  box-shadow: 0 16px 48px rgba(0, 0, 0, 0.35);
+}
+.ai-modal-head {
+  display: flex; align-items: center; gap: 10px; padding: 14px 18px;
+  border-bottom: 1px solid var(--border); flex-wrap: wrap;
+}
+.ai-modal-title { font-size: 15px; font-weight: 600; color: var(--text); }
+.ai-hist-select {
+  padding: 3px 8px; border-radius: 6px; border: 1px solid var(--border);
+  background: var(--bg); color: var(--text-dim); font-size: 12px; cursor: pointer;
+}
+.ai-modal-body { padding: 16px 18px; overflow-y: auto; flex: 1; min-height: 120px; }
+.modal-close {
+  border: none; background: transparent; cursor: pointer;
+  font-size: 15px; color: var(--text-dim); padding: 4px 8px; border-radius: 6px;
+}
+.modal-close:hover { color: var(--text); background: var(--bg-hover); }
+.btn-shot {
+  margin-left: auto;
+  border: none; background: transparent; cursor: pointer;
+  padding: 3px 7px; border-radius: 6px; opacity: .75; color: var(--text);
+  display: inline-flex; align-items: center; justify-content: center;
+}
+.btn-shot:hover { opacity: 1; background: var(--bg-hover); }
 .btn-ai {
-  padding: 6px 16px; border-radius: 6px; border: none; cursor: pointer;
+  padding: 5px 14px; border-radius: 6px; border: none; cursor: pointer;
   background: linear-gradient(135deg, #6366f1, #8b5cf6); color: #fff;
   font-size: 13px; font-weight: 500; transition: opacity .2s;
 }
 .btn-ai:hover:not(:disabled) { opacity: .85; }
 .btn-ai:disabled { opacity: .5; cursor: not-allowed; }
-.ai-shot {
-  position: absolute; top: 10px; right: 10px; z-index: 2;
-  border: none; background: transparent; cursor: pointer;
-  padding: 4px 6px; border-radius: 6px; opacity: .75; color: var(--text);
-}
-.ai-shot:hover { opacity: 1; background: var(--bg-hover); }
-.btn-screenshot {
-  border: none; background: transparent; cursor: pointer; font-size: 16px;
-  padding: 2px 6px; border-radius: 4px; opacity: .7; color: var(--text);
-}
-.btn-screenshot:hover { opacity: 1; background: var(--bg-hover); }
 .ai-elapsed { font-size: 12px; color: var(--text-dim); }
 .ai-tip { font-size: 13px; color: var(--text-dim); padding: 16px 0; }
 .ai-tip .link { color: var(--accent); text-decoration: underline; }
 .ai-error { font-size: 13px; color: var(--down); padding: 12px; background: var(--down-bg); border-radius: 8px; margin-bottom: 10px; }
 .ai-debug { font-size: 11px; color: var(--text-dim); margin-top: 6px; word-break: break-all; }
-.ai-empty { font-size: 13px; color: var(--text-dim); padding: 20px 0; }
+.ai-empty { font-size: 13px; color: var(--text-dim); padding: 20px 0; line-height: 1.7; }
 .ai-loading { display: flex; align-items: center; gap: 10px; padding: 12px 0; color: var(--text-dim); font-size: 13px; }
 .ai-spinner {
   width: 18px; height: 18px; border: 2px solid var(--border); border-top-color: var(--accent);
@@ -412,43 +548,47 @@ async function runAnalysis() {
 }
 @keyframes spin { to { transform: rotate(360deg); } }
 
-.ai-think {
-  margin-bottom: 12px;
-  border: 1px solid var(--border);
-  border-radius: 10px;
-  background: var(--kv-bg);
-  overflow: hidden;
-}
+.ai-think { margin-bottom: 12px; border: 1px solid var(--border); border-radius: 10px; background: var(--kv-bg); overflow: hidden; }
 .ai-think-toggle {
   width: 100%; display: flex; align-items: center; gap: 8px;
   padding: 10px 12px; border: none; background: transparent;
   color: var(--text-dim); font-size: 13px; cursor: pointer; text-align: left;
 }
 .ai-think-toggle:hover { color: var(--text); }
-.ai-think-icon {
-  display: inline-block; transition: transform .15s; font-size: 12px; color: var(--accent);
-}
+.ai-think-icon { display: inline-block; transition: transform .15s; font-size: 12px; color: var(--accent); }
 .ai-think-icon.open { transform: rotate(90deg); }
 .ai-think-hint { margin-left: auto; font-size: 12px; opacity: .7; }
-.ai-think-body {
-  padding: 0 12px 12px;
-  border-top: 1px dashed var(--border);
-}
-.ai-think-text {
-  margin-top: 10px; font-size: 12px; line-height: 1.65; color: var(--text-dim);
-  white-space: pre-wrap; max-height: 280px; overflow-y: auto;
-}
+.ai-think-body { padding: 0 12px 12px; border-top: 1px dashed var(--border); }
+.ai-think-text { margin-top: 10px; font-size: 12px; line-height: 1.65; color: var(--text-dim); max-height: 280px; overflow-y: auto; }
 
 .ai-stream { font-size: 13px; line-height: 1.7; color: var(--text); padding: 8px 0; }
 .ai-section { margin-bottom: 16px; }
 .ai-section-title { font-size: 13px; font-weight: 600; color: var(--accent); margin-bottom: 6px; }
 .ai-text { font-size: 13px; line-height: 1.7; color: var(--text); }
-.ai-text :deep(strong) { color: var(--text); font-weight: 700; }
-.ai-text :deep(.ai-num) { color: var(--accent); font-weight: 600; }
-.ai-text :deep(.ai-price) { color: #f5a623; font-weight: 600; }
-.ai-text :deep(.ai-bull) { color: var(--up); font-weight: 600; }
-.ai-text :deep(.ai-bear) { color: var(--down); font-weight: 600; }
-.ai-text :deep(.ai-neutral) { color: var(--text-dim); font-weight: 600; }
-.ai-text :deep(.ai-warn) { color: #f59e0b; font-weight: 600; }
 .ai-disclaimer { font-size: 11px; color: var(--text-dim); padding: 10px; background: var(--kv-bg); border-radius: 6px; margin-top: 12px; }
+
+/* AI 关键词着色（作用在 v-html 渲染的 Markdown 内） */
+.md :deep(.ai-num) { color: var(--accent); font-weight: 600; }
+.md :deep(.ai-price) { color: #f5a623; font-weight: 600; }
+.md :deep(.ai-bull) { color: var(--up); font-weight: 600; }
+.md :deep(.ai-bear) { color: var(--down); font-weight: 600; }
+.md :deep(.ai-neutral) { color: var(--text-dim); font-weight: 600; }
+.md :deep(.ai-warn) { color: #f59e0b; font-weight: 600; }
+
+/* Markdown 通用样式 */
+.md h1, .md h2, .md h3, .md h4 { margin: 10px 0 6px; line-height: 1.4; }
+.md h2 { font-size: 14px; color: var(--accent); }
+.md h3 { font-size: 13px; }
+.md p { margin: 6px 0; }
+.md ul, .md ol { margin: 6px 0; padding-left: 20px; }
+.md li { margin: 2px 0; }
+.md code { background: var(--bg-hover); padding: 1px 5px; border-radius: 4px; font-size: 12px; font-family: monospace; }
+.md pre { background: var(--bg-hover); padding: 10px; border-radius: 8px; overflow-x: auto; font-size: 12px; }
+.md pre code { background: transparent; padding: 0; }
+.md blockquote { margin: 8px 0; padding: 4px 12px; border-left: 3px solid var(--accent); color: var(--text-dim); background: var(--bg-hover); border-radius: 4px; }
+.md table { border-collapse: collapse; margin: 8px 0; font-size: 12px; width: 100%; }
+.md th, .md td { border: 1px solid var(--border); padding: 5px 9px; text-align: left; }
+.md th { background: var(--bg-hover); color: var(--text-dim); font-weight: 500; }
+.md a { color: var(--accent); }
+.md hr { border: none; border-top: 1px solid var(--border); margin: 10px 0; }
 </style>

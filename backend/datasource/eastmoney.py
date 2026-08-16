@@ -573,7 +573,11 @@ class EastMoneyClient:
     # ---------------------------------------------------------------- 板块
     def sector_list(self, stype: str = "industry", limit: int = 100,
                     sort_by: str = "change_pct", all_pages: bool = False) -> List[SectorQuote]:
-        fs = config.FS_SECTOR_INDUSTRY if stype == "industry" else config.FS_SECTOR_CONCEPT
+        fs = {
+            "industry": config.FS_SECTOR_INDUSTRY,
+            "concept": config.FS_SECTOR_CONCEPT,
+            "area": config.FS_SECTOR_AREA,
+        }.get(stype, config.FS_SECTOR_INDUSTRY)
         fields = ("f2,f3,f6,f12,f14,f62,f104,f105,f106,f128,f136,f140")
         # 按主力净流入排序 或 需要全量（如行业归并）时：并发分页拉取（单页上限 100，负流入板块会被截断）
         if sort_by == "main_inflow" or all_pages:

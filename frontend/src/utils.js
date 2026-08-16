@@ -1,12 +1,12 @@
 // 格式化与颜色工具
 
-export function fmtAmount(v) {
+export function fmtAmount(v, digits = 0) {
   if (v == null || isNaN(v)) return '-'
   const abs = Math.abs(v)
   if (abs >= 1e12) return (v / 1e12).toFixed(2) + '万亿'
   if (abs >= 1e8) return (v / 1e8).toFixed(2) + '亿'
-  if (abs >= 1e4) return (v / 1e4).toFixed(1) + '万'
-  return Number(v).toFixed(0)
+  if (abs >= 1e4) return (v / 1e4).toFixed(digits) + '万'
+  return Number(v).toFixed(digits)
 }
 
 export function fmtPrice(v) {

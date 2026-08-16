@@ -29,6 +29,9 @@ let chart = null
 
 function render() {
   if (!chart) return
+  const cw = el.value?.clientWidth || 0
+  const ch = el.value?.clientHeight || 0
+  if (cw > 0 && (cw !== chart.getWidth() || ch !== chart.getHeight())) chart.resize()
   const k = props.kline
   if (!k || !k.points || !k.points.length) return
   const tc = themeColors()
@@ -125,5 +128,5 @@ onUnmounted(() => {
 
 watch(() => [props.kline, props.period, props.subInd, props.selectedSet], () => render(), { deep: true })
 
-defineExpose({ render, getChart: () => chart })
+defineExpose({ render, resize: onResize, getChart: () => chart })
 </script>

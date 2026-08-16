@@ -110,6 +110,27 @@ def clear_cache():
         _cache.clear()
 
 
+# ------------------------------------------------------------------ 涨停/炸板池共享缓存
+@ttl_cache(ttl=config.CACHE_TTL)
+def cached_limit_up_pool() -> list:
+    """共享涨停池缓存（固定 300 条），供涨停池/连板梯队/个股标签复用。
+
+    @author ygw
+    返回: 已补全标签的涨停股 dict 列表
+    """
+    return _enrich_rows(eastmoney.get_client().limit_up_pool(300))
+
+
+@ttl_cache(ttl=config.CACHE_TTL)
+def cached_limit_break_pool() -> list:
+    """共享炸板池缓存（固定 300 条），供炸板池/个股标签复用。
+
+    @author ygw
+    返回: 已补全标签的炸板股 dict 列表
+    """
+    return _enrich_rows(eastmoney.get_client().limit_break_pool(300))
+
+
 # ------------------------------------------------------------------ 技术指标
 def _calc_indicators(points: list) -> dict:
     """基于 K 线数据计算 MA/MACD/KDJ/RSI/BOLL。"""

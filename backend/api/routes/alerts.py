@@ -232,7 +232,7 @@ def alerts_check_changes():
                     })
                 if len(matched) > 10:
                     fields.append({"label": "更多", "value": f"共 {len(matched)} 条异动"})
-                send_card(webhook, "盯盘 · 持仓异动提醒", fields,
+                send_card(webhook, "牛来 · 持仓异动提醒", fields,
                           link=f"{base}/#/rank/changes", color="red")
         except Exception:
             pass

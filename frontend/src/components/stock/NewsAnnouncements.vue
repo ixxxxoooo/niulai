@@ -113,7 +113,7 @@ async function openArticle(item) {
 <style scoped>
 .mini-tabs { margin-bottom: 0; }
 .mini-tabs .tab { padding: 3px 12px; font-size: 12px; }
-.news-list { display: flex; flex-direction: column; gap: 0; }
+.news-list { display: flex; flex-direction: column; gap: 0; height: 360px; overflow-y: auto; }
 .news-item { display: flex; align-items: center; justify-content: space-between; padding: 10px 0; border-bottom: 1px solid var(--border); }
 .news-item:last-child { border-bottom: none; }
 .news-body { display: flex; gap: 10px; flex: 1; min-width: 0; }

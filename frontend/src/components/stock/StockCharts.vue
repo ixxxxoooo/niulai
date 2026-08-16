@@ -130,14 +130,18 @@ function toggleSRItem(id) {
 async function switchChart(p) {
   chartPeriod.value = p
   if (p === 'trend') { await nextTick(); trendRef.value?.render(); return }
-  if (klineCache[p]) { await nextTick(); klineRef.value?.render(); return }
+  const draw = async () => {
+    await nextTick()
+    klineRef.value?.resize?.()
+    klineRef.value?.render()
+  }
+  if (klineCache[p]) { await draw(); return }
   try {
     const k = await getCachedKline(props.code, p, 120)
     if (k && k.points && k.points.length) {
       klineCache[p] = k
       if (p === 'day') emit('kline-day', k)
-      await nextTick()
-      klineRef.value?.render()
+      await draw()
     } else {
       emit('error', `${chartTitle.value}数据暂不可用`)
     }

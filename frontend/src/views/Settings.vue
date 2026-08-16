@@ -2,6 +2,15 @@
   <div>
     <div class="page-title">设置</div>
 
+    <div class="settings-nav">
+      <div class="sn-item" :class="{ active: settingsTab === 'general' }" @click="settingsTab = 'general'">通用</div>
+      <div class="sn-item" :class="{ active: settingsTab === 'data' }" @click="settingsTab = 'data'">数据</div>
+      <div class="sn-item" :class="{ active: settingsTab === 'ai' }" @click="settingsTab = 'ai'">AI 与通知</div>
+      <div class="sn-item" :class="{ active: settingsTab === 'logs' }" @click="settingsTab = 'logs'">日志</div>
+    </div>
+
+    <!-- ── 通用：主题 / 刷新 / 图表 / 过滤 / 关于 ── -->
+    <div v-if="settingsTab === 'general'" class="settings-grid">
     <div class="card">
       <div class="card-title">主题与外观</div>
       <div class="setting-row">
@@ -13,7 +22,7 @@
       </div>
     </div>
 
-    <div class="card mt16">
+    <div class="card">
       <div class="card-title">数据刷新</div>
       <div class="setting-row">
         <span class="setting-label">交易时段刷新间隔</span>
@@ -36,7 +45,7 @@
       </div>
     </div>
 
-    <div class="card mt16">
+    <div class="card">
       <div class="card-title">图表显示</div>
       <div class="setting-row">
         <span class="setting-label">板块资金 TOP N</span>
@@ -64,7 +73,7 @@
       </div>
     </div>
 
-    <div class="card mt16">
+    <div class="card">
       <div class="card-title">列表过滤（勾选后从各界面列表中隐藏）</div>
       <div class="setting-row">
         <span class="setting-label">过滤标的</span>
@@ -84,8 +93,11 @@
         </div>
       </div>
     </div>
+    </div>
 
-    <div class="card mt16">
+    <!-- ── 数据：自选股 / 同步 / 游资榜单 ── -->
+    <div v-if="settingsTab === 'data'">
+    <div class="card">
       <div class="card-title">自选股管理（SQLite）</div>
       <div class="setting-row">
         <span class="setting-label">当前自选股数量</span>
@@ -144,8 +156,11 @@
         </div>
       </div>
     </div>
+    </div>
 
-    <div class="card mt16">
+    <!-- ── 日志 ── -->
+    <div v-if="settingsTab === 'logs'">
+    <div class="card">
       <div class="card-title">
         <span>运行日志（便于定位慢接口）</span>
         <div class="tabs mini-tabs">
@@ -195,8 +210,11 @@
         </table>
       </div>
     </div>
+    </div>
 
-    <div class="card mt16">
+    <!-- ── AI 与通知：AI 分析 / 飞书 / 异动监控 ── -->
+    <div v-if="settingsTab === 'ai'">
+    <div class="card">
       <div class="card-title">AI 分析（个股分时/K线智能解读）</div>
       <div class="setting-row">
         <span class="setting-label">启用 AI 分析</span>
@@ -278,23 +296,9 @@
         </span>
       </div>
     </div>
-
-    <div class="card mt16">
-      <div class="card-title">龙虎榜席位标签</div>
-      <div class="setting-row">
-        <span class="setting-label">已有席位标签</span>
-        <span class="setting-value">{{ seatCount }} 条</span>
-      </div>
-      <div class="setting-row">
-        <span class="setting-label">重置为内置游资字典</span>
-        <button class="btn" :disabled="seatSyncing" @click="syncSeats">{{ seatSyncing ? '同步中…' : '重置同步' }}</button>
-      </div>
-      <div class="setting-row">
-        <span class="setting-label" style="font-size:12px;color:var(--text-dim)">席位标签用于龙虎榜页面自动识别知名游资（章盟主/赵老哥/炒股养家等）</span>
-      </div>
     </div>
 
-    <div class="card mt16">
+    <div v-if="settingsTab === 'general'" class="card mt16">
       <div class="card-title">关于</div>
       <div class="setting-row">
         <span class="setting-label">版本</span>
@@ -320,6 +324,7 @@ import { settingsState, saveSetting, loadSettings } from '../composables/useSett
 import { watchState, clearWatch, importWatch } from '../composables/useWatchlist.js'
 
 const isLight = ref(false)
+const settingsTab = ref('general')
 const refreshInterval = ref(5)
 const offInterval = ref(30000)
 const chartTopN = ref(20)
@@ -371,10 +376,6 @@ const changeTypeOptions = [
   { code: '8210', label: '打开涨停' },
 ]
 const DEFAULT_WATCH_TYPES = '8201,8202,8193,8204,4,64,8208,8210'
-
-// 席位标签
-const seatCount = ref(0)
-const seatSyncing = ref(false)
 
 function setTheme(light) {
   isLight.value = light
@@ -540,19 +541,6 @@ function toggleChangeType(code) {
   saveSetting('changes_watch_types', watchTypes.value.join(','))
 }
 
-async function syncSeats() {
-  seatSyncing.value = true
-  try {
-    const res = await api.lhbSeatsSync(true)
-    seatCount.value = res.count || 0
-    alert(`席位标签同步完成，共 ${seatCount.value} 条`)
-  } catch (e) {
-    alert('同步失败：' + (e.message || e))
-  } finally {
-    seatSyncing.value = false
-  }
-}
-
 async function loadLogs() {
   try {
     if (logTab.value === 'api') apiLogs.value = await api.logsApi(80)
@@ -595,12 +583,29 @@ onMounted(async () => {
     const wt = s.changes_watch_types || DEFAULT_WATCH_TYPES
     watchTypes.value = wt ? wt.split(',') : []
   } catch {}
-  try { seatCount.value = (await api.lhbSeats()).count || 0 } catch {}
   loadLogs()
 })
 </script>
 
 <style scoped>
+/* 分组导航：吸顶，便于在多个设置区之间切换 */
+.settings-nav {
+  position: sticky; top: 0; z-index: 50;
+  display: flex; gap: 6px; flex-wrap: wrap;
+  background: var(--bg); padding: 10px 0 12px;
+  border-bottom: 1px solid var(--border); margin-bottom: 16px;
+}
+.sn-item {
+  padding: 6px 16px; border-radius: 8px; font-size: 13px;
+  color: var(--text-dim); cursor: pointer; border: 1px solid var(--border);
+  background: var(--bg-card); user-select: none;
+}
+.sn-item:hover { color: var(--text); border-color: var(--accent); }
+.sn-item.active { color: var(--accent); background: var(--accent-bg); border-color: var(--accent); font-weight: 600; }
+
+/* 通用组短卡片两列并排 */
+.settings-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; align-items: start; }
+@media (max-width: 1000px) { .settings-grid { grid-template-columns: 1fr; } }
 .setting-row {
   display: flex; align-items: center; justify-content: space-between;
   padding: 12px 0; border-bottom: 1px solid var(--border);

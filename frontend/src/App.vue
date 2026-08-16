@@ -1,22 +1,24 @@
 <template>
   <div>
+    <div v-if="sectorMenu" class="nav-overlay" @click="sectorMenu = false"></div>
     <div class="topbar">
-      <div class="brand">
-        <svg class="brand-logo" viewBox="0 0 64 64" width="22" height="22">
-          <rect width="64" height="64" rx="14" fill="var(--accent)"/>
-          <path d="M12 44 L22 34 L30 40 L42 22 L52 28" stroke="#fff" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/>
-          <circle cx="52" cy="28" r="3.5" fill="#fff"/>
-        </svg>
-        盯盘
+      <div class="brand" @click="go('/')">
+        <img class="brand-logo" src="/niulai.png" alt="牛来" />
       </div>
       <nav class="nav">
         <a :class="{ active: route.name === 'overview' }" @click="go('/')">盘面总览</a>
-        <a :class="{ active: route.name === 'sectors' }" @click="go('/sectors')">板块分析</a>
-        <a :class="{ active: route.name === 'sectorMoves' }" @click="go('/sector-moves')">板块资金</a>
+        <span class="nav-drop" @click.stop="sectorMenu = !sectorMenu">
+          <a class="nav-drop-btn" :class="{ active: route.name === 'sectors' }">板块 <span class="caret">▾</span></a>
+          <div v-if="sectorMenu" class="submenu" @click.stop>
+            <a :class="{ active: route.name === 'sectors' && !route.flow }" @click="go('/sectors'); sectorMenu = false">板块分析</a>
+            <a :class="{ active: route.name === 'sectors' && route.flow }" @click="go('/sectors/flow'); sectorMenu = false">板块资金</a>
+          </div>
+        </span>
         <a :class="{ active: route.name === 'rank' }" @click="go('/rank')">热门与资金</a>
         <a :class="{ active: route.name === 'ladder' }" @click="go('/ladder')">连板梯队</a>
         <a :class="{ active: route.name === 'watchlist' }" @click="go('/watchlist')">自选股</a>
         <a :class="{ active: route.name === 'alerts' }" @click="go('/alerts')">监控</a>
+        <a :class="{ active: route.name === 'seats' }" @click="go('/seats')">游资</a>
         <a :class="{ active: route.name === 'screener' }" @click="go('/screener')">选股</a>
       </nav>
       <div class="topbar-right">
@@ -61,12 +63,12 @@
           : route.name === 'sector' ? { code: route.code }
           : route.name === 'index' ? { secid: route.secid }
           : route.name === 'rank' ? { tab: route.tab }
-          : (route.name === 'sectors' ? { sector: route.sector } : {})
+          : (route.name === 'sectors' ? { sector: route.sector, flow: route.flow } : {})
         "
       />
     </div>
     <div class="footer">
-      盯盘 · 数据来源：东方财富 / 腾讯 / 同花顺公开行情（免费，仅个人学习使用，不构成投资建议）
+      牛来 · 数据来源：东方财富 / 腾讯 / 同花顺公开行情（免费，仅个人学习使用，不构成投资建议）
     </div>
     <div class="bottom-index-bar">
       <IndexTicker />
@@ -90,30 +92,32 @@ import IndexTicker from './components/IndexTicker.vue'
 import GlobalTip from './components/GlobalTip.vue'
 import ToastHost from './components/ToastHost.vue'
 import Overview from './views/Overview.vue'
-import Sectors from './views/Sectors.vue'
+import SectorHome from './views/SectorHome.vue'
 import SectorDetail from './views/SectorDetail.vue'
-import SectorMoves from './views/SectorMoves.vue'
 import IndexDetail from './views/IndexDetail.vue'
 import Rank from './views/Rank.vue'
 import Ladder from './views/Ladder.vue'
 import Stock from './views/Stock.vue'
 import Watchlist from './views/Watchlist.vue'
 import Alerts from './views/Alerts.vue'
+import Seats from './views/Seats.vue'
 import Settings from './views/Settings.vue'
 import Screener from './views/Screener.vue'
 import { startAlertWatcher, stopAlertWatcher } from './composables/useAlertNotify.js'
 
 const route = ref(parseHash())
+const sectorMenu = ref(false)
 const now = ref('')
 const session = ref('')
 const isLight = ref(false)
 const polling = globalPollingState
 
 const views = {
-  overview: Overview, sectors: Sectors, sector: SectorDetail,
-  sectorMoves: SectorMoves, index: IndexDetail,
+  overview: Overview, sectors: SectorHome, sector: SectorDetail,
+  index: IndexDetail,
   rank: Rank, ladder: Ladder, stock: Stock, watchlist: Watchlist,
   alerts: Alerts, settings: Settings, screener: Screener,
+  seats: Seats,
 }
 const viewComp = shallowRef(views[route.value.name] || Overview)
 

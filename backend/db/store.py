@@ -123,6 +123,42 @@ CREATE TABLE IF NOT EXISTS price_alerts (
     created_at TEXT
 );
 CREATE INDEX IF NOT EXISTS idx_alerts_enabled ON price_alerts(enabled);
+
+CREATE TABLE IF NOT EXISTS lhb_records (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    date TEXT NOT NULL,
+    code TEXT NOT NULL,
+    name TEXT NOT NULL DEFAULT '',
+    side TEXT NOT NULL,
+    seat_name TEXT NOT NULL,
+    type TEXT NOT NULL DEFAULT 'broker',
+    nickname TEXT NOT NULL DEFAULT '',
+    premium TEXT DEFAULT 'neutral',
+    buy REAL DEFAULT 0,
+    sell REAL DEFAULT 0,
+    net REAL DEFAULT 0,
+    reason TEXT DEFAULT '',
+    UNIQUE(date, code, side, seat_name)
+);
+CREATE INDEX IF NOT EXISTS idx_lhb_records_date ON lhb_records(date);
+CREATE INDEX IF NOT EXISTS idx_lhb_records_nick ON lhb_records(nickname, date);
+
+CREATE TABLE IF NOT EXISTS lhb_dates (
+    date TEXT PRIMARY KEY,
+    stock_count INTEGER DEFAULT 0,
+    record_count INTEGER DEFAULT 0,
+    synced_at TEXT
+);
+
+CREATE TABLE IF NOT EXISTS ai_history (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    code TEXT NOT NULL,
+    reasoning TEXT,
+    content TEXT,
+    result TEXT,
+    created_at TEXT
+);
+CREATE INDEX IF NOT EXISTS idx_ai_history_code ON ai_history(code, id DESC);
 """
 
 _lock = threading.Lock()

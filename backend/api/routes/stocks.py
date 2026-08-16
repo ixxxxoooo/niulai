@@ -9,7 +9,7 @@ from ... import config
 from ...datasource import eastmoney, tencent
 from ...db import store as db
 
-from .common import ttl_cache, _calc_indicators, _enrich_rows, _attach_local_tags, _merge_stock_detail
+from .common import ttl_cache, _calc_indicators, _enrich_rows, _attach_local_tags, _merge_stock_detail, cached_limit_up_pool, cached_limit_break_pool
 
 router = APIRouter()
 
@@ -109,6 +109,36 @@ def stock_detail(code: str):
     except Exception:
         pass
     return d.model_dump()
+
+
+@router.get("/stocks/{code}/limit-tag")
+@ttl_cache(ttl=config.CACHE_TTL)
+def stock_limit_tag(code: str):
+    """个股连板/炸板标签：命中涨停池返回 lbc 连板数，命中炸板池返回炸板信息，否则返回 None。
+
+    @author ygw
+    参数:
+        code: 6 位股票代码
+    返回: {"lbc": int, "zb_count": int, "kind": "zt"|"zb", "first_time": str} 或 None
+    """
+    code = (code or "").upper()
+    for p in cached_limit_up_pool():
+        if p.get("code") == code:
+            return {
+                "lbc": int(p.get("lbc") or 1),
+                "zb_count": int(p.get("zb_count") or 0),
+                "kind": "zt",
+                "first_time": p.get("first_time") or "",
+            }
+    for p in cached_limit_break_pool():
+        if p.get("code") == code:
+            return {
+                "lbc": int(p.get("lbc") or 1),
+                "zb_count": int(p.get("zb_count") or 0),
+                "kind": "zb",
+                "first_time": p.get("first_time") or "",
+            }
+    return None
 
 
 @router.get("/stocks/{code}/trends")

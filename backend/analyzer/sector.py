@@ -7,10 +7,10 @@ from ..datasource.models import SectorQuote, StockBrief
 
 
 def sector_list(stype: str = "industry", sort_by: str = "change_pct",
-                limit: int = 100) -> List[SectorQuote]:
-    """板块排行"""
+                limit: int = 100, all_pages: bool = False) -> List[SectorQuote]:
+    """板块排行（all_pages=True 时全量分页拉取，供概念名→代码映射）"""
     client = eastmoney.get_client()
-    return client.sector_list(stype=stype, sort_by=sort_by, limit=limit)
+    return client.sector_list(stype=stype, sort_by=sort_by, limit=limit, all_pages=all_pages)
 
 
 def sector_detail(sector_code: str, limit: int = 100,

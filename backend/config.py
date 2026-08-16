@@ -58,6 +58,7 @@ FS_ALL_A = "m:0+t:6,m:0+t:80,m:1+t:2,m:1+t:23"
 # 行业板块 / 概念板块
 FS_SECTOR_INDUSTRY = "m:90+t:2"
 FS_SECTOR_CONCEPT = "m:90+t:3"
+FS_SECTOR_AREA = "m:90+t:1"
 
 # ---------- 交易时段 ----------
 # 节假日休市日（YYYY-MM-DD）。未列到的法定假日可自行补充；

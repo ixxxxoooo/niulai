@@ -5,13 +5,18 @@ export function parseHash() {
   const segs = path.split('/').filter(Boolean)
   if (segs[0] === 'stock' && segs[1]) return { name: 'stock', code: segs[1].toUpperCase() }
   if (segs[0] === 'sector' && segs[1]) return { name: 'sector', code: segs[1].toUpperCase() }
-  if (segs[0] === 'sectors') return { name: 'sectors', sector: (segs[1] || '').toUpperCase() || null }
+  if (segs[0] === 'sectors') {
+    const sub = (segs[1] || '').toUpperCase()
+    if (sub === 'FLOW') return { name: 'sectors', sector: null, flow: true }
+    return { name: 'sectors', sector: sub || null, flow: false }
+  }
   if (segs[0] === 'index' && segs[1]) return { name: 'index', secid: segs[1].toUpperCase() }
-  if (segs[0] === 'sector-moves') return { name: 'sectorMoves' }
+  if (segs[0] === 'sector-moves') return { name: 'sectors', sector: null, flow: true }
   if (segs[0] === 'rank') return { name: 'rank', tab: segs[1] || '' }
   if (segs[0] === 'ladder') return { name: 'ladder' }
   if (segs[0] === 'watchlist') return { name: 'watchlist' }
   if (segs[0] === 'alerts') return { name: 'alerts' }
+  if (segs[0] === 'seats') return { name: 'seats' }
   if (segs[0] === 'settings') return { name: 'settings' }
   if (segs[0] === 'screener') return { name: 'screener' }
   return { name: 'overview' }

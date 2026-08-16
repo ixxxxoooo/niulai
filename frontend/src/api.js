@@ -54,6 +54,7 @@ export const api = {
   etfRank: (by = 'change_pct', limit = 50) => get(`/etf/rank?by=${by}&limit=${limit}`),
   sectorMoneyflow: (type = 'industry', limit = 100) =>
     get(`/sectors/moneyflow?type=${type}&limit=${limit}`),
+  sectorConceptCode: (name, type = 'concept') => get(`/sectors/concept-code?name=${encodeURIComponent(name)}&type=${type}`),
   stock: (code) => get(`/stocks/${code}`),
   trends: (code) => get(`/stocks/${code}/trends`),
   kline: (code, period = 'day', limit = 120) => get(`/stocks/${code}/kline?period=${period}&limit=${limit}`),
@@ -62,6 +63,8 @@ export const api = {
   stockLhb: (code) => get(`/stocks/${code}/lhb`),
   batch: (codes) => get(`/stocks/batch?codes=${codes.join(',')}`),
   limitUp: (limit = 100) => get(`/market/limit-up?limit=${limit}`),
+  limitBreak: (limit = 100) => get(`/market/limit-break?limit=${limit}`),
+  stockLimitTag: (code) => get(`/stocks/${code}/limit-tag`),
   thsHot: (type = 'hour', limit = 50) => get(`/ths/hot?type=${type}&limit=${limit}`),
   lhb: (limit = 50) => get(`/market/lhb?limit=${limit}`),
   indexQuote: (secid) => get(`/indices/quote?secid=${encodeURIComponent(secid)}`),
@@ -97,7 +100,6 @@ export const api = {
   syncTags: (scope = 'stocks') => send('POST', `/meta/tags/sync?scope=${scope}`),
   syncStatus: () => get('/meta/tags/sync/status'),
   metaLookup: (code) => get(`/meta/lookup/${code}`),
-  limitBreak: (limit = 100) => get(`/market/limit-break?limit=${limit}`),
   positions: () => get('/positions'),
   positionSave: (body) => send('PUT', '/positions', body),
   positionDelete: (code) => send('DELETE', `/positions/${code}`),
@@ -113,6 +115,8 @@ export const api = {
   alertsCheck: () => get('/alerts/check'),
   alertsCheckChanges: () => get('/alerts/check-changes'),
   analysisData: (code) => get(`/stocks/${code}/analysis-data`),
+  aiHistory: (code) => get(`/ai/history/${encodeURIComponent(code)}`),
+  aiSave: (body) => send('POST', '/ai/save', body),
   baiduSr: (code, ktype = 'day') => get(`/stocks/${code}/baidu-sr?ktype=${ktype}`),
   stockChanges: (limit = 80) => get(`/market/stock-changes?limit=${limit}`),
   stockNews: (code, limit = 10) => get(`/stocks/${code}/news?limit=${limit}`),
@@ -124,6 +128,18 @@ export const api = {
   // 龙虎榜席位
   lhbSeats: () => get('/lhb/seats'),
   lhbSeatsSync: (force = false) => send('POST', '/lhb/seats/sync', { force }),
+  lhbSeatCreate: (body) => send('POST', '/lhb/seats', body),
+  lhbSeatUpdate: (nickname, body) => send('PUT', `/lhb/seats/${encodeURIComponent(nickname)}`, body),
+  lhbSeatDelete: (nickname) => send('DELETE', `/lhb/seats/${encodeURIComponent(nickname)}`),
+
+  // 龙虎榜游资动向
+  lhbMovesDates: () => get('/lhb/moves/dates'),
+  lhbMoves: (date, side = 'buy') => get(`/lhb/moves?date=${date}&side=${side}`),
+  lhbMovesNick: (nickname) => get(`/lhb/moves/${encodeURIComponent(nickname)}`),
+  lhbMovesSync: (start, end) => send('POST', '/lhb/moves/sync', { start, end }),
+  lhbMovesSyncStatus: () => get('/lhb/moves/sync/status'),
+  lhbMovesAuto: (enabled) => send('POST', '/lhb/moves/auto', { enabled }),
+  lhbMovesAutoGet: () => get('/lhb/moves/auto'),
 
   // 盘后选股
   screenerRules: () => get('/screener/rules'),

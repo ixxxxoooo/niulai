@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# 盯盘 (dingpan) - 一键启动脚本
+# 牛来 (niulai) - 一键启动脚本
 set -e
 cd "$(dirname "$0")"
 

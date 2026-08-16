@@ -47,7 +47,7 @@ function fireNotify(item) {
   }
   const opLabel = item.op === 'gte' ? '≥' : '≤'
   const mLabel = METRIC_LABEL[item.metric] || item.metric
-  const title = `盯盘提醒 · ${item.name}`
+  const title = `牛来提醒 · ${item.name}`
   const body = `${mLabel} ${fmtVal(item.metric, item.current)} ${opLabel} ${fmtVal(item.metric, item.threshold)}`
     + (item.change_pct != null ? `（涨跌 ${fmtVal('change_pct', item.change_pct)}）` : '')
     + (item.note ? `\n${item.note}` : '')
@@ -85,7 +85,7 @@ function fireChangeNotify(item) {
   const typeName = item.type_name || '异动'
   const pct = item.change_pct
   const pctStr = pct != null ? `（涨跌 ${pct > 0 ? '+' : ''}${Number(pct).toFixed(2)}%）` : ''
-  const title = `盯盘异动 · ${name}`
+  const title = `牛来异动 · ${name}`
   const body = `${typeName}${pctStr}\n时间 ${item.time || '-'}`
 
   try {

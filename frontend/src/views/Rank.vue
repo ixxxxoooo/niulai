@@ -60,7 +60,7 @@
                 <td>{{ p.code }}</td>
                 <td>{{ fmtPrice(p.price) }}</td>
                 <td class="up">{{ fmtPct(p.change_pct) }}</td>
-                <td><b class="up">{{ p.lbc }}连板</b></td>
+                <td><span class="zt-lb-badge" :title="`连板数：${p.lbc}，点击查看连板梯队`" @click.stop="goLadder()">{{ lbcLabel(p.lbc) }}</span></td>
                 <td>{{ p.zb_count ? p.zb_count + '次' : '-' }}</td>
                 <td>{{ p.industry || '-' }}</td>
                 <td :class="pctClass(p.seal_amount)">{{ fmtAmount(p.seal_amount) }}</td>
@@ -129,7 +129,14 @@
         <div class="card-title">龙虎榜{{ lhbDate ? ' · ' + lhbDate : '' }}</div>
         <div class="table-wrap">
           <table class="data-table">
-            <thead><tr><th>名称</th><th>代码</th><th>现价</th><th>涨跌幅</th><th>净买额</th><th>买入</th><th>卖出</th><th>上榜原因</th></tr></thead>
+            <thead><tr>
+              <th>名称</th><th>代码</th><th>现价</th><th>涨跌幅</th>
+              <th data-tip="净买额 = 当日上榜买入金额 − 卖出金额。为正说明当日买盘资金占优（抢筹强），为负说明以卖出为主（获利了结/减仓）。">净买额</th>
+              <th data-tip="买入 = 当日龙虎榜买入席位成交总额，代表游资/机构等买盘抢筹资金。数值大说明有大资金进场。">买入</th>
+              <th data-tip="卖出 = 当日龙虎榜卖出席位成交总额，代表获利了结/减仓资金。数值大说明抛压大。">卖出</th>
+              <th data-tip="上榜原因：满足龙虎榜上榜条件（日涨跌幅、换手、振幅、净买入额等）的具体触发条目。">上榜原因</th>
+              <th data-tip="当日该股上榜席位中命中的知名游资（如章盟主）。红色徽章=拉萨天团，属反向指标需谨慎。">游资</th>
+            </tr></thead>
             <tbody>
               <tr v-for="p in lhbRows" :key="p.code" @click="openFromRank(p)">
                 <td class="stock-name" :class="pctClass(p.change_pct)">
@@ -144,8 +151,12 @@
                 <td class="up">{{ fmtAmount(p.buy) }}</td>
                 <td class="down">{{ fmtAmount(p.sell) }}</td>
                 <td class="analyse">{{ p.reason || '-' }}</td>
+                <td>
+                  <span v-for="y in (p.youzi || [])" :key="y.nickname" class="youzi-badge" :class="{ lhasa: y.nickname.includes('拉萨') }" :data-tip="youziTip(y)" @click.stop="goSeat(y.nickname)">{{ y.nickname }}</span>
+                  <span v-if="!(p.youzi || []).length" class="seat-no">—</span>
+                </td>
               </tr>
-              <tr v-if="!lhbRows.length"><td colspan="8" class="empty">暂无龙虎榜数据</td></tr>
+              <tr v-if="!lhbRows.length"><td colspan="9" class="empty">暂无龙虎榜数据</td></tr>
             </tbody>
           </table>
         </div>
@@ -191,6 +202,28 @@ const props = defineProps({ tab: { type: String, default: '' } })
 const VALID = ['zhangsu', 'moneyflow', 'hot', 'zt', 'etf', 'ths', 'lhb', 'changes']
 const tab = ref(VALID.includes(props.tab) ? props.tab : 'zhangsu')
 const thsType = ref('hour')
+const PREMIUM_TEXT = { positive: '正面', neutral_positive: '偏正面', neutral: '中性', negative: '负面' }
+
+function youziTip(y) {
+  const p = PREMIUM_TEXT[y.premium] ? `属性：${PREMIUM_TEXT[y.premium]}` : ''
+  const s = y.style ? `风格：${y.style}` : '风格：待补充'
+  return [p, s].filter(Boolean).join('\n')
+}
+
+function goSeat(nickname) {
+  navigate('/seats?nick=' + encodeURIComponent(nickname))
+}
+
+function goLadder() {
+  navigate('/ladder')
+}
+
+function lbcLabel(n) {
+  const v = Number(n) || 0
+  if (v <= 1) return '首板'
+  return v + '连板'
+}
+
 const rows = ref([])
 const etfTotal = ref(0)
 const lhbDate = ref('')
@@ -298,4 +331,11 @@ usePolling(load, 3000)
 .tag-up { background: rgba(239,68,68,.15); color: var(--up-color, #ef4444); }
 .tag-down { background: rgba(34,197,94,.15); color: var(--down-color, #22c55e); }
 .tag-neutral { background: var(--border); color: var(--text-dim); }
+.zt-lb-badge {
+  display: inline-block; font-size: 11px; font-weight: 700;
+  color: var(--up); background: var(--up-bg);
+  border: 1px solid rgba(239,68,68,.35); border-radius: 10px;
+  padding: 1px 8px; cursor: pointer; white-space: nowrap;
+}
+.zt-lb-badge:hover { filter: brightness(1.08); box-shadow: 0 0 0 1px var(--up); }
 </style>

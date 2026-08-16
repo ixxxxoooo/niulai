@@ -11,12 +11,14 @@
       :is-watched="isWatched"
       :eastmoney-url="eastmoneyUrl"
       :baidu-url="baiduUrl"
+      :iwencai-url="iwencaiUrl"
       :quote-time="detail.time"
       :data-source="quoteSourceLabel"
       :source-tip="quoteSourceTip"
       @sibling="goSibling"
       @toggle-watch="toggleWatch"
       @add-alert="showAlert = true"
+      @open-ai="openAiAnalysis"
     />
 
     <div class="error-banner" v-if="error">{{ error }}</div>
@@ -46,7 +48,7 @@
 
     <div class="grid-2 mt16">
       <div class="card">
-        <div class="card-title">成交明细（最近 {{ ticks.length }} 笔 · 10 秒刷新）</div>
+        <div class="card-title">成交明细（最近 {{ ticks.length }} 笔 · 10 秒刷新）<a class="source-link" :href="eastmoneyUrl" target="_blank" rel="noopener">东财↗</a></div>
         <div class="table-wrap" style="max-height: 380px; overflow-y: auto;">
           <table class="data-table">
             <thead><tr><th>时间</th><th>价格</th><th>数量(手)</th><th>金额</th><th>方向</th></tr></thead>
@@ -73,59 +75,57 @@
         :display-name="displayName"
         :data-source="flowSourceLabel"
         :source-tip="flowSourceTip"
+        :code="code"
         @screenshot="screenshotFlow"
       />
     </div>
 
-    <div class="mt16">
-      <AiAnalysisPanel :code="code" :name="displayName" />
-    </div>
+    <AiAnalysisPanel ref="aiPanelRef" :code="code" :name="displayName" />
 
     <div class="card mt16" v-if="lhb && lhb.date" ref="lhbEl">
       <div class="card-title">
         龙虎榜 · {{ lhb.date }}
         <span v-if="lhb.appear_count > 1" class="lhb-freq">近期上榜 {{ lhb.appear_count }} 次</span>
-        <span style="font-weight:400;color:var(--text-dim)">{{ lhb.reason }}</span>
+        <span style="font-weight:400;color:var(--text-dim);flex:1;min-width:0">{{ lhb.reason }}</span>
+        <a class="source-link" :href="'https://data.eastmoney.com/stock/lhb/' + (detail.code || code) + '.html'" target="_blank" rel="noopener">东财↗</a>
         <button class="btn-screenshot" @click="screenshotEl(lhbEl)" title="截图"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="12" cy="12" r="3"/></svg></button>
       </div>
-      <div class="kv-grid mb12">
-        <div class="kv"><span class="k">净买额</span><span class="v" :class="pctClass(lhb.net)">{{ fmtAmount(lhb.net) }}</span></div>
-        <div class="kv"><span class="k">买入</span><span class="v up">{{ fmtAmount(lhb.buy) }}</span></div>
-        <div class="kv"><span class="k">卖出</span><span class="v down">{{ fmtAmount(lhb.sell) }}</span></div>
+      <div class="kv-grid lhb-kv-grid mb12">
+        <div class="kv"><span class="k">净买额</span><span class="v" :class="pctClass(lhb.net)">{{ fmtAmount(lhb.net, 2) }}</span></div>
+        <div class="kv"><span class="k">买入</span><span class="v up">{{ fmtAmount(lhb.buy, 2) }}</span></div>
+        <div class="kv"><span class="k">卖出</span><span class="v down">{{ fmtAmount(lhb.sell, 2) }}</span></div>
       </div>
       <div class="grid-2">
         <div>
-          <div class="ob-title">买入前五</div>
+          <div class="ob-title">买入席位{{ lhb.buy_seats && lhb.buy_seats.length > 5 ? '（多榜单合并，去重 ' + lhb.buy_seats.length + ' 家）' : '' }}</div>
           <table class="data-table">
             <thead><tr><th>席位</th><th>类型</th><th>买入</th><th>卖出</th><th>净额</th></tr></thead>
             <tbody>
               <tr v-for="(s, i) in (lhb.buy_seats || [])" :key="'b'+i" style="cursor:default">
                 <td class="analyse-td seat-name-cell">
                   {{ s.name }}
-                  <span v-if="s.nickname" class="seat-nick" :title="s.style">{{ s.nickname }}</span>
                 </td>
-                <td><span :class="['seat-badge', 'seat-' + (s.type || 'broker')]">{{ s.label || '营业部' }}</span></td>
-                <td class="up">{{ fmtAmount(s.buy) }}</td>
-                <td>{{ fmtAmount(s.sell) }}</td>
-                <td :class="pctClass(s.net)">{{ fmtAmount(s.net) }}</td>
+                <td><span :class="['seat-badge', 'seat-' + (s.type || 'broker')]">{{ s.label || '营业部' }}</span><span v-if="s.nickname" class="youzi-badge" :data-tip="youziTip(s)" @click.stop="goSeat(s.nickname)">{{ s.nickname }}</span></td>
+                <td class="up">{{ fmtAmount(s.buy, 2) }}</td>
+                <td class="down">{{ fmtAmount(s.sell, 2) }}</td>
+                <td :class="pctClass(s.net)">{{ fmtAmount(s.net, 2) }}</td>
               </tr>
             </tbody>
           </table>
         </div>
         <div>
-          <div class="ob-title">卖出前五</div>
+          <div class="ob-title">卖出席位{{ lhb.sell_seats && lhb.sell_seats.length > 5 ? '（多榜单合并，去重 ' + lhb.sell_seats.length + ' 家）' : '' }}</div>
           <table class="data-table">
             <thead><tr><th>席位</th><th>类型</th><th>买入</th><th>卖出</th><th>净额</th></tr></thead>
             <tbody>
               <tr v-for="(s, i) in (lhb.sell_seats || [])" :key="'s'+i" style="cursor:default">
                 <td class="analyse-td seat-name-cell">
                   {{ s.name }}
-                  <span v-if="s.nickname" class="seat-nick" :title="s.style">{{ s.nickname }}</span>
                 </td>
-                <td><span :class="['seat-badge', 'seat-' + (s.type || 'broker')]">{{ s.label || '营业部' }}</span></td>
-                <td>{{ fmtAmount(s.buy) }}</td>
-                <td class="down">{{ fmtAmount(s.sell) }}</td>
-                <td :class="pctClass(s.net)">{{ fmtAmount(s.net) }}</td>
+                <td><span :class="['seat-badge', 'seat-' + (s.type || 'broker')]">{{ s.label || '营业部' }}</span><span v-if="s.nickname" class="youzi-badge" :data-tip="youziTip(s)" @click.stop="goSeat(s.nickname)">{{ s.nickname }}</span></td>
+                <td class="up">{{ fmtAmount(s.buy, 2) }}</td>
+                <td class="down">{{ fmtAmount(s.sell, 2) }}</td>
+                <td :class="pctClass(s.net)">{{ fmtAmount(s.net, 2) }}</td>
               </tr>
             </tbody>
           </table>
@@ -165,7 +165,7 @@
 import { ref, reactive, computed, watch, onMounted, onUnmounted } from 'vue'
 import { api } from '../api.js'
 import { fmtAmount, fmtPrice, fmtNum, pctClass } from '../utils.js'
-import { parseHash } from '../router.js'
+import { parseHash, navigate } from '../router.js'
 import { usePolling } from '../composables/usePolling.js'
 import { isWatched as codeWatched, toggleWatch as tw } from '../composables/useWatchlist.js'
 import { ensureIndicators } from '../chartIndicators.js'
@@ -198,12 +198,30 @@ const srLevels = ref({ support: [], resistance: [] })
 const news = ref([])
 const announcements = ref([])
 const chartsRef = ref(null)
+const aiPanelRef = ref(null)
 const lhbEl = ref(null)
 const localMeta = ref(peekMeta(code.value) || {})
+const limitTag = ref(null)
+
+const PREMIUM_TEXT = { positive: '正面', neutral_positive: '偏正面', neutral: '中性', negative: '负面' }
+
+function youziTip(s) {
+  const p = PREMIUM_TEXT[s.premium] ? `属性：${PREMIUM_TEXT[s.premium]}` : ''
+  const st = s.style ? `风格：${s.style}` : '风格：待补充'
+  return [p, st].filter(Boolean).join('\n')
+}
+
+function goSeat(nickname) {
+  navigate('/seats?nick=' + encodeURIComponent(nickname))
+}
 const quoteSource = ref('')
 const flowSource = ref('')
 const quoteFetchedAt = ref('')
 const flowFetchedAt = ref('')
+
+function openAiAnalysis() {
+  aiPanelRef.value && aiPanelRef.value.open()
+}
 
 const nav = computed(() => stockNavIndex(code.value))
 const backTo = computed(() => stockNavState.origin || '')
@@ -224,6 +242,10 @@ const eastmoneyUrl = computed(() => {
 const baiduUrl = computed(() => {
   const c = detail.code || code.value || ''
   return `https://finance.baidu.com/stock/ab-${c}?mainTab=${encodeURIComponent('概览')}`
+})
+const iwencaiUrl = computed(() => {
+  const n = displayName.value || ''
+  return n ? `https://www.iwencai.com/screener/result?w=${encodeURIComponent(n)}&querytype=stock` : '#'
 })
 const quoteSourceLabel = computed(() => quoteSource.value || '')
 const quoteSourceTip = computed(() => {
@@ -296,6 +318,26 @@ function calcPriceStreak(pts) {
 
 const signalTags = computed(() => {
   const tags = []
+  if (limitTag.value && limitTag.value.lbc) {
+    const n = Number(limitTag.value.lbc) || 1
+    const kind = limitTag.value.kind
+    if (kind === 'zt') {
+      const zb = limitTag.value.zb_count || 0
+      tags.push({
+        label: n <= 1 ? '首板' : `${n}连板`,
+        cls: 'sig-up sig-hot',
+        to: '/ladder',
+        desc: `当前处于涨停池，连板数 ${n}${zb ? `，今日曾炸板 ${zb} 次` : ''}。点击查看连板梯队`,
+      })
+    } else {
+      tags.push({
+        label: n <= 1 ? '炸板' : `炸板${n}连板`,
+        cls: 'sig-down sig-hot',
+        to: '/ladder',
+        desc: `今日炸板${limitTag.value.zb_count || 1}次，曾封板后打开。点击查看连板梯队`,
+      })
+    }
+  }
   const pts = dayPoints.value
   const price = detail.price
   if (pts && pts.length >= 2) {
@@ -423,15 +465,17 @@ function nowLabel() {
 
 async function loadFast() {
   try {
-    const [d, t] = await Promise.all([
+    const [d, t, lt] = await Promise.all([
       api.stock(code.value),
       api.trends(code.value),
+      api.stockLimitTag(code.value).catch(() => null),
     ])
     Object.keys(detail).forEach(k => delete detail[k])
     Object.assign(detail, d)
     rememberStock(d)
     if (d.name) localMeta.value = { ...localMeta.value, ...d }
     trend.value = t
+    limitTag.value = lt
     quoteSource.value = d.data_source || d.source || '东财/腾讯'
     quoteFetchedAt.value = d.fetched_at || nowLabel()
     error.value = ''
@@ -500,6 +544,7 @@ watch(() => props.code, (n) => {
   klineDay.value = null
   dayPoints.value = []
   flow.value = []
+  limitTag.value = null
   hydrateLocal()
   loadFast()
   loadSlow()
@@ -529,6 +574,7 @@ onUnmounted(() => {
 
 /* 龙虎榜席位增强 */
 .lhb-freq { display: inline-block; font-size: 12px; background: var(--accent); color: #fff; padding: 1px 8px; border-radius: 10px; margin: 0 8px; font-weight: 500; }
+.lhb-kv-grid { grid-template-columns: repeat(3, 1fr); }
 .seat-badge { display: inline-block; font-size: 11px; padding: 1px 6px; border-radius: 4px; white-space: nowrap; }
 .seat-legend { background: #f59e0b; color: #fff; }
 .seat-new_gen { background: #3b82f6; color: #fff; }

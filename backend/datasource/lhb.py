@@ -96,6 +96,25 @@ def _seat(it: dict) -> dict:
     }
 
 
+def _dedup_seats(rows: List[dict]) -> List[dict]:
+    """同一股票同日因多个上榜原因会重复返回相同营业部，按（营业部名+净额）去重。
+
+    不能用营业部名单独去重：机构专用/深股通专用是多家不同实体的占位名，
+    同股同日可能出现多家机构（各自净额不同）；而多榜单重复时同营业部净额一致。
+    """
+    seen: set = set()
+    out: List[dict] = []
+    for r in rows:
+        n = r.get("OPERATEDEPT_NAME") or ""
+        key = (n, r.get("NET"))
+        if n and key in seen:
+            continue
+        if n:
+            seen.add(key)
+        out.append(r)
+    return out
+
+
 def fetch_lhb_list(limit: int = 50) -> Dict[str, Any]:
     """最近一个有数据的交易日龙虎榜列表。"""
     cols = ("SECURITY_CODE,SECURITY_NAME_ABBR,TRADE_DATE,CLOSE_PRICE,CHANGE_RATE,"
@@ -147,8 +166,8 @@ def fetch_lhb_stock(code: str, lookback_days: int = 12) -> Optional[Dict[str, An
 
     buy_cols = "OPERATEDEPT_NAME,BUY,SELL,NET,EXPLANATION,TRADE_DATE"
     filt = f"(TRADE_DATE='{day}')(SECURITY_CODE=\"{code}\")"
-    buys = _dc_get("RPT_BILLBOARD_DAILYDETAILSBUY", buy_cols, filt, page_size=10)
-    sells = _dc_get("RPT_BILLBOARD_DAILYDETAILSSELL", buy_cols, filt, page_size=10)
+    buys = _dedup_seats(_dc_get("RPT_BILLBOARD_DAILYDETAILSBUY", buy_cols, filt, page_size=10))
+    sells = _dedup_seats(_dc_get("RPT_BILLBOARD_DAILYDETAILSSELL", buy_cols, filt, page_size=10))
 
     # ── 阶段2：一次性批量查近 90 天的全部上榜记录（单次请求） ──
     appear_dates = [day]

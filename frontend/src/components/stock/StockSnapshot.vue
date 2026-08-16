@@ -11,7 +11,8 @@
           v-for="t in signalTags"
           :key="t.label"
           class="signal-tag has-tooltip"
-          :class="t.cls"
+          :class="[t.cls, { clickable: t.to }]"
+          @click="t.to && navigate(t.to)"
         >{{ t.label }}<span class="tag-tooltip">{{ t.desc }}</span></span>
       </span>
       <span style="margin-left:auto; color: var(--text-dim); font-size: 13px">
@@ -49,7 +50,7 @@
     <div class="mt12" v-if="conceptList.length">
       <div style="font-size:12px;color:var(--text-dim);margin-bottom:6px">板块概念</div>
       <div class="concept-tags">
-        <span class="concept-tag" v-for="c in conceptList" :key="c">{{ c }}</span>
+        <span class="concept-tag" v-for="c in conceptList" :key="c" :title="`查看板块：${c}`" @click="gotoConcept(c)">{{ c }}</span>
       </div>
     </div>
   </div>
@@ -61,14 +62,23 @@
  * @author ygw
  */
 import { fmtAmount, fmtPrice, fmtPct, fmtNum, pctClass } from '../../utils.js'
+import { api } from '../../api.js'
+import { navigate } from '../../router.js'
 
-defineProps({
+const props = defineProps({
   detail: { type: Object, default: () => ({}) },
   signalTags: { type: Array, default: () => [] },
   vol5Text: { type: String, default: '—' },
   vol5Class: { type: String, default: 'flat' },
   conceptList: { type: Array, default: () => [] },
 })
+
+async function gotoConcept(name) {
+  try {
+    const res = await api.sectorConceptCode(name)
+    if (res && res.code) navigate(`/sector/${res.code}`)
+  } catch (e) { /* 无映射时忽略 */ }
+}
 </script>
 
 <style scoped>
@@ -79,4 +89,6 @@ defineProps({
 .vol-badge.up { background: var(--up-bg); color: var(--up); }
 .vol-badge.down { background: var(--down-bg); color: var(--down); }
 .vol-badge.flat { background: rgba(139, 148, 158, 0.15); color: var(--text-dim); }
+.signal-tag.clickable { cursor: pointer; }
+.signal-tag.clickable:hover { filter: brightness(1.1); box-shadow: 0 0 0 1px currentColor; }
 </style>

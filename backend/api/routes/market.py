@@ -8,7 +8,7 @@ from ...analyzer import rank as rank_an
 from ...analyzer import sector as sector_an
 from ...datasource import eastmoney
 
-from .common import ttl_cache, _calc_indicators, _enrich_rows
+from .common import ttl_cache, _calc_indicators, _enrich_rows, cached_limit_up_pool, cached_limit_break_pool
 
 router = APIRouter()
 
@@ -46,6 +46,59 @@ def sectors_moneyflow(
 ):
     """板块主力净流入排行（全量拉取后排序，含净流出板块）"""
     return [s.model_dump() for s in rank_an.sector_moneyflow(type, limit)]
+
+
+_concept_code_cache: dict = {}
+
+
+def _sector_code_lookup(type: str, name: str):
+    """按板块类型取（缓存的）全量列表，名称精确匹配，否则子串双向匹配；返回板块代码或 None"""
+    import time
+    cache = _concept_code_cache.setdefault(type, {"ts": 0.0, "items": {}})
+    now = time.time()
+    if now - cache["ts"] > 300 or not cache["items"]:
+        try:
+            sectors = sector_an.sector_list(type, limit=800, all_pages=True)
+            cache["items"] = {s.name: s.code for s in sectors if s.code and s.name}
+            cache["ts"] = now
+        except Exception:
+            pass
+    items = cache["items"]
+    if not name:
+        return None
+    code = items.get(name)
+    if not code:
+        for k, v in items.items():
+            if name in k or k in name:
+                code = v
+                break
+    return code
+
+
+@router.get("/sectors/concept-code")
+def sector_concept_code(name: str = Query("", max_length=50),
+                        type: str = Query("concept", pattern="^(industry|concept)$")):
+    """
+    根据行业/概念名称查找东财板块代码（BKxxxx），供标签点击跳转板块页。
+    先按指定 type 查找；查不到时自动回退另一类型（东财个股板块标签会混入行业名，
+    如"影视院线"实为行业板块）。板块全量列表按 type 各自缓存 5 分钟
+    （不用 ttl_cache 装饰，避免按 name 无限缓存膨胀）。
+    @author ygw
+    """
+    if not name:
+        return {"code": None, "name": "", "type": type}
+    order = [type]
+    for t in ("concept", "industry", "area"):
+        if t not in order:
+            order.append(t)
+    code = None
+    hit_type = type
+    for t in order:
+        code = _sector_code_lookup(t, name)
+        if code:
+            hit_type = t
+            break
+    return {"code": code, "name": name, "type": hit_type}
 
 
 @router.get("/sectors/{code}")
@@ -147,16 +200,17 @@ def sector_moneyflow_history(code: str, days: int = Query(5, ge=1, le=30)):
 
 
 @router.get("/market/limit-up")
-@ttl_cache()
 def limit_up_pool(limit: int = Query(100, ge=1, le=300)):
-    return _enrich_rows(eastmoney.get_client().limit_up_pool(limit))
+    """今日涨停池（共享缓存，limit 仅截断展示数量）。"""
+    rows = cached_limit_up_pool()
+    return rows[:limit] if limit < len(rows) else rows
 
 
 @router.get("/market/limit-break")
-@ttl_cache()
 def limit_break_pool(limit: int = Query(100, ge=1, le=300)):
-    """今日炸板池。"""
-    return _enrich_rows(eastmoney.get_client().limit_break_pool(limit))
+    """今日炸板池（共享缓存，limit 仅截断展示数量）。"""
+    rows = cached_limit_break_pool()
+    return rows[:limit] if limit < len(rows) else rows
 
 
 @router.get("/ths/hot")
@@ -173,10 +227,42 @@ def ths_hot(
 @router.get("/market/lhb")
 @ttl_cache(ttl=60)
 def market_lhb(limit: int = Query(50, ge=1, le=100)):
-    """东财龙虎榜（最近有数据的交易日）。"""
+    """东财龙虎榜（最近有数据的交易日）。命中游资的股票额外带 youzi 徽章列表。"""
     from ...datasource import lhb
     data = lhb.fetch_lhb_list(limit)
-    data["items"] = _enrich_rows(data.get("items") or [])
+    items = data.get("items") or []
+    data["items"] = _enrich_rows(items)
+    date = data.get("date")
+    if date:
+        from ...db.lhb_moves import moves_by_date
+        from ...db.lhb_seats import list_seats
+        youzi: dict = {}
+        try:
+            for side in ("buy", "sell"):
+                for g in moves_by_date(date, side, limit=500):
+                    st = youzi.setdefault(g["code"], set())
+                    for s in g["seats"]:
+                        st.add(s["nickname"])
+        except Exception:
+            pass
+        style_map: dict = {}
+        try:
+            for s in list_seats():
+                if s.get("nickname"):
+                    style_map.setdefault(s["nickname"], {
+                        "style": s.get("style") or "",
+                        "premium": s.get("premium") or "neutral",
+                    })
+        except Exception:
+            pass
+        for it in data["items"]:
+            code = it.get("code")
+            if code and code in youzi:
+                it["youzi"] = [
+                    {"nickname": n, "style": (style_map.get(n) or {}).get("style", ""),
+                     "premium": (style_map.get(n) or {}).get("premium", "neutral")}
+                    for n in sorted(youzi[code])
+                ]
     return data
 
 

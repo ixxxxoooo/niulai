@@ -125,7 +125,7 @@ def send_alert(item: dict) -> bool:
     else:
         link = f"{base}/#/stock/{code}"
 
-    return send_card(webhook, f"盯盘提醒 · {name}", fields, link=link)
+    return send_card(webhook, f"牛来提醒 · {name}", fields, link=link)
 
 
 def send_screener_result(rule_name: str, hits: List[dict]) -> bool:
@@ -163,7 +163,7 @@ def send_screener_result(rule_name: str, hits: List[dict]) -> bool:
         {"label": "个股", "value": "\n".join(lines) + more},
     ]
 
-    return send_card(webhook, f"盯盘选股 · {rule_name}", fields,
+    return send_card(webhook, f"牛来选股 · {rule_name}", fields,
                      link=f"{base}/#/screener", color="blue")
 
 
@@ -180,7 +180,7 @@ def send_test() -> dict:
 
     ok = send_card(
         webhook,
-        "盯盘 · 测试推送",
+        "牛来 · 测试推送",
         [{"label": "状态", "value": "Webhook 配置正确，推送通道正常"}],
         link=_base_url(),
         color="green",

@@ -2,7 +2,7 @@
   <div class="card" ref="rootEl">
     <div class="card-title" style="display:flex;align-items:center;gap:10px">
       <span>资金流向</span>
-      <span v-if="dataSource" class="src-tag" :title="sourceTip">{{ dataSource }}</span>
+      <a v-if="flowUrl" class="source-link" style="margin-left:auto" :href="flowUrl" target="_blank" rel="noopener">东财↗</a>
       <button class="btn-screenshot" @click="onShot" title="截图"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="12" cy="12" r="3"/></svg></button>
     </div>
     <template v-if="flow.length">
@@ -57,12 +57,15 @@ const props = defineProps({
   displayName: { type: String, default: '' },
   dataSource: { type: String, default: '' },
   sourceTip: { type: String, default: '' },
+  code: { type: String, default: '' },
 })
 
 const emit = defineEmits(['screenshot'])
 const rootEl = ref(null)
 const chartEl = ref(null)
 let chart = null
+
+const flowUrl = computed(() => (props.code ? `https://data.eastmoney.com/zjlx/${props.code}.html` : ''))
 
 const flowTableRows = computed(() => {
   if (!props.flow.length) return []

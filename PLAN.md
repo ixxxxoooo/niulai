@@ -1,4 +1,4 @@
-# 盯盘（dingpan）— 需求说明书与实施计划
+# 牛来 niulai— 需求说明书与实施计划
 
 ## 一、项目定位
 
@@ -124,7 +124,7 @@
 - **目录结构**
 
 ```
-dingpan/
+niulai/
 ├── backend/
 │   ├── app.py              # FastAPI 入口
 │   ├── config.py           # 配置（刷新频率、数据源、时段）

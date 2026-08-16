@@ -33,7 +33,7 @@ async def lifespan(app: FastAPI):
 
 
 def create_app() -> FastAPI:
-    app = FastAPI(title="盯盘 - A股盘面分析", version="1.1.0", lifespan=lifespan)
+    app = FastAPI(title="牛来 niulai - A股盘面分析", version="1.1.0", lifespan=lifespan)
 
     app.add_middleware(
         CORSMiddleware,
@@ -92,7 +92,7 @@ def create_app() -> FastAPI:
         if FRONTEND_DIST.is_dir():
             return FileResponse(FRONTEND_DIST / "index.html")
         return {
-            "name": "盯盘",
+            "name": "牛来 niulai",
             "docs": "/docs",
             "api": "/api/health",
             "tip": "前端未构建，请先执行 frontend 构建或在浏览器访问 /docs 查看接口文档",

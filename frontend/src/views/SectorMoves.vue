@@ -108,7 +108,7 @@ async function shotOut() {
 function openSector(code) { navigate('/sector/' + code) }
 function openStock(code) {
   if (!code) return
-  goStock({ code }, { origin: '/sector-moves', originLabel: '返回资金' })
+  goStock({ code }, { origin: '/sectors/flow', originLabel: '返回板块' })
 }
 
 /**

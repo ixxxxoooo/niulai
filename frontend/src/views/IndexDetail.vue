@@ -264,7 +264,7 @@ function renderTrend() {
           label: { show: false },
         },
       },
-      ...(avgOk ? [{ name: '均价', type: 'line', data: avgs, showSymbol: false, lineStyle: { color: tc.avg, width: 1.2, type: 'dashed' }, itemStyle: { color: tc.avg } }] : []),
+      ...(avgOk ? [{ name: '均价', type: 'line', data: avgs, showSymbol: false, lineStyle: { color: '#ffcc00', width: 1.5, type: 'solid' }, itemStyle: { color: '#ffcc00' } }] : []),
       {
         name: '成交量', type: 'bar', xAxisIndex: 1, yAxisIndex: 1, barWidth: '60%',
         data: vols.map((v, i) => ({

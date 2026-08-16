@@ -28,6 +28,25 @@ class SeatSyncBody(BaseModel):
     force: bool = False
 
 
+class SeatGroupBody(BaseModel):
+    """新增一个游资（含席位列表）"""
+    nickname: str = Field(..., min_length=1, max_length=32)
+    real_name: str = ""
+    tier: str = Field("new_gen", pattern="^(legend|new_gen|regional|broker)$")
+    style: str = ""
+    premium: str = Field("neutral", pattern="^(positive|neutral_positive|neutral|negative)$")
+    seats: List[str] = Field(..., min_length=1)
+
+
+class SeatGroupPatchBody(BaseModel):
+    """更新一个游资（nickname 不可改，其余整体替换）"""
+    real_name: str = ""
+    tier: str = Field("new_gen", pattern="^(legend|new_gen|regional|broker)$")
+    style: str = ""
+    premium: str = Field("neutral", pattern="^(positive|neutral_positive|neutral|negative)$")
+    seats: List[str] = Field(..., min_length=1)
+
+
 # ── 日 K 同步 ──
 
 @router.post("/screener/sync-bars")
@@ -104,14 +123,59 @@ def screener_run_detail(run_id: int):
 
 @router.get("/lhb/seats")
 def lhb_seats_list():
-    """席位标签库列表。"""
+    """席位标签库列表（含近期活跃度：近30天在 lhb_records 中出现的次数）。"""
     from ...db.lhb_seats import list_seats, seat_count
-    return {"count": seat_count(), "seats": list_seats()}
+    seats = list_seats()
+    activity: dict = {}
+    try:
+        from ...db import store
+        conn = store.get_conn()
+        rows = conn.execute(
+            "SELECT nickname, COUNT(*) AS c FROM lhb_records "
+            "WHERE nickname != '' AND date >= date('now', '-30 day') GROUP BY nickname"
+        ).fetchall()
+        activity = {r["nickname"]: r["c"] for r in rows}
+    except Exception:
+        pass
+    for s in seats:
+        s["activity"] = activity.get(s["nickname"], 0)
+    return {"count": seat_count(), "seats": seats}
+
+
+@router.post("/lhb/seats")
+def lhb_seats_create(body: SeatGroupBody):
+    """新增一个游资（多席位）。"""
+    from ...db.lhb_seats import add_seat_group, seat_group_exists, seat_count
+    nick = body.nickname.strip()
+    if seat_group_exists(nick):
+        raise HTTPException(status_code=409, detail=f"游资「{nick}」已存在")
+    n = add_seat_group(nick, body.real_name, body.tier, body.style, body.premium, body.seats)
+    return {"ok": True, "written": n, "count": seat_count()}
+
+
+@router.put("/lhb/seats/{nickname}")
+def lhb_seats_update(nickname: str, body: SeatGroupPatchBody):
+    """整体更新一个游资（席位整体替换，改动标记自定义）。"""
+    from ...db.lhb_seats import seat_group_exists, update_seat_group, seat_count
+    if not seat_group_exists(nickname):
+        raise HTTPException(status_code=404, detail=f"游资「{nickname}」不存在")
+    n = update_seat_group(nickname, body.real_name, body.tier, body.style, body.premium, body.seats)
+    return {"ok": True, "written": n, "count": seat_count()}
+
+
+@router.delete("/lhb/seats/{nickname}")
+def lhb_seats_delete(nickname: str):
+    """删除一个游资（该昵称所有席位）。"""
+    from ...db.lhb_seats import delete_seat_group, seat_group_exists, seat_count
+    if not seat_group_exists(nickname):
+        raise HTTPException(status_code=404, detail=f"游资「{nickname}」不存在")
+    n = delete_seat_group(nickname)
+    return {"ok": True, "deleted": n, "count": seat_count()}
 
 
 @router.post("/lhb/seats/sync")
 def lhb_seats_sync(body: SeatSyncBody):
-    """重置/更新席位标签库。"""
+    """同步席位标签库：force=True 重建内置种子（保留自定义），False 仅补内置缺位。"""
     from ...db.lhb_seats import init_builtin_seats, seat_count
     n = init_builtin_seats(force=body.force)
     return {"ok": True, "count": seat_count(), "written": n}

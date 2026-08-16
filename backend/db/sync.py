@@ -217,5 +217,10 @@ def start_background_sync() -> None:
                     sync_concept_tags()
             except Exception:
                 logger.exception("定时同步失败")
+            try:
+                from .lhb_moves import auto_sync_today_if_needed
+                auto_sync_today_if_needed()
+            except Exception:
+                logger.debug("龙虎榜自动同步检查失败")
 
     threading.Thread(target=_run, name="stock-sync", daemon=True).start()
