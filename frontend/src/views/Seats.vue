@@ -66,7 +66,14 @@
               <td>{{ premiumLabel(g.premium) }}</td>
               <td><span class="seat-activity" :class="{ hot: g.activity > 0 }">{{ g.activity || 0 }}</span></td>
               <td>
-                <div v-for="s in g.seats" :key="s" class="seat-line">{{ s }}</div>
+                <template v-if="g.custom_seats.length">
+                  <div class="seat-real-title">自定义席位（{{ g.custom_seats.length }}）</div>
+                  <div v-for="s in g.custom_seats" :key="s" class="seat-line">{{ s }}</div>
+                </template>
+                <template v-if="g.builtin_seats.length">
+                  <div class="seat-real-title seat-builtin-title">内置规则席位（{{ g.builtin_seats.length }}）</div>
+                  <div v-for="s in g.builtin_seats" :key="s" class="seat-line seat-builtin">{{ s }}</div>
+                </template>
                 <template v-if="g.real_seats && g.real_seats.length">
                   <div class="seat-real-title">实际出现（{{ g.real_seats.length }}）</div>
                   <div v-for="rs in g.real_seats" :key="rs.name" class="seat-line seat-real" :title="'最近 ' + rs.last_date">
@@ -76,6 +83,7 @@
               </td>
               <td>
                 <span v-if="g.source === 'builtin'" class="src-builtin">内置</span>
+                <span v-else-if="g.source === 'mixed'" class="src-mixed">内置+自定义</span>
                 <span v-else class="src-custom">自定义</span>
               </td>
               <td class="seat-ops">
@@ -242,8 +250,16 @@
             <option value="negative">负面</option>
           </select>
         </div>
-        <label class="seat-form-row seat-form-textarea">席位（每行一个营业部名称）
-          <textarea class="setting-input" v-model="seatForm.seatsText" rows="5" placeholder="每行一个营业部名称，如：&#10;国泰君安证券股份有限公司上海江苏路证券营业部"></textarea>
+        <div v-if="editingSeat && editingSeat.builtin_seats.length" class="seat-form-row seat-form-textarea seat-builtin-block">
+          <div class="seat-form-col">
+            <span class="seat-form-label-block">内置规则席位（{{ editingSeat.builtin_seats.length }}）· 自动保留，不可删改</span>
+            <div class="seat-builtin-list">
+              <div v-for="s in editingSeat.builtin_seats" :key="s" class="seat-line seat-builtin">{{ s }}</div>
+            </div>
+          </div>
+        </div>
+        <label class="seat-form-row seat-form-textarea">自定义席位（每行一个营业部名称，可自由增删改）
+          <textarea class="setting-input" v-model="seatForm.customSeatsText" rows="5" placeholder="每行一个营业部名称，如：&#10;国泰君安证券股份有限公司上海江苏路证券营业部"></textarea>
         </label>
         <div class="seat-modal-ops">
           <button class="btn" @click="closeSeatEditor">取消</button>
@@ -286,7 +302,8 @@ function applySeatSort() {
 const showSeatEditor = ref(false)
 const seatSaving = ref(false)
 const editingSeatNick = ref('')
-const seatForm = reactive({ nickname: '', real_name: '', tier: 'new_gen', style: '', premium: 'neutral', seatsText: '' })
+const editingSeat = ref(null)
+const seatForm = reactive({ nickname: '', real_name: '', tier: 'new_gen', style: '', premium: 'neutral', customSeatsText: '' })
 const filterTier = ref('')
 const filterPremium = ref('')
 const filterKw = ref('')
@@ -321,14 +338,21 @@ async function loadSeatGroups() {
     const map = new Map()
     for (const s of (res.seats || [])) {
       const k = s.nickname
-      if (!map.has(k)) map.set(k, { nickname: k, real_name: s.real_name || '', tier: s.tier, style: s.style || '', premium: s.premium || 'neutral', source: s.source || 'builtin', activity: s.activity || 0, seats: [], real_seats: [] })
+      if (!map.has(k)) map.set(k, { nickname: k, real_name: '', tier: s.tier, style: '', premium: 'neutral', source: 'custom', activity: 0, seats: [], builtin_seats: [], custom_seats: [], real_seats: [] })
       const g = map.get(k)
       if (!g.real_name && s.real_name) g.real_name = s.real_name
       if ((s.activity || 0) > g.activity) g.activity = s.activity
       g.seats.push(s.seat_name)
+      if (s.source === 'builtin') g.builtin_seats.push(s.seat_name)
+      else g.custom_seats.push(s.seat_name)
       for (const rs of (s.real_seats || [])) {
         if (!g.real_seats.some(x => x.name === rs.name)) g.real_seats.push(rs)
       }
+    }
+    for (const g of map.values()) {
+      if (g.builtin_seats.length && g.custom_seats.length) g.source = 'mixed'
+      else if (g.builtin_seats.length) g.source = 'builtin'
+      else g.source = 'custom'
     }
     seatGroups.value = [...map.values()]
     sortSeatGroups()
@@ -338,20 +362,22 @@ async function loadSeatGroups() {
 function openSeatEditor(g) {
   if (g) {
     editingSeatNick.value = g.nickname
+    editingSeat.value = g
     seatForm.nickname = g.nickname
     seatForm.real_name = g.real_name
     seatForm.tier = g.tier
     seatForm.style = g.style
     seatForm.premium = g.premium
-    seatForm.seatsText = (g.seats || []).join('\n')
+    seatForm.customSeatsText = (g.custom_seats || []).join('\n')
   } else {
     editingSeatNick.value = ''
+    editingSeat.value = null
     seatForm.nickname = ''
     seatForm.real_name = ''
     seatForm.tier = 'new_gen'
     seatForm.style = ''
     seatForm.premium = 'neutral'
-    seatForm.seatsText = ''
+    seatForm.customSeatsText = ''
   }
   showSeatEditor.value = true
 }
@@ -359,10 +385,10 @@ function openSeatEditor(g) {
 function closeSeatEditor() { showSeatEditor.value = false }
 
 async function saveSeatGroup() {
-  const seats = seatForm.seatsText.split('\n').map(s => s.trim()).filter(Boolean)
+  const seats = seatForm.customSeatsText.split('\n').map(s => s.trim()).filter(Boolean)
   const nick = seatForm.nickname.trim()
   if (!nick) return alert('请填写游资名称')
-  if (!seats.length) return alert('请至少填写一个席位')
+  if (!seats.length) return alert('请至少填写一个自定义席位')
   seatSaving.value = true
   try {
     const body = { real_name: seatForm.real_name.trim(), tier: seatForm.tier, style: seatForm.style.trim(), premium: seatForm.premium, seats }
@@ -579,8 +605,10 @@ onUnmounted(() => {
 .seat-activity.hot { color: #b45309; }
 .seat-line { color: var(--text-dim); line-height: 1.5; }
 .seat-real-title { margin-top: 6px; font-size: 12px; color: var(--accent); font-weight: 600; }
+.seat-builtin-title { color: var(--text-dim); }
 .seat-real { font-size: 12px; }
 .seat-real-date { margin-left: 6px; font-size: 11px; color: var(--text-dim); }
+.seat-builtin { color: var(--text-dim); opacity: .75; }
 .seat-tag { display: inline-block; padding: 2px 8px; border-radius: 10px; font-size: 12px; }
 .seat-tag.tier-legend { background: #ffd70033; color: #b8860b; border: 1px solid #ffd70066; }
 .seat-tag.tier-new_gen { background: #1a56a81a; color: var(--accent); border: 1px solid var(--accent); }
@@ -588,6 +616,7 @@ onUnmounted(() => {
 .seat-tag.tier-broker { background: var(--bg-hover); color: var(--text-dim); border: 1px solid var(--border); }
 .src-builtin { color: var(--text-dim); font-size: 12px; }
 .src-custom { color: #d97706; font-size: 12px; }
+.src-mixed { color: var(--accent); font-size: 12px; }
 .seat-ops { white-space: nowrap; }
 .btn-sm { padding: 2px 10px; font-size: 12px; }
 .btn-danger { color: #dc2626; border-color: #dc262666; }
@@ -601,6 +630,13 @@ onUnmounted(() => {
 .seat-form-row { display: flex; align-items: center; gap: 10px; margin-bottom: 12px; font-size: 13px; color: var(--text); }
 .seat-form-row .setting-input { width: auto; flex: 1; max-width: none; }
 .seat-form-label { width: 56px; flex-shrink: 0; }
+.seat-form-col { flex: 1; min-width: 0; }
+.seat-form-label-block { font-size: 12px; color: var(--text-dim); margin-bottom: 6px; display: block; }
+.seat-builtin-list {
+  background: var(--bg-hover); border: 1px dashed var(--border); border-radius: 8px;
+  padding: 8px 10px; max-height: 140px; overflow: auto;
+}
+.seat-builtin-block { display: flex; }
 .seat-form-textarea { align-items: flex-start; }
 .seat-form-textarea textarea { resize: vertical; min-height: 90px; font-family: inherit; }
 .seat-modal-ops { display: flex; justify-content: flex-end; gap: 10px; margin-top: 16px; }

@@ -399,10 +399,11 @@ def add_seat_group(nickname: str, real_name: str, tier: str, style: str,
 
 def update_seat_group(nickname: str, real_name: str, tier: str, style: str,
                       premium: str, seats: Sequence[str]) -> int:
-    """整体更新一个游资：只替换自定义席位，内置规则席位（source='builtin'）始终保留。
+    """整体更新一个游资：内置规则席位（source='builtin'）始终保留，自定义席位按提交整体替换。
 
     内置席位通常是前缀/模糊匹配规则（如「东方财富证券股份有限公司拉萨」），
-    用户编辑若整体删除会导致其余具体营业部不再被识别，故只增删自定义席位。
+    若整体删除会导致其余具体营业部不再被识别，故内置席位自动保留、同步更新属性；
+    用户提交的 seats 视为自定义席位（可增可删可改），与内置席位共同参与命中。
 
     参数:
         nickname: 游资昵称
@@ -410,40 +411,34 @@ def update_seat_group(nickname: str, real_name: str, tier: str, style: str,
         tier: 级别
         style: 风格
         premium: 属性
-        seats: 本次提交的席位列表（内置同名席位同步更新属性，其余按自定义写入）
+        seats: 本次提交的自定义席位列表
 
     返回:
-        当前该游资席位总数
+        提交的自定义席位数
     """
     seats = [str(s).strip() for s in seats if s and str(s).strip()]
-    if not nickname or not seats:
-        raise ValueError("昵称和席位不能为空")
+    if not nickname:
+        raise ValueError("昵称不能为空")
     ensure_tables()
     conn = store.get_conn()
     with store._lock:
-        # 1) 删除自定义席位（内置规则保留，避免误删导致前缀匹配失效）
+        # 1) 内置规则席位始终保留，并同步该游资的属性
+        conn.execute(
+            "UPDATE lhb_seats SET real_name=?, tier=?, style=?, premium=? "
+            "WHERE nickname=? AND source='builtin'",
+            (real_name or "", tier or "new_gen", style or "",
+             premium or "neutral", nickname),
+        )
+        # 2) 删除原自定义席位（整体替换为本次提交）
         conn.execute("DELETE FROM lhb_seats WHERE nickname=? AND source != 'builtin'", (nickname,))
-        builtin = {
-            r["seat_name"] for r in conn.execute(
-                "SELECT seat_name FROM lhb_seats WHERE nickname=? AND source='builtin'", (nickname,)
-            ).fetchall()
-        }
-        # 2) 提交的内置席位：同步更新属性
+        # 3) 写入本次提交的自定义席位（与内置同名则忽略，内置已同步属性，避免重复）
         for seat in seats:
-            if seat in builtin:
-                conn.execute(
-                    "UPDATE lhb_seats SET real_name=?, tier=?, style=?, premium=? "
-                    "WHERE nickname=? AND seat_name=? AND source='builtin'",
-                    (real_name or "", tier or "new_gen", style or "",
-                     premium or "neutral", nickname, seat),
-                )
-            else:
-                conn.execute(
-                    "INSERT INTO lhb_seats(nickname, real_name, tier, style, premium, seat_name, source) "
-                    "VALUES (?,?,?,?,?,?,'custom')",
-                    (nickname, real_name or "", tier or "new_gen", style or "",
-                     premium or "neutral", seat),
-                )
+            conn.execute(
+                "INSERT OR IGNORE INTO lhb_seats(nickname, real_name, tier, style, premium, seat_name, source) "
+                "VALUES (?,?,?,?,?,?,'custom')",
+                (nickname, real_name or "", tier or "new_gen", style or "",
+                 premium or "neutral", seat),
+            )
         conn.commit()
     _reload_cache()
     return len(seats)
