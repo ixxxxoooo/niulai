@@ -323,8 +323,9 @@ const signalTags = computed(() => {
     const kind = limitTag.value.kind
     if (kind === 'zt') {
       const zb = limitTag.value.zb_count || 0
+      const base = n <= 1 ? '首板' : `${n}连板`
       tags.push({
-        label: n <= 1 ? '首板' : `${n}连板`,
+        label: zb ? `${base}·炸${zb}` : base,
         cls: 'sig-up sig-hot',
         to: '/ladder',
         desc: `当前处于涨停池，连板数 ${n}${zb ? `，今日曾炸板 ${zb} 次` : ''}。点击查看连板梯队`,
