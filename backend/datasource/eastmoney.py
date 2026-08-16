@@ -456,6 +456,7 @@ class EastMoneyClient:
             for secid, name, region in self.GLOBAL_INDICES:
                 if q.code == secid.split(".")[1] or q.name == name:
                     q.secid = secid
+                    q.region = region
                     if not q.name:
                         q.name = name
         return quotes

@@ -11,8 +11,18 @@
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="12" cy="12" r="3"/></svg>
         </button>
       </div>
-      <div class="index-grid">
-        <div v-for="q in indices" :key="q.secid || q.code" class="card index-card" @click="goIndex(q)">
+      <div class="index-grid us-grid">
+        <div v-for="q in usIndices" :key="q.secid || q.code" class="card index-card" @click="goIndex(q)">
+          <div class="index-name">{{ q.name }}</div>
+          <div class="index-price" :class="pctClass(q.change_pct)">{{ fmtPrice(q.price) }}</div>
+          <div class="index-pct" :class="pctClass(q.change_pct)">
+            {{ fmtPct(q.change_pct) }}
+            <span style="font-size:12px;font-weight:400">{{ fmtNum(q.change) }}</span>
+          </div>
+        </div>
+      </div>
+      <div class="index-grid ap-grid mt12">
+        <div v-for="q in apIndices" :key="q.secid || q.code" class="card index-card" @click="goIndex(q)">
           <div class="index-name">{{ q.name }}</div>
           <div class="index-price" :class="pctClass(q.change_pct)">{{ fmtPrice(q.price) }}</div>
           <div class="index-pct" :class="pctClass(q.change_pct)">
@@ -108,6 +118,10 @@ const indices = ref([])
 const allBoards = ref([])
 const error = ref('')
 
+// 全球指数分组：美股一排，日韩/港股一排
+const usIndices = computed(() => indices.value.filter(q => q.region === '美股'))
+const apIndices = computed(() => indices.value.filter(q => q.region !== '美股'))
+
 const usBoards = computed(() => allBoards.value.filter(b => b.region === 'us'))
 const jpBoards = computed(() => allBoards.value.filter(b => b.region === 'jp'))
 const krBoards = computed(() => allBoards.value.filter(b => b.region === 'kr'))
@@ -132,6 +146,13 @@ const poll = usePolling(load, 10000)
 </script>
 
 <style scoped>
+/* 全球指数：每排固定 4 个 */
+.us-grid, .ap-grid {
+  grid-template-columns: repeat(4, 1fr);
+}
+@media (max-width: 900px) {
+  .us-grid, .ap-grid { grid-template-columns: repeat(2, 1fr); }
+}
 .theme-grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));

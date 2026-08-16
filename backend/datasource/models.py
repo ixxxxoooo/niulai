@@ -19,6 +19,7 @@ class IndexQuote(BaseModel):
     down_count: Optional[int] = None        # 下跌家数
     flat_count: Optional[int] = None        # 平盘家数
     secid: Optional[str] = None             # 东财 secid（如 1.000001 / 100.N225）
+    region: Optional[str] = None            # 全球指数区域（日韩/亚太/美股）
 
 
 class StockBrief(BaseModel):
