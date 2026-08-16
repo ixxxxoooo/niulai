@@ -24,13 +24,12 @@
               @click="openFromLadder(p)"
             >
               <MiniTrend :code="p.code" :name="p.name">
-                <span class="chip-name"><BoardBadges :row="p" />{{ p.name }}</span>
+                <span class="chip-name"><BoardBadges :row="p" />{{ p.name }}<span v-if="p.zb_count" class="zb-tag">炸{{ p.zb_count }}</span></span>
               </MiniTrend>
               <span class="chip-ind">{{ p.industry || '—' }}</span>
-              <span v-if="(p.youzi || []).length" class="youzi-summary" :class="{ lhasa: hasLhasa(p) }" :data-tip="youziTip(p)" @click.stop="goSeatFirst(p)">游资 {{ (p.youzi || []).length }}</span>
+              <span v-for="y in (p.youzi || [])" :key="y" class="youzi-badge ladder-youzi" :class="{ lhasa: y.includes('拉萨') }" :data-tip="`点击查看该游资动向`" @click.stop="goSeat(y)">{{ y }}</span>
               <span class="chip-meta">
                 {{ p.first_time || '-' }}
-                <span v-if="p.zb_count" class="zb-tag">炸{{ p.zb_count }}</span>
               </span>
             </span>
             <span v-if="!g.items.length" class="empty">暂无</span>
@@ -50,13 +49,12 @@
           @click="openFromZb(p)"
         >
           <MiniTrend :code="p.code" :name="p.name">
-            <span class="chip-name"><BoardBadges :row="p" />{{ p.name }}</span>
+            <span class="chip-name"><BoardBadges :row="p" />{{ p.name }}<span class="zb-tag">炸{{ p.zb_count || 1 }}</span></span>
           </MiniTrend>
           <span class="chip-ind">{{ p.industry || '—' }}</span>
-          <span v-if="(p.youzi || []).length" class="youzi-summary" :class="{ lhasa: hasLhasa(p) }" :data-tip="youziTip(p)" @click.stop="goSeatFirst(p)">游资 {{ (p.youzi || []).length }}</span>
+          <span v-for="y in (p.youzi || [])" :key="y" class="youzi-badge ladder-youzi" :class="{ lhasa: y.includes('拉萨') }" :data-tip="`点击查看该游资动向`" @click.stop="goSeat(y)">{{ y }}</span>
           <span class="chip-meta">
             {{ fmtPct(p.change_pct) }}
-            <span class="zb-tag">炸{{ p.zb_count || 1 }}</span>
           </span>
         </span>
         <span v-if="!zbFiltered.length" class="empty">暂无炸板</span>
@@ -81,32 +79,6 @@ import { captureElement } from '../composables/useScreenshot.js'
 
 function goSeat(nickname) {
   navigate('/seats?nick=' + encodeURIComponent(nickname))
-}
-
-/**
- * 是否有反向指标游资（拉萨天团）。
- * @param {object} p 涨停行数据
- */
-function hasLhasa(p) {
-  return (p.youzi || []).some(y => y.includes('拉萨'))
-}
-
-/**
- * 游资徽章悬浮提示：第一行为总数，后续每行一个具体游资名。
- * @param {object} p 涨停行数据
- */
-function youziTip(p) {
-  const names = (p.youzi || []).map(y => y.includes('拉萨') ? '拉萨天团（反向指标）' : y)
-  return ['游资（' + names.length + '）', ...names].join('\n')
-}
-
-/**
- * 点击游资徽章跳转到首个游资动向页。
- * @param {object} p 涨停行数据
- */
-function goSeatFirst(p) {
-  const y = (p.youzi || [])[0]
-  if (y) goSeat(y)
 }
 
 /**
@@ -198,7 +170,7 @@ usePolling(load, 5000)
 .chip {
   display: inline-flex; flex-direction: column; gap: 3px;
   padding: 6px 10px; border: 1px solid var(--border); border-radius: 6px;
-  cursor: pointer; background: var(--bg-card); min-width: 96px;
+  cursor: pointer; background: var(--bg-card); min-width: 150px;
   transition: border-color .15s, background .15s;
 }
 .chip:hover { background: var(--bg-hover); border-color: var(--up); }
@@ -206,16 +178,10 @@ usePolling(load, 5000)
 .chip-name { font-weight: 600; color: var(--up); font-size: 13px; display: inline-flex; align-items: center; gap: 4px; }
 .chip-ind { font-size: 11px; color: var(--accent); }
 .chip-meta { font-size: 11px; color: var(--text-dim); display: flex; align-items: center; gap: 4px; }
-.youzi-summary {
-  display: inline-flex; align-items: center; align-self: flex-start;
-  font-size: 11px; font-weight: 600; white-space: nowrap;
-  padding: 1px 8px; border-radius: 10px; cursor: pointer;
-  background: #fff3cd; color: #b45309; border: 1px solid #fde68a;
-  transition: border-color .15s;
+.ladder-youzi {
+  margin: 0; display: inline-flex; align-items: center; align-self: flex-start;
+  white-space: nowrap;
 }
-.youzi-summary:hover { border-color: #b45309; }
-.youzi-summary.lhasa { background: #dc2626; color: #fff; border-color: #b91c1c; }
-.youzi-summary.lhasa:hover { border-color: #fff; }
 .zb-tag {
   font-size: 10px; font-weight: 700; color: var(--yellow);
   background: rgba(227, 179, 65, 0.16); border-radius: 3px; padding: 0 4px;
