@@ -668,6 +668,38 @@ def delete_position(code: str) -> None:
     upsert_position(code, 0, 0)
 
 
+def import_positions(items: List[Dict[str, Any]]) -> int:
+    """批量导入持仓（覆盖写入，不写流水）。返回导入条数。
+    @param items: [{code, shares, cost, note?}]
+    @author ygw
+    """
+    conn = get_conn()
+    now = _now()
+    n = 0
+    with _lock:
+        for it in items or []:
+            code = str(it.get("code") or "").strip()
+            if not code.isdigit() or len(code) != 6:
+                continue
+            shares = float(it.get("shares") or 0)
+            cost = float(it.get("cost") or 0)
+            if shares < 0 or cost < 0:
+                continue
+            note = str(it.get("note") or "")
+            if shares <= 0:
+                conn.execute("DELETE FROM positions WHERE code=?", (code,))
+            else:
+                conn.execute(
+                    "INSERT INTO positions(code, shares, cost, note, updated_at) VALUES (?,?,?,?,?) "
+                    "ON CONFLICT(code) DO UPDATE SET shares=excluded.shares, cost=excluded.cost, "
+                    "note=excluded.note, updated_at=excluded.updated_at",
+                    (code, shares, cost, note, now),
+                )
+            n += 1
+        conn.commit()
+    return n
+
+
 def list_ledger(code: Optional[str] = None, limit: int = 100) -> List[Dict[str, Any]]:
     """持仓流水。"""
     conn = get_conn()
@@ -818,3 +850,64 @@ def delete_alert(alert_id: int) -> None:
 def mark_alert_triggered(alert_id: int) -> None:
     """标记刚触发时间，用于冷却。"""
     update_alert(alert_id, last_triggered_at=_now())
+
+
+# ── 用户数据备份 / 恢复（iCloud 多设备同步用） ──
+# 仅含用户产生/关心的数据表；stocks / daily_bars / lhb_records（可从接口重建）/
+# 日志等可重建数据不导出。
+USER_BACKUP_TABLES = [
+    "watchlist", "settings", "positions", "position_ledger", "pnl_snapshots",
+    "price_alerts", "lhb_seats", "lhb_dates",
+    "screener_runs", "screener_hits", "ai_history",
+]
+
+
+def export_user_backup() -> Dict[str, Any]:
+    """导出全部用户数据，返回 {表名: [行...]}。
+    生成一个导出时间戳，供导入方展示。
+    @author ygw
+    """
+    conn = get_conn()
+    data = {}
+    for table in USER_BACKUP_TABLES:
+        try:
+            rows = conn.execute(f'SELECT * FROM "{table}"').fetchall()
+            data[table] = [dict(r) for r in rows]
+        except sqlite3.OperationalError:
+            # 表不存在（早期库可能缺），跳过
+            data[table] = []
+    return {
+        "version": 1,
+        "exported_at": _now(),
+        "app": "niulai",
+        "tables": data,
+    }
+
+
+def import_user_backup(payload: Dict[str, Any]) -> Dict[str, int]:
+    """恢复用户数据：整体替换（先清空对应表再写入）。
+    仅处理已知的用户表；新行自增主键 id 保留原值（lhb_records 有唯一约束，防止重复）。
+    @param payload: {tables: {表名: [行...]}}
+    @return: {表名: 导入行数}
+    @author ygw
+    """
+    tables = (payload or {}).get("tables") or {}
+    conn = get_conn()
+    result: Dict[str, int] = {}
+    with _lock:
+        for table in USER_BACKUP_TABLES:
+            rows = tables.get(table) or []
+            if not rows:
+                continue
+            # 清空旧数据后整体写入（id 自增主键：保留原 id 以维持流水/快照/选股外键一致）
+            conn.execute(f'DELETE FROM "{table}"')
+            cols = list(rows[0].keys())
+            placeholders = ", ".join(["?"] * len(cols))
+            col_sql = ", ".join(f'"{c}"' for c in cols)
+            conn.executemany(
+                f'INSERT INTO "{table}"({col_sql}) VALUES ({placeholders})',
+                [tuple(r.get(c) for c in cols) for r in rows],
+            )
+            result[table] = len(rows)
+        conn.commit()
+    return result

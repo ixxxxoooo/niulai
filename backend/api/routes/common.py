@@ -53,6 +53,11 @@ class PositionBody(BaseModel):
     note: str = ""
 
 
+class BackupBody(BaseModel):
+    """用户数据备份恢复"""
+    payload: dict = Field(default_factory=dict)
+
+
 class AlertBody(BaseModel):
     """价格/跌幅监控规则"""
     target_type: str = Field("stock", pattern="^(stock|index)$")

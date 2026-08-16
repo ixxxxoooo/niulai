@@ -100,6 +100,8 @@ export const api = {
   settings: () => get('/settings'),
   setSetting: (key, value) => send('POST', '/settings', { key, value: String(value) }),
   setSettingsBulk: (items) => send('POST', '/settings/bulk', { items }),
+  backupExport: () => get('/backup/export'),
+  backupImport: (payload) => send('POST', '/backup/import', { payload }),
   logActions: (items) => send('POST', '/log/action', { items }),
   logsApi: (limit = 80) => get(`/logs/api?limit=${limit}`),
   logsActions: (limit = 80) => get(`/logs/actions?limit=${limit}`),
