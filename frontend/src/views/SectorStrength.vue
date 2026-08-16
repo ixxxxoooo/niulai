@@ -20,25 +20,61 @@
             </tr>
           </thead>
           <tbody>
-            <tr v-for="(it, i) in items" :key="it.code">
-              <td class="kpl-rank" :class="rankClass(i)">{{ i + 1 }}</td>
-              <td class="stock-name">{{ it.name }}</td>
-              <td><span class="kpl-strength" :class="strengthClass(it.strength)">{{ it.strength != null ? it.strength.toFixed(0) : '—' }}</span></td>
-              <td :class="pctClass(it.change_pct)">{{ it.change_pct != null ? fmtPct(it.change_pct) : '—' }}</td>
-              <td><span class="kpl-lb">{{ it.limit_up_count }}</span></td>
-              <td :class="pctClass(it.main_inflow)">{{ fmtAmount(it.main_inflow) }}</td>
-              <td>
-                <span
-                  v-for="s in it.top_stocks"
-                  :key="s.code"
-                  class="kpl-leader-host"
-                >
-                  <MiniTrend :code="s.code" :name="s.name">
-                    <span class="kpl-leader" :title="`查看 ${s.name}`" @click="openFromStrength(s)">{{ s.name }}</span>
-                  </MiniTrend>
-                </span>
-              </td>
-            </tr>
+            <template v-for="(it, i) in items" :key="it.code">
+              <tr>
+                <td class="kpl-rank" :class="rankClass(i)">{{ i + 1 }}</td>
+                <td class="stock-name">
+                  {{ it.name }}
+                  <span
+                    v-if="it.sub_sectors && it.sub_sectors.length"
+                    class="sub-toggle"
+                    :class="{ open: it._open }"
+                    :title="it._open ? '收起子板块' : '展开子板块'"
+                    @click="toggleSub(it)"
+                  >▾</span>
+                </td>
+                <td><span class="kpl-strength" :class="strengthClass(it.strength)">{{ it.strength != null ? it.strength.toFixed(0) : '—' }}</span></td>
+                <td :class="pctClass(it.change_pct)">{{ it.change_pct != null ? fmtPct(it.change_pct) : '—' }}</td>
+                <td><span class="kpl-lb">{{ it.limit_up_count }}</span></td>
+                <td :class="pctClass(it.main_inflow)">{{ fmtAmount(it.main_inflow) }}</td>
+                <td>
+                  <span
+                    v-for="s in it.top_stocks"
+                    :key="s.code"
+                    class="kpl-leader-host"
+                  >
+                    <MiniTrend :code="s.code" :name="s.name">
+                      <span class="kpl-leader" :title="`查看 ${s.name}`" @click="openFromStrength(s)">{{ s.name }}</span>
+                    </MiniTrend>
+                  </span>
+                </td>
+              </tr>
+              <tr v-if="it._open" class="kpl-sub-row">
+                <td colspan="7">
+                  <div class="kpl-sub-wrap">
+                    <span
+                      v-for="sub in (it.sub_sectors || [])"
+                      :key="sub.name"
+                      class="sub-chip"
+                      :class="{ on: it._activeSub === sub.name }"
+                      @click="toggleSubStock(it, sub)"
+                    >{{ sub.name }} <b>×{{ sub.count }}</b></span>
+                    <div v-if="it._activeSub" class="sub-stocks">
+                      <span
+                        v-for="st in subStocks(it, it._activeSub)"
+                        :key="st.code"
+                        class="kpl-leader-host"
+                      >
+                        <MiniTrend :code="st.code" :name="st.name">
+                          <span class="kpl-leader" :title="`查看 ${st.name}`" @click="openFromStrength(st)">{{ st.name }}</span>
+                        </MiniTrend>
+                      </span>
+                    </div>
+                    <div v-else class="kpl-sub-tip">点击上方子板块查看对应涨停股</div>
+                  </div>
+                </td>
+              </tr>
+            </template>
           </tbody>
         </table>
       </div>
@@ -91,6 +127,17 @@ function openFromStrength(st) {
   if (st && st.code) openStock({ code: st.code, name: st.name }, { origin: '/sectors/strength', originLabel: '返回板块强度' })
 }
 
+function toggleSub(it) {
+  it._open = !it._open
+  if (!it._open) it._activeSub = ''
+}
+function toggleSubStock(it, sub) {
+  it._activeSub = it._activeSub === sub.name ? '' : sub.name
+}
+function subStocks(it, subName) {
+  return (it.stocks || []).filter(st => (st.concepts || '').includes(subName))
+}
+
 usePolling(load, 30000)
 </script>
 
@@ -119,4 +166,22 @@ usePolling(load, 30000)
   cursor: pointer; white-space: nowrap; border: 1px solid transparent;
 }
 .kpl-leader:hover { border-color: var(--accent); }
+.sub-toggle {
+  cursor: pointer; color: var(--text-dim); margin-left: 4px;
+  display: inline-block; font-size: 12px; transition: transform .15s, color .15s;
+}
+.sub-toggle:hover { color: var(--accent); }
+.sub-toggle.open { transform: rotate(180deg); color: var(--accent); }
+.kpl-sub-row td { background: var(--bg-hover); padding: 8px 12px; }
+.kpl-sub-wrap { display: flex; flex-wrap: wrap; align-items: center; gap: 4px; }
+.sub-chip {
+  display: inline-block; font-size: 12px; padding: 2px 10px; margin: 2px 2px 2px 0;
+  border-radius: 12px; background: var(--bg-card); border: 1px solid var(--border);
+  cursor: pointer; white-space: nowrap; transition: border-color .15s, color .15s;
+}
+.sub-chip:hover { border-color: var(--accent); color: var(--accent); }
+.sub-chip.on { background: var(--accent-bg); color: var(--accent); border-color: var(--accent); font-weight: 600; }
+.sub-chip b { font-variant-numeric: tabular-nums; }
+.sub-stocks { display: flex; flex-wrap: wrap; width: 100%; margin-top: 6px; padding-top: 6px; border-top: 1px dashed var(--border); }
+.kpl-sub-tip { width: 100%; font-size: 11px; color: var(--text-dim); padding: 4px 0 0; }
 </style>

@@ -250,6 +250,19 @@ def sector_capital(code: str, date: Optional[str] = None) -> Optional[dict]:
     }
 
 
+def _sub_sectors(stocks: list) -> list:
+    """从涨停股 concepts 概念标签聚合子板块（如通信→光模块/CPO/覆铜板）。"""
+    from collections import Counter
+    c: Counter = Counter()
+    for st in stocks:
+        raw = (st.get("concepts") or "").replace("、", ",").replace("/", ",").replace("，", ",")
+        for tag in raw.split(","):
+            tag = tag.strip()
+            if tag:
+                c[tag] += 1
+    return [{"name": n, "count": cnt} for n, cnt in c.most_common()][:12]
+
+
 def sector_strengths(date: Optional[str] = None) -> Optional[dict]:
     """板块强度榜：当日有涨停的板块列表 + 各板块强度，按强度降序。
 
@@ -273,17 +286,21 @@ def sector_strengths(date: Optional[str] = None) -> Optional[dict]:
     def _one(sec: dict) -> dict:
         strength = sector_strength(sec["code"], date)
         cap = sector_capital(sec["code"], date)
+        stocks = sec.get("stocks") or []
         return {
             "code": sec["code"],
             "name": sec["name"],
             "strength": strength,
-            "limit_up_count": sec.get("stock_count") or len(sec.get("stocks") or []),
+            "limit_up_count": sec.get("stock_count") or len(stocks),
             "main_inflow": (cap or {}).get("main_inflow"),
             "change_pct": (cap or {}).get("change_pct"),
             "amount": (cap or {}).get("amount"),
             "up_count": (cap or {}).get("up_count"),
             "down_count": (cap or {}).get("down_count"),
-            "top_stocks": [{"code": st["code"], "name": (st["name"] or "").strip()} for st in (sec.get("stocks") or [])[:6]],
+            "sub_sectors": _sub_sectors(stocks),
+            "stocks": [{"code": st["code"], "name": (st["name"] or "").strip(),
+                        "concepts": st.get("concepts") or ""} for st in stocks],
+            "top_stocks": [{"code": st["code"], "name": (st["name"] or "").strip()} for st in stocks[:6]],
         }
 
     with ThreadPoolExecutor(max_workers=8) as ex:
