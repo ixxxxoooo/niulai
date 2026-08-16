@@ -30,10 +30,12 @@
                 <span
                   v-for="s in it.top_stocks"
                   :key="s.code"
-                  class="kpl-leader"
-                  :title="`查看 ${s.name}`"
-                  @click="openFromStrength(s)"
-                >{{ s.name }}</span>
+                  class="kpl-leader-host"
+                >
+                  <MiniTrend :code="s.code" :name="s.name">
+                    <span class="kpl-leader" :title="`查看 ${s.name}`" @click="openFromStrength(s)">{{ s.name }}</span>
+                  </MiniTrend>
+                </span>
               </td>
             </tr>
           </tbody>
@@ -51,6 +53,7 @@ import { api } from '../api.js'
 import { fmtAmount, pctClass } from '../utils.js'
 import { usePolling } from '../composables/usePolling.js'
 import { openStock } from '../composables/useStockMeta.js'
+import MiniTrend from '../components/MiniTrend.vue'
 import { captureElement } from '../composables/useScreenshot.js'
 
 const items = ref([])
@@ -108,6 +111,7 @@ usePolling(load, 30000)
   padding: 1px 8px; border-radius: 10px; color: var(--up);
   background: var(--up-bg); border: 1px solid var(--up);
 }
+.kpl-leader-host { display: inline-block; }
 .kpl-leader {
   display: inline-block; font-size: 12px; padding: 1px 8px; margin: 1px 4px 1px 0;
   border-radius: 10px; background: var(--bg-hover); color: var(--accent);
