@@ -71,8 +71,12 @@ a:hover { text-decoration: underline; }
   border-bottom: 1px solid var(--border);
   transition: background 0.2s;
 }
-.brand { display: flex; align-items: center; }
-.brand-logo { height: 34px; width: auto; object-fit: contain; border-radius: 5px; flex-shrink: 0; }
+.brand { display: flex; align-items: center; cursor: pointer; border-radius: 6px; }
+.brand-logo {
+  height: 34px; width: auto; object-fit: contain; border-radius: 5px; flex-shrink: 0;
+  transition: transform .1s ease, opacity .1s ease;
+}
+.brand:active .brand-logo { transform: scale(0.88); opacity: .7; }
 .nav { display: flex; gap: 2px; flex-wrap: wrap; }
 .nav a {
   padding: 6px 10px; border-radius: 8px; color: var(--text-dim);
