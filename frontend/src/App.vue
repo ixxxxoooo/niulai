@@ -40,17 +40,19 @@
         </button>
         <div class="clock">
           <div>{{ now }}</div>
-          <div class="session">{{ session }}</div>
-          <div
-            class="clock-count"
-            role="button"
-            tabindex="0"
-            title="点击立即刷新"
-            @click="manualRefresh"
-            @keydown.enter.prevent="manualRefresh"
-          >
-            <span class="ri-dot" :class="{ active: polling.refreshing }"></span>
-            <span>刷新 {{ polling.countdown }}s</span>
+          <div class="clock-sub">
+            <span class="session">{{ session }}</span>
+            <span
+              class="clock-count"
+              role="button"
+              tabindex="0"
+              title="点击立即刷新"
+              @click="manualRefresh"
+              @keydown.enter.prevent="manualRefresh"
+            >
+              <span class="ri-dot" :class="{ active: polling.refreshing }"></span>
+              <span>{{ polling.countdown }}s</span>
+            </span>
           </div>
         </div>
       </div>
