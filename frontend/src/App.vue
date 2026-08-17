@@ -42,14 +42,14 @@
               <span class="ri-dot" :class="{ active: polling.refreshing }"></span>
               <span>{{ polling.countdown }}s</span>
             </span>
-          </div>
-          <div class="topbar-actions">
-            <button class="icon-btn" title="整页截图" @click="screenshotPage">
-              <UiIcon name="screenshot" :size="16" />
-            </button>
-            <button class="icon-btn" title="设置" @click="go('/settings')">
-              <UiIcon name="settings" :size="16" />
-            </button>
+            <span class="topbar-actions">
+              <button class="icon-btn" title="整页截图" @click="screenshotPage">
+                <UiIcon name="screenshot" :size="16" />
+              </button>
+              <button class="icon-btn" title="设置" @click="go('/settings')">
+                <UiIcon name="settings" :size="16" />
+              </button>
+            </span>
           </div>
         </div>
       </div>
