@@ -86,8 +86,11 @@ export function calcTrendYRange({
     }
     const span = yMax - yMin
     const p = span * pad || Math.abs(pre) * 0.002
-    yMin -= p
-    yMax += p
+    // 触顶/触底（涨停/跌停）时不留边距，让价格线贴到边缘
+    const hitUp = limitUp != null && Number(limitUp) > 0 && Math.abs(yMax - Number(limitUp)) < 0.005
+    const hitDown = limitDown != null && Number(limitDown) > 0 && Math.abs(yMin - Number(limitDown)) < 0.005
+    if (!hitUp) yMax += p
+    if (!hitDown) yMin -= p
     return {
       yMin,
       yMax,
@@ -102,8 +105,11 @@ export function calcTrendYRange({
   const up = Math.max(0, hi - pre)
   const down = Math.max(0, pre - lo)
   const minHalf = Math.abs(pre) * 0.003 || 0.01
-  const yMax = pre + Math.max(up, minHalf) * (1 + pad)
-  const yMin = pre - Math.max(down, minHalf) * (1 + pad)
+  // 触顶/触底（涨停/跌停）时该侧不留边距，价格线贴到边缘
+  const hitUp = limitUp != null && Number(limitUp) > 0 && Math.abs(hi - Number(limitUp)) < 0.005
+  const hitDown = limitDown != null && Number(limitDown) > 0 && Math.abs(lo - Number(limitDown)) < 0.005
+  const yMax = hitUp ? Number(limitUp) : pre + Math.max(up, minHalf) * (1 + pad)
+  const yMin = hitDown ? Number(limitDown) : pre - Math.max(down, minHalf) * (1 + pad)
   return {
     yMin,
     yMax,
