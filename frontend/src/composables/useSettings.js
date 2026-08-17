@@ -5,7 +5,7 @@ import { api } from '../api.js'
 import { logAction } from './useActionLog.js'
 
 export const settingsState = reactive({
-  theme: 'dark',
+  theme: 'light',
   navMode: 'top',
   refreshInterval: 5,
   offMarketInterval: 30000,

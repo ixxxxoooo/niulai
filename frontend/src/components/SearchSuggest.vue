@@ -201,7 +201,7 @@ function select(s) {
   box-shadow: 0 8px 24px rgba(0, 0, 0, 0.35);
   max-height: 360px; overflow-y: auto;
 }
-body.light .suggest-dropdown { box-shadow: 0 8px 24px rgba(31, 36, 43, 0.15); }
+body.light .suggest-dropdown { box-shadow: 0 8px 24px rgba(27, 31, 35, 0.12); }
 
 .suggest-item {
   display: flex; align-items: center; gap: 10px;

@@ -282,13 +282,13 @@ async function tickSession() {
 
 onMounted(async () => {
   const saved = localStorage.getItem('theme')
-  applyTheme(['light', 'dark', 'system'].includes(saved) ? saved : 'dark')
+  applyTheme(['light', 'dark', 'system'].includes(saved) ? saved : 'light')
   window.addEventListener('hashchange', onHash)
   logAction('page_view', route.value.name, location.hash || '#/')
   try {
     await migrateFromLocalStorage()
     await loadSettings()
-    applyTheme(settingsState.theme || 'dark')
+    applyTheme(settingsState.theme || 'light')
     await loadWatchlist()
   } catch (e) { /* 迁移/加载失败不阻塞页面 */ }
   try {

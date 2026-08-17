@@ -67,17 +67,17 @@ export function isLightTheme() {
 export function themeColors() {
   if (isLightTheme()) {
     return {
-      axis: '#5d6673',
-      split: 'rgba(0, 0, 0, 0.09)',
+      axis: '#6b7480',
+      split: 'rgba(0, 0, 0, 0.08)',
       up: '#d92d20',
       down: '#0b8f63',
       avg: '#a9741a',
-      accent: '#1464c8',
+      accent: '#2563eb',
     }
   }
   return {
-    axis: '#8b949e',
-    split: 'rgba(38, 45, 61, 0.6)',
+    axis: '#8b9099',
+    split: 'rgba(39, 42, 49, 0.5)',
     up: '#f04444',
     down: '#2fbf8f',
     avg: '#e3b341',
