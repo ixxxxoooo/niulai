@@ -43,7 +43,7 @@
       <div class="card">
         <div class="card-title">
           <span>行业板块 · 涨幅榜</span>
-          <a @click="go('/sectors')">全部板块 →</a>
+          <a @click="go('/sectors')">全部板块 <UiIcon name="arrowRight" :size="11" /></a>
         </div>
         <div class="scroll-list">
           <table class="data-table">
@@ -62,7 +62,7 @@
       <div class="card">
         <div class="card-title">
           <span>概念板块 · 涨幅榜</span>
-          <a @click="go('/sectors')">全部板块 →</a>
+          <a @click="go('/sectors')">全部板块 <UiIcon name="arrowRight" :size="11" /></a>
         </div>
         <div class="scroll-list">
           <table class="data-table">
@@ -84,7 +84,7 @@
     <div class="card mt16">
       <div class="card-title">
         <span>盘中异动 · 涨速榜</span>
-        <a @click="go('/rank')">完整榜单 →</a>
+        <a @click="go('/rank')">完整榜单 <UiIcon name="arrowRight" :size="11" /></a>
       </div>
       <div class="scroll-list">
         <StockTable :rows="zhangsuTop" :columns="zhangsuColumns" @row-click="(r) => openFromOverview(r, zhangsuTop)" />
@@ -95,7 +95,7 @@
     <div class="card mt16">
       <div class="card-title">
         <span>ETF 涨幅榜</span>
-        <a @click="go('/rank/etf')">完整榜单 →</a>
+        <a @click="go('/rank/etf')">完整榜单 <UiIcon name="arrowRight" :size="11" /></a>
       </div>
       <div class="scroll-list">
         <StockTable :rows="etfTop" :columns="etfColumns" @row-click="(r) => openFromOverview(r, etfTop)" />

@@ -2,12 +2,12 @@
   <div>
     <div class="stock-head">
       <BackButton label="返回盘面" />
-      <button class="btn-nav-idx" @click="prevIndex" title="上一个指数">◀</button>
+      <button class="btn-nav-idx" @click="prevIndex" title="上一个指数"><UiIcon name="chevronLeft" :size="14" /></button>
       <span class="name">{{ displayName }}</span>
-      <button class="btn-nav-idx" @click="nextIndex" title="下一个指数">▶</button>
+      <button class="btn-nav-idx" @click="nextIndex" title="下一个指数"><UiIcon name="chevronRight" :size="14" /></button>
       <span class="code" style="color:var(--text-dim)">{{ secid }}</span>
-      <button class="btn-ghost" @click="showAlert = true">+ 监控</button>
-      <a class="source-link" :href="indexSourceUrl" target="_blank" rel="noopener">东财↗</a>
+      <UiButton variant="subtle" size="sm" @click="showAlert = true"><UiIcon name="plus" :size="13" /> 监控</UiButton>
+      <a class="source-link" :href="indexSourceUrl" target="_blank" rel="noopener">东财 <UiIcon name="external" :size="11" /></a>
     </div>
 
     <div class="error-banner" v-if="error">{{ error }}</div>

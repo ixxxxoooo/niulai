@@ -14,7 +14,7 @@
         <div class="card-title">
           <span>个股自选（{{ watchStocks.length }}）</span>
           <button class="btn-screenshot" @click="captureElement(stockCard, '个股自选.png')" title="截图">
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="12" cy="12" r="3"/></svg>
+            <UiIcon name="screenshot" :size="14" />
           </button>
         </div>
         <div class="table-wrap">
@@ -44,8 +44,8 @@
                 <td>{{ fmtAmount(s.amount) }}</td>
                 <td :class="pctClass(s.main_inflow)">{{ fmtAmount(s.main_inflow) }}</td>
                 <td>
-                  <button class="btn-ghost" style="padding:3px 8px;font-size:12px" @click.stop="edit(s)">{{ s.shares ? '改仓' : '录入' }}</button>
-                  <button class="btn danger" @click.stop="removeStock(s.code)">删除</button>
+                  <UiButton size="sm" variant="ghost" @click.stop="edit(s)">{{ s.shares ? '改仓' : '录入' }}</UiButton>
+                  <UiButton size="sm" variant="danger" @click.stop="removeStock(s.code)">删除</UiButton>
                 </td>
               </tr>
             </tbody>
@@ -57,7 +57,7 @@
         <div class="card-title">
           <span>ETF 自选（{{ watchEtfs.length }}）</span>
           <button class="btn-screenshot" @click="captureElement(etfCard, 'ETF自选.png')" title="截图">
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="12" cy="12" r="3"/></svg>
+            <UiIcon name="screenshot" :size="14" />
           </button>
         </div>
         <div class="table-wrap">
@@ -87,8 +87,8 @@
                 <td>{{ fmtAmount(s.amount) }}</td>
                 <td :class="pctClass(s.main_inflow)">{{ fmtAmount(s.main_inflow) }}</td>
                 <td>
-                  <button class="btn-ghost" style="padding:3px 8px;font-size:12px" @click.stop="edit(s)">{{ s.shares ? '改仓' : '录入' }}</button>
-                  <button class="btn danger" @click.stop="removeStock(s.code)">删除</button>
+                  <UiButton size="sm" variant="ghost" @click.stop="edit(s)">{{ s.shares ? '改仓' : '录入' }}</UiButton>
+                  <UiButton size="sm" variant="danger" @click.stop="removeStock(s.code)">删除</UiButton>
                 </td>
               </tr>
             </tbody>
@@ -126,7 +126,7 @@
           <span>个股持仓（{{ holdStocks.length }}）</span>
           <span class="card-title-sub">浮动盈亏 = (现价 − 成本价) × 数量 · 盈亏比 = (现价 − 成本价) ÷ 成本价</span>
           <button class="btn-screenshot" @click="captureElement(holdStockCard, '个股持仓.png')" title="截图">
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="12" cy="12" r="3"/></svg>
+            <UiIcon name="screenshot" :size="14" />
           </button>
         </div>
         <div class="table-wrap">
@@ -169,8 +169,8 @@
                   </div>
                 </td>
                 <td>
-                  <button class="btn-ghost" style="padding:3px 8px;font-size:12px" @click.stop="edit(s)">改仓</button>
-                  <button class="btn danger" style="padding:3px 8px;font-size:12px" @click.stop="clearOne(s)">清仓</button>
+                  <UiButton size="sm" variant="ghost" @click.stop="edit(s)">改仓</UiButton>
+                  <UiButton size="sm" variant="danger" @click.stop="clearOne(s)">清仓</UiButton>
                 </td>
               </tr>
             </tbody>
@@ -183,7 +183,7 @@
           <span>ETF 持仓（{{ holdEtfs.length }}）</span>
           <span class="card-title-sub">按市值排序 · 盈亏比 = (现价 − 成本价) ÷ 成本价</span>
           <button class="btn-screenshot" @click="captureElement(holdEtfCard, 'ETF持仓.png')" title="截图">
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="12" cy="12" r="3"/></svg>
+            <UiIcon name="screenshot" :size="14" />
           </button>
         </div>
         <div class="table-wrap">
@@ -226,8 +226,8 @@
                   </div>
                 </td>
                 <td>
-                  <button class="btn-ghost" style="padding:3px 8px;font-size:12px" @click.stop="edit(s)">改仓</button>
-                  <button class="btn danger" style="padding:3px 8px;font-size:12px" @click.stop="clearOne(s)">清仓</button>
+                  <UiButton size="sm" variant="ghost" @click.stop="edit(s)">改仓</UiButton>
+                  <UiButton size="sm" variant="danger" @click.stop="clearOne(s)">清仓</UiButton>
                 </td>
               </tr>
             </tbody>
@@ -243,7 +243,7 @@
       <div class="card mt16" v-if="snapshots.length">
         <div class="card-title" style="display:flex;align-items:center;gap:10px">
           <span>收益记录（按日快照）</span>
-          <button class="btn-ghost" style="padding:3px 8px;font-size:12px" @click="clearSnapshots">清空全部</button>
+          <UiButton size="sm" variant="ghost" @click="clearSnapshots">清空全部</UiButton>
         </div>
         <div class="table-wrap">
           <table class="data-table">
@@ -256,7 +256,7 @@
                 <td>{{ fmtMoney(r.cost_value) }}</td>
                 <td :class="pctClass(r.pnl)">{{ fmtSignedMoney(r.pnl) }}</td>
                 <td :class="pctClass(r.pnl_pct)">{{ fmtPct(r.pnl_pct) }}</td>
-                <td><button class="btn danger" style="padding:2px 8px;font-size:12px" @click="deleteSnapshot(r)">删除</button></td>
+                <td><UiButton size="sm" variant="danger" @click="deleteSnapshot(r)">删除</UiButton></td>
               </tr>
             </tbody>
           </table>
@@ -270,23 +270,23 @@
         <label class="modal-field">
           <span>数量（股）· 默认 100，可 ±100 调整</span>
           <div class="modal-qty">
-            <button type="button" class="btn-ghost" @click="form.shares = Math.max(0, (form.shares || 0) - 100)">−100</button>
-            <input v-model.number="form.shares" type="number" min="0" step="100">
-            <button type="button" class="btn-ghost" @click="form.shares = (form.shares || 0) + 100">+100</button>
+            <UiButton size="sm" variant="ghost" @click="form.shares = Math.max(0, (form.shares || 0) - 100)">−100</UiButton>
+            <UiInput v-model="form.shares" type="number" min="0" step="100" />
+            <UiButton size="sm" variant="ghost" @click="form.shares = (form.shares || 0) + 100">+100</UiButton>
           </div>
         </label>
         <label class="modal-field">
           <span>成本价（元）· 步进 0.01 / 默认当前价</span>
           <div class="modal-qty">
-            <button type="button" class="btn-ghost" @click="nudgeCost(-1)">−</button>
-            <input v-model.number="form.cost" type="number" min="0" step="0.01">
-            <button type="button" class="btn-ghost" @click="nudgeCost(1)">+</button>
+            <UiButton size="sm" variant="ghost" @click="nudgeCost(-1)">−</UiButton>
+            <UiInput v-model="form.cost" type="number" min="0" step="0.01" />
+            <UiButton size="sm" variant="ghost" @click="nudgeCost(1)">+</UiButton>
           </div>
         </label>
         <div class="modal-actions">
-          <button class="btn-ghost" v-if="form.shares" @click="clearPos">清空持仓</button>
-          <button class="btn-ghost" @click="form = null">取消</button>
-          <button class="btn" @click="savePos">保存</button>
+          <UiButton variant="ghost" v-if="form.shares" @click="clearPos">清空持仓</UiButton>
+          <UiButton variant="ghost" @click="form = null">取消</UiButton>
+          <UiButton variant="primary" @click="savePos">保存</UiButton>
         </div>
       </div>
     </div>
@@ -572,5 +572,5 @@ usePolling(load, 3000)
 
 /* 数量 / 成本 ± 调整 */
 .modal-qty { display: flex; gap: 6px; align-items: center; }
-.modal-qty input { flex: 1; }
+.modal-qty .ui-input { flex: 1; min-width: 0; }
 </style>

@@ -7,7 +7,7 @@
       <div class="tab" :class="{ active: stype === 'industry' }" @click="switchType('industry')">行业板块</div>
       <div class="tab" :class="{ active: stype === 'concept' }" @click="switchType('concept')">概念板块</div>
       <span style="color: var(--text-dim); font-size: 12px; margin-left: auto">点击列名排序 · 点击板块进入成分股</span>
-      <a class="source-link" href="https://data.eastmoney.com/bkzj/hy.html" target="_blank" rel="noopener">数据来源↗</a>
+      <a class="source-link" href="https://data.eastmoney.com/bkzj/hy.html" target="_blank" rel="noopener">数据来源 <UiIcon name="external" :size="11" /></a>
     </div>
 
     <div class="card">

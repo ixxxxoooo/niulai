@@ -10,9 +10,9 @@
         <span class="setting-label" style="margin-left:18px">最新日期：{{ syncSt.latest_date || '—' }}</span>
       </div>
       <div class="setting-row">
-        <button class="btn" :disabled="syncing" @click="startSync">
+        <UiButton variant="subtle" :disabled="syncing" @click="startSync">
           {{ syncing ? '同步中…' : '同步日K' }}
-        </button>
+        </UiButton>
         <span style="margin-left:12px;font-size:12px;color:var(--text-dim)">
           首次约需 50~80 分钟，增量很快
         </span>
@@ -30,7 +30,7 @@
       <div class="card-title">选股规则</div>
       <div class="rule-checks">
         <label v-for="r in ruleList" :key="r.id" class="rule-item">
-          <input type="checkbox" v-model="selectedRules" :value="r.id" />
+          <UiCheckbox v-model="selectedRules" :value="r.id" />
           <b>{{ r.name }}</b>
           <span class="rule-desc">{{ r.desc }}</span>
         </label>
@@ -38,21 +38,21 @@
       <div class="setting-row" style="margin-top:12px">
         <span class="setting-label">范围</span>
         <label style="margin-right:16px">
-          <input type="radio" v-model="scope" value="all" /> 全 A 股
+          <UiRadio v-model="scope" value="all" /> 全 A 股
         </label>
         <label>
-          <input type="radio" v-model="scope" value="watchlist" /> 仅自选
+          <UiRadio v-model="scope" value="watchlist" /> 仅自选
         </label>
       </div>
       <div class="setting-row">
         <label>
-          <input type="checkbox" v-model="notifyFeishu" /> 完成后推飞书
+          <UiCheckbox v-model="notifyFeishu" /> 完成后推飞书
         </label>
       </div>
       <div class="setting-row" style="margin-top:8px">
-        <button class="btn btn-primary" :disabled="running || !selectedRules.length || !syncSt.stock_count" @click="runScreen">
+        <UiButton variant="primary" :disabled="running || !selectedRules.length || !syncSt.stock_count" @click="runScreen">
           {{ running ? '扫描中…' : '开始选股' }}
-        </button>
+        </UiButton>
       </div>
     </div>
 

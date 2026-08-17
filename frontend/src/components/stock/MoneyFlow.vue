@@ -2,8 +2,8 @@
   <div class="card" ref="rootEl">
     <div class="card-title" style="display:flex;align-items:center;gap:10px">
       <span>资金流向</span>
-      <a v-if="flowUrl" class="source-link" style="margin-left:auto" :href="flowUrl" target="_blank" rel="noopener">东财↗</a>
-      <button class="btn-screenshot" @click="onShot" title="截图"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="12" cy="12" r="3"/></svg></button>
+      <a v-if="flowUrl" class="source-link" style="margin-left:auto" :href="flowUrl" target="_blank" rel="noopener">东财 <UiIcon name="external" :size="11" /></a>
+      <button class="btn-screenshot" @click="onShot" title="截图"><UiIcon name="screenshot" :size="14" /></button>
     </div>
     <template v-if="flow.length">
       <div class="flow-overview">

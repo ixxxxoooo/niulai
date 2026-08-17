@@ -3,7 +3,7 @@
     <div class="modal-card">
       <div class="modal-hd">
         <span>添加监控 · {{ name || code }}</span>
-        <button class="btn-ghost" @click="close">关闭</button>
+        <UiButton size="sm" variant="ghost" @click="close">关闭</UiButton>
       </div>
       <div class="modal-bd">
         <div class="kv-grid mb12">
@@ -12,31 +12,31 @@
           <div class="kv" v-if="changePct != null"><span class="k">涨跌幅</span><span class="v" :class="changePct >= 0 ? 'up' : 'down'">{{ (changePct > 0 ? '+' : '') + Number(changePct).toFixed(2) }}%</span></div>
         </div>
         <div class="alert-form">
-          <select v-model="form.metric" class="input">
+          <UiSelect v-model="form.metric">
             <option value="price">{{ targetType === 'index' ? '点数' : '价格' }}</option>
             <option v-if="targetType === 'index'" value="points">点数</option>
             <option value="change_pct">涨跌幅%</option>
             <option v-if="targetType === 'stock'" value="zhangsu">涨速%</option>
-          </select>
-          <select v-model="form.op" class="input">
+          </UiSelect>
+          <UiSelect v-model="form.op">
             <option value="lte">≤ 跌到/低于</option>
             <option value="gte">≥ 涨到/高于</option>
-          </select>
-          <input v-model.number="form.threshold" type="number" step="any" class="input" placeholder="阈值" />
+          </UiSelect>
+          <UiInput v-model="form.threshold" type="number" step="any" placeholder="阈值" />
         </div>
         <div class="quick-row">
-          <button class="btn-ghost" @click="preset('price', 'lte', price)">跌破现价</button>
-          <button class="btn-ghost" @click="preset('price', 'gte', price)">涨过现价</button>
-          <button class="btn-ghost" @click="preset('change_pct', 'lte', -3)">跌幅≤-3%</button>
-          <button class="btn-ghost" @click="preset('change_pct', 'lte', -5)">跌幅≤-5%</button>
-          <button class="btn-ghost" @click="preset('change_pct', 'gte', 5)">涨幅≥5%</button>
-          <button v-if="targetType === 'stock'" class="btn-ghost" @click="preset('zhangsu', 'gte', 1.5)">涨速≥1.5%</button>
+          <UiButton size="sm" variant="ghost" @click="preset('price', 'lte', price)">跌破现价</UiButton>
+          <UiButton size="sm" variant="ghost" @click="preset('price', 'gte', price)">涨过现价</UiButton>
+          <UiButton size="sm" variant="ghost" @click="preset('change_pct', 'lte', -3)">跌幅≤-3%</UiButton>
+          <UiButton size="sm" variant="ghost" @click="preset('change_pct', 'lte', -5)">跌幅≤-5%</UiButton>
+          <UiButton size="sm" variant="ghost" @click="preset('change_pct', 'gte', 5)">涨幅≥5%</UiButton>
+          <UiButton v-if="targetType === 'stock'" size="sm" variant="ghost" @click="preset('zhangsu', 'gte', 1.5)">涨速≥1.5%</UiButton>
         </div>
-        <input v-model="form.note" class="input mt8" placeholder="备注（可选）" style="width:100%" />
+        <UiInput v-model="form.note" full placeholder="备注（可选）" style="margin-top:10px" />
         <div class="error-banner mt8" v-if="error">{{ error }}</div>
         <div class="modal-actions">
-          <button class="btn" :disabled="saving" @click="save">{{ saving ? '保存中…' : '确认添加' }}</button>
-          <a class="source-link" @click="goAlerts">管理全部监控 →</a>
+          <UiButton variant="primary" :disabled="saving" @click="save">{{ saving ? '保存中…' : '确认添加' }}</UiButton>
+          <a class="source-link" @click="goAlerts">管理全部监控 <UiIcon name="arrowRight" :size="12" /></a>
         </div>
       </div>
     </div>

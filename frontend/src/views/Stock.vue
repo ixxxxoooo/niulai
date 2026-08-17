@@ -48,7 +48,7 @@
 
     <div class="grid-2 mt16">
       <div class="card">
-        <div class="card-title">成交明细（最近 {{ ticks.length }} 笔 · 10 秒刷新）<a class="source-link" :href="eastmoneyUrl" target="_blank" rel="noopener">东财↗</a></div>
+        <div class="card-title">成交明细（最近 {{ ticks.length }} 笔 · 10 秒刷新）<a class="source-link" :href="eastmoneyUrl" target="_blank" rel="noopener">东财 <UiIcon name="external" :size="11" /></a></div>
         <div class="table-wrap" style="max-height: 380px; overflow-y: auto;">
           <table class="data-table">
             <thead><tr><th>时间</th><th>价格</th><th>数量(手)</th><th>金额</th><th>方向</th></tr></thead>
@@ -87,8 +87,8 @@
         龙虎榜 · {{ lhb.date }}
         <span v-if="lhb.appear_count > 1" class="lhb-freq">近期上榜 {{ lhb.appear_count }} 次</span>
         <span style="font-weight:400;color:var(--text-dim);flex:1;min-width:0">{{ lhb.reason }}</span>
-        <a class="source-link" :href="'https://data.eastmoney.com/stock/lhb/' + (detail.code || code) + '.html'" target="_blank" rel="noopener">东财↗</a>
-        <button class="btn-screenshot" @click="screenshotEl(lhbEl)" title="截图"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="12" cy="12" r="3"/></svg></button>
+        <a class="source-link" :href="'https://data.eastmoney.com/stock/lhb/' + (detail.code || code) + '.html'" target="_blank" rel="noopener">东财 <UiIcon name="external" :size="11" /></a>
+        <button class="btn-screenshot" @click="screenshotEl(lhbEl)" title="截图"><UiIcon name="screenshot" :size="14" /></button>
       </div>
       <div class="kv-grid lhb-kv-grid mb12">
         <div class="kv"><span class="k">净买额</span><span class="v" :class="pctClass(lhb.net)">{{ fmtAmount(lhb.net, 2) }}</span></div>

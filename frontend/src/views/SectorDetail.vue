@@ -4,7 +4,7 @@
       <BackButton label="返回板块" fallback="/sectors" />
       <span class="name">{{ sector ? sector.name : code }}</span>
       <span class="code">{{ code }}</span>
-      <a class="source-link" :href="'https://data.eastmoney.com/bkzj/' + code + '.html'" target="_blank" rel="noopener">东财↗</a>
+      <a class="source-link" :href="'https://data.eastmoney.com/bkzj/' + code + '.html'" target="_blank" rel="noopener">东财 <UiIcon name="external" :size="11" /></a>
       <span class="quote-time" v-if="sector">
         <span :class="pctClass(sector.change_pct)">{{ fmtPct(sector.change_pct) }}</span>
         · 成交 {{ fmtAmount(sector.amount) }}

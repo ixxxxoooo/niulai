@@ -16,12 +16,12 @@
       <div class="tabs mini-tabs">
         <div class="tab" :class="{ active: showBuySell }" @click="toggleBuySell">买卖点</div>
       </div>
-      <button class="btn-screenshot" @click="screenshotChart" title="截图到剪贴板"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="12" cy="12" r="3"/></svg></button>
+      <button class="btn-screenshot" @click="screenshotChart" title="截图到剪贴板"><UiIcon name="screenshot" :size="14" /></button>
     </div>
     <div class="sr-picker" v-if="srOptions.length && chartPeriod !== 'trend'">
       <span class="sr-picker-label">压力/支撑</span>
       <label v-for="opt in srOptions" :key="opt.id" class="sr-opt" :class="{ on: selectedSR.has(opt.id), resist: opt.side==='r', support: opt.side==='s' }">
-        <input type="checkbox" :checked="selectedSR.has(opt.id)" @change="toggleSRItem(opt.id)" />
+        <UiCheckbox :checked="selectedSR.has(opt.id)" @change="toggleSRItem(opt.id)" />
         <span>{{ opt.label }} {{ opt.price }}</span>
       </label>
     </div>

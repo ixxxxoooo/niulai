@@ -6,7 +6,7 @@
     <span>· 上次 {{ lastUpdated || '--:--:--' }}</span>
     <span v-if="refreshing" style="color: var(--accent)">刷新中…</span>
     <span class="spacer"></span>
-    <button class="btn-mini" @click="refresh">立即刷新</button>
+    <UiButton size="sm" variant="subtle" @click="$emit('refresh')">立即刷新</UiButton>
   </div>
 </template>
 

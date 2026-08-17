@@ -13,7 +13,7 @@
           <div class="perm-title">桌面通知权限：{{ permLabel }}</div>
           <div class="perm-hint">需允许本站发送通知；Chrome 在系统设置里也要开启通知</div>
         </div>
-        <button class="btn" @click="askPerm">开启通知</button>
+        <UiButton @click="askPerm">开启通知</UiButton>
       </div>
     </div>
 
@@ -36,7 +36,7 @@
           <div class="picked" v-if="form.code">
             已选 <b>{{ form.name || form.code }}</b>
             <span class="picked-code">{{ form.code }}</span>
-            <button type="button" class="btn-ghost btn-mini" @click="clearTarget">清除</button>
+            <UiButton size="sm" variant="ghost" @click="clearTarget">清除</UiButton>
           </div>
         </div>
 
@@ -75,11 +75,11 @@
         <div class="form-row-2">
           <div class="form-item">
             <label class="form-label">阈值</label>
-            <input v-model.number="form.threshold" type="number" step="any" class="input full" :placeholder="thresholdPlaceholder" />
+            <UiInput v-model="form.threshold" type="number" step="any" full :placeholder="thresholdPlaceholder" />
           </div>
           <div class="form-item">
             <label class="form-label">备注（可选）</label>
-            <input v-model="form.note" class="input full" placeholder="例如：止损提醒" />
+            <UiInput v-model="form.note" full placeholder="例如：止损提醒" />
           </div>
         </div>
       </div>
@@ -90,7 +90,7 @@
       </div>
 
       <div class="form-actions">
-        <button class="btn" :disabled="saving || !canSubmit" @click="add">{{ saving ? '添加中…' : '添加监控' }}</button>
+        <UiButton variant="primary" :disabled="saving || !canSubmit" @click="add">{{ saving ? '添加中…' : '添加监控' }}</UiButton>
         <span class="form-tip">触发后默认冷却 5 分钟，避免重复轰炸</span>
       </div>
     </div>
@@ -99,7 +99,7 @@
     <div class="card mt16">
       <div class="card-title">
         <span>已设监控（{{ rows.length }}）</span>
-        <button class="btn-ghost" @click="load">刷新</button>
+        <UiButton size="sm" variant="ghost" @click="load">刷新</UiButton>
       </div>
       <div class="table-wrap">
         <table class="data-table">
@@ -123,8 +123,8 @@
               </td>
               <td class="dim">{{ r.last_triggered_at || '-' }}</td>
               <td>
-                <button class="btn-ghost" @click="toggle(r)">{{ r.enabled ? '停用' : '启用' }}</button>
-                <button class="btn-ghost" @click="remove(r)">删除</button>
+                <UiButton size="sm" variant="ghost" @click="toggle(r)">{{ r.enabled ? '停用' : '启用' }}</UiButton>
+                <UiButton size="sm" variant="ghost" @click="remove(r)">删除</UiButton>
               </td>
             </tr>
             <tr v-if="!rows.length"><td colspan="8" class="empty">暂无监控，上方添加一条试试</td></tr>

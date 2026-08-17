@@ -1,10 +1,11 @@
 <template>
   <div class="suggest-wrap">
     <div class="search-box">
-      <input
+      <UiInput
         ref="inputEl"
         v-model="kw"
         :placeholder="placeholder"
+        class="search-input"
         @input="onInput"
         @focus="onFocus"
         @blur="onBlur"
@@ -188,11 +189,12 @@ function select(s) {
   background: var(--bg-card); border: 1px solid var(--border);
   border-radius: 8px; padding: 0 10px; height: 32px; width: 240px;
 }
-.search-box input {
+.search-box .ui-input {
   background: transparent; border: none; outline: none; color: var(--text);
-  width: 100%; font-size: 13px;
+  width: 100%; font-size: 13px; height: auto; padding: 0; box-shadow: none;
 }
-.search-box input::placeholder { color: var(--text-dim); }
+.search-box .ui-input::placeholder { color: var(--text-dim); }
+.search-box .ui-input:focus { border: none; }
 
 .suggest-dropdown {
   position: absolute; top: 38px; left: 0; z-index: 300;

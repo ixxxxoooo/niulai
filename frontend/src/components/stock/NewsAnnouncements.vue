@@ -35,7 +35,7 @@
       <div class="modal-box article-modal">
         <div class="modal-head">
           <span class="modal-title">{{ articleModal.title }}</span>
-          <button class="modal-close" @click="articleModal=null">✕</button>
+          <button class="modal-close" @click="articleModal=null"><UiIcon name="close" :size="16" /></button>
         </div>
         <div class="modal-meta">{{ articleModal.source }} · {{ articleModal.date }}</div>
         <div class="modal-body article-content" v-if="articleContent" v-html="articleContent"></div>
@@ -44,7 +44,7 @@
           暂无法在浮窗内展示全文（部分公告为 PDF 或站点限制）。请点击下方「查看原文」阅读。
         </div>
         <div class="modal-foot">
-          <a :href="articleModal.url" target="_blank" rel="noopener" class="btn-outline">查看原文 ↗</a>
+          <a :href="articleModal.url" target="_blank" rel="noopener" class="btn-outline">查看原文 <UiIcon name="external" :size="12" /></a>
         </div>
       </div>
     </div>
@@ -135,7 +135,7 @@ async function openArticle(item) {
 }
 .modal-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; margin-bottom: 8px; }
 .modal-title { font-size: 15px; font-weight: 600; color: var(--text); line-height: 1.5; }
-.modal-close { border: none; background: transparent; font-size: 18px; color: var(--text-dim); cursor: pointer; padding: 4px; }
+.modal-close { border: none; background: transparent; font-size: 18px; color: var(--text-dim); cursor: pointer; padding: 4px; display: inline-flex; align-items: center; justify-content: center; }
 .modal-meta { font-size: 12px; color: var(--text-dim); margin-bottom: 12px; }
 .modal-body { font-size: 14px; color: var(--text); line-height: 1.7; }
 .article-modal { max-width: 700px; max-height: 85vh; }

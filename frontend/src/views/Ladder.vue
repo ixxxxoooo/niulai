@@ -11,9 +11,7 @@
       <div class="card" ref="ladderCard">
       <div class="card-title" style="display:flex;align-items:center;justify-content:space-between">
         <span>按连板数分层（上高下低 · 共 {{ filtered.length }} 家涨停）</span>
-        <button class="btn-screenshot" @click="doScreenshotLadder" title="截图连板梯队">
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="12" cy="12" r="3"/></svg>
-        </button>
+        <button class="btn-screenshot" @click="doScreenshotLadder" title="截图连板梯队"><UiIcon name="screenshot" :size="14" /></button>
       </div>
       <div class="floor-wrap">
         <div v-for="g in floors" :key="g.lbc" class="floor">
@@ -50,9 +48,7 @@
     <div class="card mt16" ref="zbCard">
       <div class="card-title" style="display:flex;align-items:center;justify-content:space-between">
         <span>今日炸板（{{ zbFiltered.length }} 家 · 曾封板后打开）</span>
-        <button class="btn-screenshot" @click="doScreenshotZb" title="截图今日炸板">
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="12" cy="12" r="3"/></svg>
-        </button>
+        <button class="btn-screenshot" @click="doScreenshotZb" title="截图今日炸板"><UiIcon name="screenshot" :size="14" /></button>
       </div>
       <div class="floor-chips" style="padding: 4px 0 8px">
         <span

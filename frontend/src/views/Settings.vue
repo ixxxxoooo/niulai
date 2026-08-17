@@ -32,16 +32,16 @@
         <span class="setting-label">过滤标的</span>
         <div class="setting-control" style="flex-wrap:wrap">
           <label class="filter-opt" :class="{ on: hideKcb }">
-            <input type="checkbox" :checked="hideKcb" @change="toggleHide('hideKcb')"> 科创板
+            <UiCheckbox :checked="hideKcb" @change="toggleHide('hideKcb')"> 科创板</UiCheckbox>
           </label>
           <label class="filter-opt" :class="{ on: hideCyb }">
-            <input type="checkbox" :checked="hideCyb" @change="toggleHide('hideCyb')"> 创业板
+            <UiCheckbox :checked="hideCyb" @change="toggleHide('hideCyb')"> 创业板</UiCheckbox>
           </label>
           <label class="filter-opt" :class="{ on: hideSt }">
-            <input type="checkbox" :checked="hideSt" @change="toggleHide('hideSt')"> ST
+            <UiCheckbox :checked="hideSt" @change="toggleHide('hideSt')"> ST</UiCheckbox>
           </label>
           <label class="filter-opt" :class="{ on: hideBse }">
-            <input type="checkbox" :checked="hideBse" @change="toggleHide('hideBse')"> 北交所
+            <UiCheckbox :checked="hideBse" @change="toggleHide('hideBse')"> 北交所</UiCheckbox>
           </label>
         </div>
       </div>
@@ -125,15 +125,15 @@
       </div>
       <div class="setting-row">
         <span class="setting-label">导出自选股（旧格式）</span>
-        <button class="btn" @click="exportWatch">导出代码列表</button>
+        <UiButton variant="subtle" @click="exportWatch">导出代码列表</UiButton>
       </div>
       <div class="setting-row">
         <span class="setting-label">完整导出</span>
-        <button class="btn" @click="exportBackup" :disabled="backupBusy">{{ backupBusy ? '导出中…' : '导出全部数据 JSON' }}</button>
+        <UiButton variant="subtle" @click="exportBackup" :disabled="backupBusy">{{ backupBusy ? '导出中…' : '导出全部数据 JSON' }}</UiButton>
       </div>
       <div class="setting-row">
         <span class="setting-label">完整导入</span>
-        <input type="file" accept=".json" @change="importBackupFile" style="font-size: 12px;" :disabled="backupBusy" />
+        <UiInput type="file" accept=".json" @change="importBackupFile" :disabled="backupBusy" style="font-size: 12px;" />
       </div>
       <div class="setting-row">
         <span class="setting-label">导入说明</span>
@@ -162,15 +162,15 @@
       </div>
       <div class="setting-row">
         <span class="setting-label">同步全 A + ETF 名称/行业</span>
-        <button class="btn" :disabled="!!syncing" @click="resync('stocks')">{{ syncing === 'stocks' ? '同步中…' : '立即同步' }}</button>
+        <UiButton variant="subtle" :disabled="!!syncing" @click="resync('stocks')">{{ syncing === 'stocks' ? '同步中…' : '立即同步' }}</UiButton>
       </div>
       <div class="setting-row">
         <span class="setting-label">同步概念标签（按板块成分，较慢）</span>
-        <button class="btn" :disabled="!!syncing" @click="resync('concepts')">{{ syncing === 'concepts' ? '同步中…' : '同步概念' }}</button>
+        <UiButton variant="subtle" :disabled="!!syncing" @click="resync('concepts')">{{ syncing === 'concepts' ? '同步中…' : '同步概念' }}</UiButton>
       </div>
       <div class="setting-row">
         <span class="setting-label">全部同步</span>
-        <button class="btn" :disabled="!!syncing" @click="resync('all')">{{ syncing === 'all' ? '同步中…' : '名称+行业+概念' }}</button>
+        <UiButton variant="subtle" :disabled="!!syncing" @click="resync('all')">{{ syncing === 'all' ? '同步中…' : '名称+行业+概念' }}</UiButton>
       </div>
       <div class="setting-row" v-if="syncing || syncMsg">
         <span class="setting-label">同步进度</span>
@@ -249,11 +249,11 @@
       </div>
       <div class="setting-row">
         <span class="setting-label">API Base URL</span>
-        <input class="setting-input" v-model="aiBaseUrl" placeholder="https://api.deepseek.com" @change="setAi('aiBaseUrl', aiBaseUrl)" />
+        <UiInput class="setting-input" v-model="aiBaseUrl" placeholder="https://api.deepseek.com" @change="setAi('aiBaseUrl', aiBaseUrl)" />
       </div>
       <div class="setting-row">
         <span class="setting-label">API Key</span>
-        <input class="setting-input" type="password" v-model="aiApiKey" placeholder="sk-..." @change="setAi('aiApiKey', aiApiKey)" />
+        <UiInput class="setting-input" type="password" v-model="aiApiKey" placeholder="sk-..." @change="setAi('aiApiKey', aiApiKey)" />
       </div>
       <div class="setting-row">
         <span class="setting-label">模型</span>
@@ -267,7 +267,7 @@
       </div>
       <div class="setting-row" v-if="showCustomModel || !['deepseek-chat','deepseek-reasoner','deepseek-v4-flash','gpt-4o'].includes(aiModel)">
         <span class="setting-label">自定义模型名</span>
-        <input class="setting-input" v-model="customModelName" placeholder="model-name" @change="setAi('aiModel', customModelName)" />
+        <UiInput class="setting-input" v-model="customModelName" placeholder="model-name" @change="setAi('aiModel', customModelName)" />
       </div>
       <div class="setting-row">
         <span class="setting-label" style="font-size:12px; color:var(--text-dim)">说明：推理类模型（R1 / V4 Flash）会先「思考」再输出，耗时更长；盘中分析建议优先用 DeepSeek Chat。API Key 保存在本机后端，分析经 `/api/ai/chat` 代理。</span>
@@ -285,17 +285,17 @@
       </div>
       <div class="setting-row">
         <span class="setting-label">Webhook URL</span>
-        <input class="setting-input" v-model="feishuWebhook" placeholder="https://open.feishu.cn/open-apis/bot/v2/hook/..." @change="setFeishu('feishu_webhook', feishuWebhook)" />
+        <UiInput class="setting-input" v-model="feishuWebhook" placeholder="https://open.feishu.cn/open-apis/bot/v2/hook/..." @change="setFeishu('feishu_webhook', feishuWebhook)" />
       </div>
       <div class="setting-row">
         <span class="setting-label">如何配置</span>
         <div class="setting-control">
-          <a class="source-link" href="https://open.feishu.cn/document/client-docs/bot-v3/add-custom-bot" target="_blank" rel="noopener">官方文档：群聊添加自定义机器人 ↗</a>
+          <a class="source-link" href="https://open.feishu.cn/document/client-docs/bot-v3/add-custom-bot" target="_blank" rel="noopener">官方文档：群聊添加自定义机器人 <UiIcon name="external" :size="12" /></a>
         </div>
       </div>
       <div class="setting-row">
         <span class="setting-label">测试推送</span>
-        <button class="btn" :disabled="feishuTesting" @click="testFeishu">{{ feishuTesting ? '发送中…' : '发送测试卡片' }}</button>
+        <UiButton variant="subtle" :disabled="feishuTesting" @click="testFeishu">{{ feishuTesting ? '发送中…' : '发送测试卡片' }}</UiButton>
         <span v-if="feishuTestMsg" style="margin-left:12px;font-size:12px;" :style="{ color: feishuTestOk ? 'var(--up-color,#22c55e)' : 'var(--down-color,#ef4444)' }">{{ feishuTestMsg }}</span>
       </div>
       <div class="setting-row">
@@ -316,7 +316,7 @@
         <span class="setting-label">监控异动类型</span>
         <div class="setting-control" style="flex-wrap:wrap">
           <label class="filter-opt" :class="{ on: watchTypes.includes(t.code) }" v-for="t in changeTypeOptions" :key="t.code">
-            <input type="checkbox" :checked="watchTypes.includes(t.code)" @change="toggleChangeType(t.code)"> {{ t.label }}
+            <UiCheckbox :checked="watchTypes.includes(t.code)" @change="toggleChangeType(t.code)"> {{ t.label }}</UiCheckbox>
           </label>
         </div>
       </div>

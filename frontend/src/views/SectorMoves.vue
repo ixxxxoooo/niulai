@@ -9,27 +9,23 @@
       <span style="color: var(--text-dim); font-size: 12px">
         当日主力资金净流入排行（红色=净流入，绿色=净流出；同类细分已折叠）
       </span>
-      <a class="source-link" href="https://data.eastmoney.com/bkzj/hy.html" target="_blank" rel="noopener" style="margin-left:auto">行业资金↗</a>
-      <a class="source-link" href="https://data.eastmoney.com/bkzj/jlr.html" target="_blank" rel="noopener">净流入榜↗</a>
-      <a class="source-link" href="https://data.eastmoney.com/zjlx/detail.html" target="_blank" rel="noopener">个股资金↗</a>
+      <a class="source-link" href="https://data.eastmoney.com/bkzj/hy.html" target="_blank" rel="noopener" style="margin-left:auto">行业资金 <UiIcon name="external" :size="11" /></a>
+      <a class="source-link" href="https://data.eastmoney.com/bkzj/jlr.html" target="_blank" rel="noopener">净流入榜 <UiIcon name="external" :size="11" /></a>
+      <a class="source-link" href="https://data.eastmoney.com/zjlx/detail.html" target="_blank" rel="noopener">个股资金 <UiIcon name="external" :size="11" /></a>
     </div>
 
     <div class="grid-2">
       <div class="card" ref="inCard">
         <div class="card-title">
           <span>净流入 TOP{{ chartTopN }}（流入最多最靠上）</span>
-          <button class="btn-screenshot" @click="shotIn" title="截图">
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="12" cy="12" r="3"/></svg>
-          </button>
+          <button class="btn-screenshot" @click="shotIn" title="截图"><UiIcon name="screenshot" :size="14" /></button>
         </div>
         <div ref="inEl" :style="{ width: '100%', height: chartHeight + 'px' }"></div>
       </div>
       <div class="card" ref="outCard">
         <div class="card-title">
           <span>净流出 TOP{{ chartTopN }}（共 {{ flowOutCount }} 个净流出）</span>
-          <button class="btn-screenshot" @click="shotOut" title="截图">
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="12" cy="12" r="3"/></svg>
-          </button>
+          <button class="btn-screenshot" @click="shotOut" title="截图"><UiIcon name="screenshot" :size="14" /></button>
         </div>
         <div ref="outEl" v-if="flowOutCount" :style="{ width: '100%', height: chartHeight + 'px' }"></div>
         <div v-else class="empty" style="padding: 60px 0">当前没有净流出板块</div>

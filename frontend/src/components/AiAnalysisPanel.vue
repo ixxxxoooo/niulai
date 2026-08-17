@@ -4,7 +4,7 @@
       <div class="ai-modal" ref="modalEl">
         <div class="ai-modal-head">
           <span class="ai-modal-title">AI 智能分析 · {{ name || code }}</span>
-          <select
+          <UiSelect
             v-if="history.length"
             v-model="currentId"
             class="ai-hist-select"
@@ -14,19 +14,19 @@
             <option v-for="h in history" :key="h.id" :value="h.id">
               {{ fmtHistTime(h.created_at) }}{{ h.id === latestId ? ' · 最新' : '' }}
             </option>
-          </select>
-          <button class="btn-ai" :disabled="loading" @click="runAnalysis">
+          </UiSelect>
+          <UiButton variant="primary" :disabled="loading" @click="runAnalysis">
             {{ loading ? '分析中…' : (hasContent ? '重新生成' : '开始分析') }}
-          </button>
+          </UiButton>
           <span v-if="elapsed" class="ai-elapsed">{{ elapsed }}s</span>
-          <button class="btn-shot" @click="screenshot" title="截图整个浮窗"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="12" cy="12" r="3"/></svg></button>
-          <button class="modal-close" @click="close" title="关闭">✕</button>
+          <button class="btn-shot" @click="screenshot" title="截图整个浮窗"><UiIcon name="screenshot" :size="14" /></button>
+          <button class="modal-close" @click="close" title="关闭"><UiIcon name="close" :size="16" /></button>
         </div>
 
         <div class="ai-modal-body">
           <div v-if="!hasConfig" class="ai-tip">
             请先在「设置」中开启 AI 分析并配置 API Key。
-            <a href="#/settings" class="link">前往设置 →</a>
+            <a href="#/settings" class="link">前往设置 <UiIcon name="arrowRight" :size="12" /></a>
           </div>
 
           <template v-else>
@@ -38,7 +38,7 @@
             <!-- 思考过程（Markdown 实时预览） -->
             <div v-if="thinkingMd || currentReasoning" class="ai-think">
               <button type="button" class="ai-think-toggle" @click="thinkOpen = !thinkOpen">
-                <span class="ai-think-icon" :class="{ open: thinkOpen }">▸</span>
+                <span class="ai-think-icon" :class="{ open: thinkOpen }"><UiIcon name="chevronRight" :size="12" /></span>
                 <span v-if="loading && !currentReasoning">{{ thinkOpen ? '正在思考…' : '思考中（点击展开）' }}</span>
                 <span v-else>已深度思考{{ thinkSeconds ? `（用时约 ${thinkSeconds}s）` : '' }}</span>
                 <span class="ai-think-hint">{{ thinkOpen ? '收起' : '展开' }}</span>
@@ -61,7 +61,7 @@
                 <div class="ai-text md" v-html="renderMd(sec.text)"></div>
               </div>
               <div class="ai-disclaimer">
-                ⚠️ AI 分析仅供参考，不构成投资建议。市场有风险，投资需谨慎。
+                <UiIcon name="warning" :size="12" /> AI 分析仅供参考，不构成投资建议。市场有风险，投资需谨慎。
               </div>
             </div>
 
@@ -129,11 +129,11 @@ const showResult = computed(() => {
 })
 
 const SECTION_META = [
-  { key: 'summary', title: '📊 综合判断' },
-  { key: 'trend', title: '📈 趋势分析' },
-  { key: 'buy_sell', title: '💰 买卖点建议' },
-  { key: 'support_resistance', title: '📐 压力位 / 支撑位' },
-  { key: 'risk', title: '⚠️ 风险提示' },
+  { key: 'summary', title: '综合判断' },
+  { key: 'trend', title: '趋势分析' },
+  { key: 'buy_sell', title: '买卖点建议' },
+  { key: 'support_resistance', title: '压力位 / 支撑位' },
+  { key: 'risk', title: '风险提示' },
 ]
 
 const resultSections = computed(() => {
@@ -511,9 +511,10 @@ async function runAnalysis() {
   border-bottom: 1px solid var(--border); flex-wrap: wrap;
 }
 .ai-modal-title { font-size: 15px; font-weight: 600; color: var(--text); }
-.ai-hist-select {
+.ai-hist-select select {
   padding: 3px 8px; border-radius: 6px; border: 1px solid var(--border);
   background: var(--bg); color: var(--text-dim); font-size: 12px; cursor: pointer;
+  height: auto;
 }
 .ai-modal-body { padding: 16px 18px; overflow-y: auto; flex: 1; min-height: 120px; }
 .modal-close {
@@ -565,7 +566,7 @@ async function runAnalysis() {
 .ai-section { margin-bottom: 16px; }
 .ai-section-title { font-size: 13px; font-weight: 600; color: var(--accent); margin-bottom: 6px; }
 .ai-text { font-size: 13px; line-height: 1.7; color: var(--text); }
-.ai-disclaimer { font-size: 11px; color: var(--text-dim); padding: 10px; background: var(--kv-bg); border-radius: 6px; margin-top: 12px; }
+.ai-disclaimer { font-size: 11px; color: var(--text-dim); padding: 10px; background: var(--kv-bg); border-radius: 6px; margin-top: 12px; display: flex; align-items: center; gap: 5px; }
 
 /* AI 关键词着色（作用在 v-html 渲染的 Markdown 内） */
 .md :deep(.ai-num) { color: var(--accent); font-weight: 600; }

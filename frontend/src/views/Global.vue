@@ -7,9 +7,7 @@
     <div class="card" ref="idxCard">
       <div class="card-title" style="display:flex;align-items:center;justify-content:space-between">
         <span>全球指数</span>
-        <button class="btn-screenshot" @click="captureElement(idxCard, '全球指数.png')" title="截图">
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="12" cy="12" r="3"/></svg>
-        </button>
+        <button class="btn-screenshot" @click="captureElement(idxCard, '全球指数.png')" title="截图"><UiIcon name="screenshot" :size="14" /></button>
       </div>
       <div class="index-grid us-grid">
         <div v-for="q in usIndices" :key="q.secid || q.code" class="card index-card" @click="goIndex(q)">
@@ -37,9 +35,7 @@
     <div class="card mt16" ref="usCard">
       <div class="card-title" style="display:flex;align-items:center;justify-content:space-between">
         <span>美股题材</span>
-        <button class="btn-screenshot" @click="captureElement(usCard, '美股题材.png')" title="截图">
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="12" cy="12" r="3"/></svg>
-        </button>
+        <button class="btn-screenshot" @click="captureElement(usCard, '美股题材.png')" title="截图"><UiIcon name="screenshot" :size="14" /></button>
       </div>
       <div class="theme-grid">
         <div v-for="b in usBoards" :key="b.key" class="theme-item">
@@ -59,9 +55,7 @@
     <div class="card mt16" ref="jpCard">
       <div class="card-title" style="display:flex;align-items:center;justify-content:space-between">
         <span>日股题材</span>
-        <button class="btn-screenshot" @click="captureElement(jpCard, '日股题材.png')" title="截图">
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="12" cy="12" r="3"/></svg>
-        </button>
+        <button class="btn-screenshot" @click="captureElement(jpCard, '日股题材.png')" title="截图"><UiIcon name="screenshot" :size="14" /></button>
       </div>
       <div class="theme-grid">
         <div v-for="b in jpBoards" :key="b.key" class="theme-item">
@@ -81,9 +75,7 @@
     <div class="card mt16" ref="krCard">
       <div class="card-title" style="display:flex;align-items:center;justify-content:space-between">
         <span>韩股题材</span>
-        <button class="btn-screenshot" @click="captureElement(krCard, '韩股题材.png')" title="截图">
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="12" cy="12" r="3"/></svg>
-        </button>
+        <button class="btn-screenshot" @click="captureElement(krCard, '韩股题材.png')" title="截图"><UiIcon name="screenshot" :size="14" /></button>
       </div>
       <div class="theme-grid">
         <div v-for="b in krBoards" :key="b.key" class="theme-item">
@@ -102,9 +94,7 @@
     <div class="card mt16" ref="metalCard">
       <div class="card-title" style="display:flex;align-items:center;justify-content:space-between">
         <span>贵金属 / 工业金属</span>
-        <button class="btn-screenshot" @click="captureElement(metalCard, '贵金属工业金属.png')" title="截图">
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="12" cy="12" r="3"/></svg>
-        </button>
+        <button class="btn-screenshot" @click="captureElement(metalCard, '贵金属工业金属.png')" title="截图"><UiIcon name="screenshot" :size="14" /></button>
       </div>
       <div class="theme-grid">
         <div v-for="b in metalBoards" :key="b.key" class="theme-item">

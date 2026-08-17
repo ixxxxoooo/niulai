@@ -6,9 +6,7 @@
         <span>板块强度榜 · 开盘啦{{ kplDate ? `（${kplDate} · 当日涨停相关板块）` : '' }}</span>
         <span style="display:flex;align-items:center;gap:10px">
           <span style="font-weight:400;color:var(--text-dim);font-size:12px" data-tip="开盘啦板块强度指标，数值越高代表该板块资金与连板情绪越强。仅统计当日有涨停的板块。">强度说明</span>
-          <button class="btn-screenshot" @click="doScreenshot" title="截图">
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="12" cy="12" r="3"/></svg>
-          </button>
+          <button class="btn-screenshot" @click="doScreenshot" title="截图"><UiIcon name="screenshot" :size="14" /></button>
         </span>
       </div>
       <div class="empty" v-if="!items.length">{{ error || '暂无数据' }}</div>
