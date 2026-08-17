@@ -180,6 +180,23 @@ function subSeries(ind, tc) {
   ]
 }
 
+/**
+ * 生成 A 股全天分时时间轴：09:30~11:30 + 13:00~15:00，每分钟一个点。
+ * @returns {string[]}
+ * @author ygw
+ */
+function buildFullTrendTimes() {
+  const out = []
+  const push = (startH, startM, endH, endM) => {
+    for (let m = startH * 60 + startM; m <= endH * 60 + endM; m++) {
+      out.push(`${String(Math.floor(m / 60)).padStart(2, '0')}:${String(m % 60).padStart(2, '0')}`)
+    }
+  }
+  push(9, 30, 11, 30)
+  push(13, 0, 15, 0)
+  return out
+}
+
 function calcMA(points, n) {
   return points.map((_, i) => {
     if (i < n - 1) return null
@@ -192,20 +209,33 @@ function renderTrend() {
   if (!chart || !trend.value || !trend.value.points || !trend.value.points.length) return
   const tc = themeColors()
   const t = trend.value
-  const times = t.points.map(p => p.time)
-  const prices = t.points.map(p => p.price)
-  const avgs = t.points.map(p => p.avg)
-  const vols = t.points.map(p => p.volume || 0)
-  const pre = t.pre_close || prices[0]
-  const last = prices[prices.length - 1]
+  const fullTimes = buildFullTrendTimes()
+  const byTime = new Map()
+  for (const p of t.points) byTime.set(p.time, p)
+  const times = fullTimes
+  const prices = fullTimes.map(tt => { const p = byTime.get(tt); return p ? p.price : null })
+  const avgs = fullTimes.map(tt => { const p = byTime.get(tt); return p ? p.avg : null })
+  const vols = fullTimes.map(tt => { const p = byTime.get(tt); return p ? p.volume || 0 : 0 })
+  const realPrices = prices.filter(v => v != null)
+  const pre = t.pre_close || realPrices[0]
+  const last = realPrices[realPrices.length - 1]
   const color = last >= pre ? tc.up : tc.down
   const ind = trendIndicators(t.points)
+  const padTail = (arr) => {
+    if (!arr) return arr
+    const gap = fullTimes.length - arr.length
+    if (gap <= 0) return arr
+    return [...arr, ...new Array(gap).fill(null)]
+  }
+  if (ind.macd) { ind.macd.dif = padTail(ind.macd.dif); ind.macd.dea = padTail(ind.macd.dea); ind.macd.hist = padTail(ind.macd.hist) }
+  if (ind.kdj) { ind.kdj.k = padTail(ind.kdj.k); ind.kdj.d = padTail(ind.kdj.d); ind.kdj.j = padTail(ind.kdj.j) }
+  if (ind.rsi) ind.rsi = padTail(ind.rsi)
   // 过滤异常均价（仍远低于点位时不画，避免压扁 Y 轴）
   const avgOk = avgs.every((a, i) => a != null && a > (prices[i] || 0) * 0.5)
   // 指数无涨跌停：limit 模式自动回退 normal
   const { yMin, yMax, pctMin, pctMax } = calcTrendYRange({
     mode: settingsState.trendYScale || 'normal',
-    prices,
+    prices: realPrices,
     preClose: pre,
   })
   const zeroColor = tc.avg || '#8b949e'
@@ -224,6 +254,7 @@ function renderTrend() {
       trigger: 'axis', axisPointer: { type: 'cross' },
       formatter: (ps) => {
         const i = ps[0].dataIndex
+        if (prices[i] == null) return null
         const chg = ((prices[i] - pre) / pre * 100)
         const chgColor = chg >= 0 ? tc.up : tc.down
         return `${times[i]}<br/>点位 <b style="color:${chgColor}">${fmtPrice(prices[i])}</b>`
@@ -271,7 +302,7 @@ function renderTrend() {
         name: '成交量', type: 'bar', xAxisIndex: 1, yAxisIndex: 1, barWidth: '60%',
         data: vols.map((v, i) => ({
           value: v,
-          itemStyle: { color: (prices[i] >= pre ? tc.up : tc.down) + '8c' },
+          itemStyle: { color: prices[i] == null ? 'transparent' : (prices[i] >= pre ? tc.up : tc.down) + '8c' },
         })),
       },
       ...subSeries(ind, tc).map(s => ({ ...s, xAxisIndex: 2, yAxisIndex: 2 })),

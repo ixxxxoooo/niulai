@@ -59,6 +59,23 @@ function buildBuySellMarks(tc) {
   return marks
 }
 
+/**
+ * 生成 A 股全天分时时间轴：09:30~11:30 + 13:00~15:00，每分钟一个点。
+ * @returns {string[]} ['09:30', '09:31', ...]
+ * @author ygw
+ */
+function buildFullTrendTimes() {
+  const out = []
+  const push = (startH, startM, endH, endM) => {
+    for (let m = startH * 60 + startM; m <= endH * 60 + endM; m++) {
+      out.push(`${String(Math.floor(m / 60)).padStart(2, '0')}:${String(m % 60).padStart(2, '0')}`)
+    }
+  }
+  push(9, 30, 11, 30)
+  push(13, 0, 15, 0)
+  return out
+}
+
 function render() {
   if (!chart) return
   const cw = el.value?.clientWidth || 0
@@ -67,23 +84,39 @@ function render() {
   const t = props.trend
   if (!t || !t.points || !t.points.length) return
   const tc = themeColors()
-  const times = t.points.map(p => p.time)
-  const prices = t.points.map(p => p.price)
-  const avgs = t.points.map(p => p.avg)
-  const vols = t.points.map(p => p.volume)
+  // 全天固定时间轴 09:30~11:30 + 13:00~15:00（每分钟），未到的时间点数据置空
+  const fullTimes = buildFullTrendTimes()
+  const byTime = new Map()
+  for (const p of t.points) byTime.set(p.time, p)
+  const times = fullTimes
+  const prices = fullTimes.map(tt => { const p = byTime.get(tt); return p ? p.price : null })
+  const avgs = fullTimes.map(tt => { const p = byTime.get(tt); return p ? p.avg : null })
+  const vols = fullTimes.map(tt => { const p = byTime.get(tt); return p ? p.volume : 0 })
+  const realPrices = prices.filter(v => v != null)
+  const realAvgs = avgs.filter(v => v != null)
   const pre = t.pre_close || props.detail.prev_close
   if (!pre) return
-  const last = prices[prices.length - 1]
+  const last = realPrices[realPrices.length - 1]
   const color = last >= pre ? tc.up : tc.down
-  const volColors = prices.map(p => (p >= pre ? tc.up + '8c' : tc.down + '8c'))
+  const volColors = prices.map(p => (p == null ? 'transparent' : (p >= pre ? tc.up + '8c' : tc.down + '8c')))
   const ind = trendIndicators(t.points)
+  // 指标序列与原始点一一对应；将缺失的尾部时间补 null，对齐全时间轴
+  const padTail = (arr) => {
+    if (!arr) return arr
+    const gap = fullTimes.length - arr.length
+    if (gap <= 0) return arr
+    return [...arr, ...new Array(gap).fill(null)]
+  }
+  if (ind.macd) { ind.macd.dif = padTail(ind.macd.dif); ind.macd.dea = padTail(ind.macd.dea); ind.macd.hist = padTail(ind.macd.hist) }
+  if (ind.kdj) { ind.kdj.k = padTail(ind.kdj.k); ind.kdj.d = padTail(ind.kdj.d); ind.kdj.j = padTail(ind.kdj.j) }
+  if (ind.rsi) ind.rsi = padTail(ind.rsi)
   const hasSub = !!props.subInd
   const sub = subPanel(ind, tc, props.subInd, false)
   const markLines = buildMarkLines(tc, props.srOptions, props.selectedSet)
   const buySellMarks = buildBuySellMarks(tc)
   const { yMin, yMax, pctMin, pctMax } = calcTrendYRange({
     mode: settingsState.trendYScale || 'normal',
-    prices,
+    prices: realPrices,
     preClose: pre,
     limitUp: props.detail.limit_up,
     limitDown: props.detail.limit_down,
@@ -141,6 +174,7 @@ function render() {
       axisPointer: { type: 'cross' },
       formatter: (ps) => {
         const i = ps[0].dataIndex
+        if (prices[i] == null) return null
         const chg = ((prices[i] - pre) / pre * 100)
         const chgColor = chg >= 0 ? tc.up : tc.down
         const amt = vols[i] * (prices[i] || 0) * 100
