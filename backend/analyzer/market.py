@@ -12,10 +12,66 @@ from typing import Optional
 
 from ..datasource import eastmoney, tencent
 from ..datasource.models import MarketOverview
+from .. import config
 from . import schedule
 
 # 两市代表指数：上证指数=沪市全部，深证成指=深市全部
 _TOTAL_AMOUNT_INDICES = {"000001", "399001"}
+
+# 北交所全部 A 股板块（东财 fs）
+_FS_BJ = "m:0+t:81+s:2048"
+
+
+def _num(x) -> Optional[float]:
+    """clist 涨跌幅字段转 float，'-'/None 视为停牌或不可用。"""
+    try:
+        return float(x)
+    except (TypeError, ValueError):
+        return None
+
+
+def _market_updown_stats(client) -> dict:
+    """统计沪深京三市涨跌家数与涨停/跌停家数（对齐通达信口径）。
+
+    用 clist 全市场分页拉取（并发），剔除停牌股（涨跌幅缺失）；涨停/跌停按板块
+    阈值判定：主板 ±9.8%、创业板/科创板 ±19.5%。返回 {up, down, flat, limit_up, limit_down}。
+    """
+    fields = "f3,f12"
+    items = client._clist_all_pages(config.FS_ALL_A, fields, max_pages=80)
+    try:
+        items += client._clist_all_pages(_FS_BJ, fields, max_pages=10)
+    except Exception:  # noqa: BLE001 - 北交所失败不拖累整体
+        pass
+
+    up = down = flat = 0
+    limit_up = limit_down = 0
+    for it in items:
+        code = str(it.get("f12") or "")
+        pct = _num(it.get("f3"))
+        if pct is None:  # 停牌/无涨跌幅
+            continue
+        if code.startswith(("30", "68")):  # 创业板/科创板 20cm
+            up_th, down_th = 19.5, -19.5
+        elif code.startswith(("4", "8", "92")):  # 北交所 30cm
+            up_th, down_th = 29.5, -29.5
+        else:  # 主板 10cm
+            up_th, down_th = 9.8, -9.8
+        if pct > 0:
+            up += 1
+        elif pct < 0:
+            down += 1
+        else:
+            flat += 1
+        # 涨停/跌停：涨幅需在涨停价附近（新股首日无涨跌幅限制，涨幅远超涨停价不计入）
+        if up_th <= pct <= up_th + 10:
+            limit_up += 1
+        elif pct <= down_th:
+            limit_down += 1
+
+    return {
+        "up": up, "down": down, "flat": flat,
+        "limit_up": limit_up or None, "limit_down": limit_down or None,
+    }
 
 
 def _safe(fn, default=None):
@@ -26,40 +82,35 @@ def _safe(fn, default=None):
 
 
 def market_overview() -> MarketOverview:
-    """聚合大盘概况：指数、沪深京三市成交额、涨跌家数、涨停家数（不含量能，量能走独立接口）"""
+    """聚合大盘概况：指数、沪深京三市成交额、涨跌家数、涨停/跌停家数（不含量能，量能走独立接口）
+
+    涨跌家数与通达信口径一致：沪深京全部 A 股，剔除停牌股（涨跌幅字段缺失即停牌）。
+    涨停/跌停按板块阈值：主板 ±9.8%、创业板/科创板 ±19.5%（ST 5% 涨停不计入，同通达信）。
+    """
     client = eastmoney.get_client()
 
     # 并发拉取页面直接展示的数据源
     with ThreadPoolExecutor(max_workers=4) as ex:
         f_indices = ex.submit(client.index_quotes)
-        f_pool = ex.submit(lambda: client.limit_up_pool(limit=300))
         f_tq = ex.submit(lambda: tencent.get_client().fetch_quotes(["000001"]))
-        # 北证50：通达信/同花顺涨跌家数为沪深京三市口径，需补北交所
-        f_bj = ex.submit(lambda: client.index_quotes(["0.899050"]))
-        # 跌停池：涨停/跌停家数
-        f_down = ex.submit(lambda: client.limit_down_count())
+        # 全市场涨跌家数：沪深（剔除停牌）+ 北交所
+        f_count = ex.submit(lambda: _market_updown_stats(client))
+        # 涨停池：涨停/跌停家数（涨停池东财不含北交所，配合 clist 板块阈值统计）
 
         indices = _safe(lambda: f_indices.result(), [])
-        pool = _safe(lambda: f_pool.result(), [])
         tq = _safe(lambda: f_tq.result(), {})
-        bj = _safe(lambda: f_bj.result(), [])
-        limit_down_count = _safe(lambda: f_down.result(), None)
+        stats = _safe(lambda: f_count.result(), None)
 
     total_amount: Optional[float] = None
-    up = down = flat = 0
     for q in indices:
         if q.code in _TOTAL_AMOUNT_INDICES:
             total_amount = (total_amount or 0) + (q.amount or 0)
-            up += q.up_count or 0
-            down += q.down_count or 0
-            flat += q.flat_count or 0
-    # 北交所（北证50 的涨跌家数即全北交所，东财对同市场指数返回同一份数据）
-    for q in bj:
-        up += q.up_count or 0
-        down += q.down_count or 0
-        flat += q.flat_count or 0
 
-    limit_up_count = len(pool) if pool else None
+    up = (stats or {}).get("up", 0)
+    down = (stats or {}).get("down", 0)
+    flat = (stats or {}).get("flat", 0)
+    limit_up_count = (stats or {}).get("limit_up")
+    limit_down_count = (stats or {}).get("limit_down")
 
     # 数据时间：优先用腾讯行情的更新时间
     quote_time = None
