@@ -21,6 +21,7 @@ export function rememberStock(row) {
     concepts: row.concepts || prev.concepts || '',
     board: row.board || prev.board,
     is_st: row.is_st != null ? row.is_st : prev.is_st,
+    classify: row.classify || prev.classify || '',
   }
 }
 

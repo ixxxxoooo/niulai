@@ -491,6 +491,7 @@ async function hydrateLocal() {
     if (!detail.industry && m.industry) detail.industry = m.industry
     if (!detail.concepts && m.concepts) detail.concepts = m.concepts
     if (!detail.name && m.name) detail.name = m.name
+    if (!detail.classify && m.classify) detail.classify = m.classify
   }
 }
 
@@ -526,14 +527,27 @@ function openStockFromHoldings(h) {
   if (h && h.code) openStock({ code: h.code, name: h.name }, { origin: `/stock/${code.value}`, originLabel: '返回 ETF' })
 }
 
-/** 加载 ETF 持仓成分股并批量补实时行情 */
+// ETF 持仓缓存：成分每日变更，5 分钟内复用，避免 3 秒轮询重复请求导致卡片闪烁
+const HOLDINGS_TTL = 5 * 60 * 1000
+let holdingsCache = { code: null, at: 0, data: null }
+let holdingsInFlight = false
+
+/** 加载 ETF 持仓成分股并批量补实时行情（带缓存，命中时复用不闪烁） */
 async function loadHoldings() {
-  if (!isEtf.value) { holdings.value = []; return }
-  holdingsLoading.value = true
+  if (!isEtf.value) { holdings.value = []; holdingsLoading.value = false; return }
+  if (holdingsInFlight) return
+  const now = Date.now()
+  if (holdingsCache.code === code.value && holdingsCache.data && now - holdingsCache.at < HOLDINGS_TTL) {
+    holdings.value = holdingsCache.data
+    return
+  }
+  // 仅在无数据时显示加载态，已有数据时静默刷新，避免闪烁
+  if (!holdings.value.length) holdingsLoading.value = true
+  holdingsInFlight = true
   try {
     const data = await api.holdings(code.value)
     const items = data.items || []
-    if (!items.length) { holdings.value = []; return }
+    if (!items.length) { holdings.value = []; holdingsCache = { code: null, at: 0, data: null }; return }
     const codes = items.map(i => i.code)
     const quotes = await api.batch(codes).catch(() => [])
     const qMap = {}
@@ -546,8 +560,9 @@ async function loadHoldings() {
         change_pct: i.change_pct ?? q.change_pct ?? null,
       }
     })
+    holdingsCache = { code: code.value, at: now, data: holdings.value }
   } catch (e) { holdings.value = [] }
-  finally { holdingsLoading.value = false }
+  finally { holdingsLoading.value = false; holdingsInFlight = false }
 }
 
 async function loadSlow() {
@@ -611,6 +626,7 @@ watch(() => props.code, (n) => {
   dayPoints.value = []
   flow.value = []
   holdings.value = []
+  holdingsCache = { code: null, at: 0, data: null }
   limitTag.value = null
   hydrateLocal()
   loadFast()
@@ -620,6 +636,9 @@ watch(() => props.code, (n) => {
 const pollFast = usePolling(loadFast, 3000)
 const pollSlow = usePolling(loadSlow, 10000, { primary: false })
 function onAppManualRefresh() { loadSlow() }
+
+// isEtf 变为 true 时立即加载持仓，避免刷新时先闪"暂无持仓数据"再闪"正在加载"
+watch(isEtf, (v) => { if (v) loadHoldings() })
 
 onMounted(async () => {
   isWatched.value = codeWatched(code.value)
