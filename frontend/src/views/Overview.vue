@@ -22,12 +22,12 @@
         <div class="value">{{ fmtAmount(overview.total_amount) }}</div>
       </div>
       <div class="item">
-        <div class="label">上涨 / 下跌</div>
-        <div class="value"><span class="up">{{ overview.up_count ?? '-' }}</span> / <span class="down">{{ overview.down_count ?? '-' }}</span></div>
+        <div class="label">上涨 / 持平 / 下跌</div>
+        <div class="value"><span class="up">{{ overview.up_count ?? '-' }}</span> / <span class="flat">{{ overview.flat_count ?? '-' }}</span> / <span class="down">{{ overview.down_count ?? '-' }}</span></div>
       </div>
       <div class="item">
-        <div class="label">平盘 / 涨停</div>
-        <div class="value"><span class="flat">{{ overview.flat_count ?? '-' }}</span> / <a class="up" @click="go('/rank/zt')">{{ overview.limit_up_count ?? '-' }}</a></div>
+        <div class="label">涨停 / 跌停</div>
+        <div class="value"><a class="up" @click="go('/rank/zt')">{{ overview.limit_up_count ?? '-' }}</a> / <span class="down">{{ overview.limit_down_count ?? '-' }}</span></div>
       </div>
       <div class="item">
         <div class="label" data-tip="两市今日总成交额比上一交易日多/少的金额。放量=资金大幅进场，缩量=观望为主。上涨放量健康，下跌放量要警惕。">两市量能</div>

@@ -1381,6 +1381,26 @@ class EastMoneyClient:
         """炸板池（曾涨停后打开）。"""
         return self._topic_pool("getTopicZBPool", limit, "zb")
 
+    def limit_down_pool(self, limit: int = 100) -> List[LimitUpStock]:
+        """跌停池（东财 getTopicDTPool，tc 为跌停总数；跌停极少时 pool 可能为空）。"""
+        return self._topic_pool("getTopicDTPool", limit, "dt")
+
+    def limit_down_count(self) -> Optional[int]:
+        """跌停总数（东财 getTopicDTPool 的 tc 字段，pool 可能为空但 tc 准确）。"""
+        url = "https://push2ex.eastmoney.com/getTopicDTPool"
+        for day in self._recent_trading_dates():
+            data = self._ex.get_raw(url, {
+                "ut": "7eea3edcaed734bea9cbfc24409ed989",
+                "dpt": "wz.ztzt",
+                "Pageindex": 0, "pagesize": 1,
+                "sort": "fbt:asc", "date": day,
+            })
+            d = (data or {}).get("data") or {}
+            tc = d.get("tc")
+            if tc is not None:
+                return int(tc)
+        return None
+
     def stock_changes(self, limit: int = 80) -> List[dict]:
         """
         盘中个股异动：大笔买入/卖出、急速拉升/跳水、火箭发射等。

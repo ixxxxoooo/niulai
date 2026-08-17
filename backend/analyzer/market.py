@@ -30,17 +30,20 @@ def market_overview() -> MarketOverview:
     client = eastmoney.get_client()
 
     # 并发拉取页面直接展示的数据源
-    with ThreadPoolExecutor(max_workers=3) as ex:
+    with ThreadPoolExecutor(max_workers=4) as ex:
         f_indices = ex.submit(client.index_quotes)
         f_pool = ex.submit(lambda: client.limit_up_pool(limit=300))
         f_tq = ex.submit(lambda: tencent.get_client().fetch_quotes(["000001"]))
         # 北证50：通达信/同花顺涨跌家数为沪深京三市口径，需补北交所
         f_bj = ex.submit(lambda: client.index_quotes(["0.899050"]))
+        # 跌停池：涨停/跌停家数
+        f_down = ex.submit(lambda: client.limit_down_count())
 
         indices = _safe(lambda: f_indices.result(), [])
         pool = _safe(lambda: f_pool.result(), [])
         tq = _safe(lambda: f_tq.result(), {})
         bj = _safe(lambda: f_bj.result(), [])
+        limit_down_count = _safe(lambda: f_down.result(), None)
 
     total_amount: Optional[float] = None
     up = down = flat = 0
@@ -72,7 +75,7 @@ def market_overview() -> MarketOverview:
         down_count=down,
         flat_count=flat,
         limit_up_count=limit_up_count,
-        limit_down_count=None,
+        limit_down_count=limit_down_count,
         index_volume=None,
         is_trading_time=schedule.is_trading_time(),
         quote_time=quote_time,
