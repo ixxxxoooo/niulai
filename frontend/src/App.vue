@@ -250,6 +250,7 @@ async function screenshotPage() {
   await captureElement(el, `niulai_${routeName}_${ts}.png`, {
     withFrame: false,
     removeSelectors: ['.topbar .icon-btn[title="整页截图"]', '.side-foot .icon-btn[title="整页截图"]'],
+    bottomBars: ['.bottom-index-bar'],
   })
 }
 

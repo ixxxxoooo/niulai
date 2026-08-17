@@ -160,7 +160,9 @@ export async function applyWatermark(canvas, { bottom = 12, right = 12, heightRa
  * 页面零改动；可选在结果图上加卡片轮廓留白。
  * @param {HTMLElement|Ref} el
  * @param {string} filename
- * @param {{ withFrame?: boolean }} [opts] withFrame 默认 true
+ * @param {{ withFrame?: boolean, removeSelectors?: string[], bottomBars?: string[] }} [opts]
+ *   withFrame 默认 true；bottomBars 为固定定位的底部栏选择器列表，
+ *   截长图时改为静态定位（落到截图底部，避免在中间重复出现）。
  * @returns {Promise<boolean>}
  * @author ygw
  */
@@ -181,6 +183,15 @@ export async function captureElement(el, filename, opts = {}) {
         doc.querySelectorAll('.btn-screenshot').forEach((n) => n.remove())
         for (const sel of (opts.removeSelectors || [])) {
           doc.querySelectorAll(sel).forEach((n) => n.remove())
+        }
+        // 固定底部栏转静态定位：长截图时只出现在最底部，不在中间重复
+        for (const sel of (opts.bottomBars || [])) {
+          doc.querySelectorAll(sel).forEach((n) => {
+            n.style.position = 'static'
+            n.style.bottom = 'auto'
+            n.style.left = 'auto'
+            n.style.right = 'auto'
+          })
         }
       },
     })
