@@ -6,6 +6,7 @@
   总览页单独慢轮询，避免每次刷新都触发 K 线请求。
 """
 import datetime
+import json
 from concurrent.futures import ThreadPoolExecutor
 from typing import Optional
 
@@ -70,39 +71,72 @@ def market_overview() -> MarketOverview:
     )
 
 
-def market_volume() -> Optional[dict]:
-    """全 A 股两市量能：今日两市总成交量 vs 前 5 日均量 → 放量/缩量 + 成交额差值
+def _fetch_amount_history(symbols: list) -> Optional[dict]:
+    """从腾讯 newfqkline 拉指数日K成交额（万元）。
 
-    需要上证 + 深证日 K 历史（腾讯数据源），返回 None 表示暂不可用。
+    返回 {symbol: [(date, amount_wan), ...]}，amount_wan 为当日成交额（万元）。
+    注意：该接口字段为 [日期,开,收,高,低,量,{},涨跌幅,成交额(万),0,0]，
+    成交额在索引 8。失败返回 None。
     """
-    client = eastmoney.get_client()
-    with ThreadPoolExecutor(max_workers=2) as ex:
-        f_k1 = ex.submit(lambda: client.kline(secid="1.000001", period="day", limit=6))
-        f_k2 = ex.submit(lambda: client.kline(secid="0.399001", period="day", limit=6))
-        k1 = _safe(lambda: f_k1.result())
-        k2 = _safe(lambda: f_k2.result())
+    import urllib.request
 
-    v1 = [p["volume"] for p in (k1 or {}).get("points", [])] if k1 else []
-    v2 = [p["volume"] for p in (k2 or {}).get("points", [])] if k2 else []
-    if len(v1) < 6 or len(v2) < 6:
+    out = {}
+    for sym in symbols:
+        url = (f"https://web.ifzq.gtimg.cn/appstock/app/newfqkline/get"
+               f"?param={sym},day,,,6,qfq")
+        req = urllib.request.Request(url, headers={"User-Agent": "Mozilla/5.0"})
+        try:
+            with urllib.request.urlopen(req, timeout=6) as resp:
+                d = json.loads(resp.read().decode("utf-8", "ignore"))
+        except Exception:
+            continue
+        node = (((d or {}).get("data") or {}).get(sym)) or {}
+        rows = node.get("day") or node.get("qfqday") or []
+        seq = []
+        for r in rows:
+            if not isinstance(r, list) or len(r) < 9:
+                continue
+            try:
+                amt = float(r[8]) if r[8] else None  # 成交额（万元）
+            except (TypeError, ValueError):
+                amt = None
+            seq.append((str(r[0]), amt))
+        if seq:
+            out[sym] = seq
+    return out or None
+
+
+def market_volume() -> Optional[dict]:
+    """全 A 股两市量能：今日两市总成交额 vs 上一交易日成交额 → 放量/缩量
+
+    数据源：腾讯 newfqkline（含历史成交额，万）。东财指数 K 线被服务端断连，
+    且成交量(手)在高低价股切换时会失真（8/17 成交额放量但手数缩量），故用成交额判断。
+    返回 None 表示暂不可用。
+    """
+    # 两市代表：上证指数(沪市全部) + 深证成指(深市全部，与深证综指同量值)
+    hist = _fetch_amount_history(["sh000001", "sz399001"])
+    if not hist or len(hist.get("sh000001", [])) < 2 or len(hist.get("sz399001", [])) < 2:
         return None
 
-    # 两市总成交额（当日）
-    indices = _safe(client.index_quotes, [])
-    total_amount: Optional[float] = None
-    for q in indices:
-        if q.code in _TOTAL_AMOUNT_INDICES:
-            total_amount = (total_amount or 0) + (q.amount or 0)
-    if not total_amount:
+    def _sum_at(idx):
+        sh = hist["sh000001"][idx][1]
+        sz = hist["sz399001"][idx][1]
+        if sh is None or sz is None:
+            return None
+        return sh + sz  # 万元
+
+    today_wan = _sum_at(-1)
+    prev_wan = _sum_at(-2)
+    if not today_wan or not prev_wan:
         return None
 
-    today_total = v1[-1] + v2[-1]
-    avg5_total = (sum(v1[:-1]) + sum(v2[:-1])) / 5.0
-    if avg5_total <= 0:
-        return None
+    # 若今日数据落后（如非交易时段最新一条不是今日），取最末有效交易日
+    # 并与其前一交易日对比
+    today_amount = today_wan * 1e4  # 万元 → 元
+    prev_amount = prev_wan * 1e4
+    ratio = today_amount / prev_amount if prev_amount > 0 else 0.0
 
-    ratio = today_total / avg5_total
-    diff_amount = total_amount * (1 - 1.0 / ratio) if ratio > 0 else 0.0
+    diff_amount = today_amount - prev_amount
     if ratio > 1.05:
         label = "放量"
     elif ratio < 0.95:
@@ -112,5 +146,6 @@ def market_volume() -> Optional[dict]:
     return {
         "ratio": round(ratio, 2), "label": label,
         "diff_amount": round(diff_amount),
-        "today_amount": round(total_amount),
+        "today_amount": round(today_amount),
+        "prev_amount": round(prev_amount),
     }

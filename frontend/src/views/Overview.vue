@@ -30,7 +30,7 @@
         <div class="value"><span class="flat">{{ overview.flat_count ?? '-' }}</span> / <a class="up" @click="go('/rank/zt')">{{ overview.limit_up_count ?? '-' }}</a></div>
       </div>
       <div class="item">
-        <div class="label" data-tip="全A股两市今日总成交额比前5日均成交额多/少的金额。放量=资金大幅进场，缩量=观望为主。上涨放量健康，下跌放量要警惕。">两市量能</div>
+        <div class="label" data-tip="两市今日总成交额比上一交易日多/少的金额。放量=资金大幅进场，缩量=观望为主。上涨放量健康，下跌放量要警惕。">两市量能</div>
         <div class="value" v-if="volume" :class="volume.ratio > 1.05 ? 'up' : volume.ratio < 0.95 ? 'down' : 'flat'">
           {{ volume.label }} {{ fmtAmount(volume.diff_amount) }}
         </div>
