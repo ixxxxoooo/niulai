@@ -1385,6 +1385,45 @@ class EastMoneyClient:
         """跌停池（东财 getTopicDTPool，tc 为跌停总数；跌停极少时 pool 可能为空）。"""
         return self._topic_pool("getTopicDTPool", limit, "dt")
 
+    def limit_down_list(self, limit: int = 100) -> List[LimitUpStock]:
+        """跌停池（clist 全市场按跌停阈值筛选，可靠稳定）。
+
+        东财 getTopicDTPool 的 pool 在跌停极少时常为空，这里改用 clist 全市场
+        逐股判定跌停（主板 ≤-9.8%、创业板/科创板 ≤-19.5%、北交所 ≤-29.5%），
+        与大盘涨跌家数统计口径一致。按跌幅升序（跌得最狠在前）。
+        """
+        from .. import config
+        from ..db.tags import infer_board
+        fs = config.FS_ALL_A + ",m:0+t:81+s:2048"
+        fields = "f2,f3,f6,f8,f12,f14"
+        items = self._clist_all_pages(fs, fields, max_pages=80)
+        out: List[LimitUpStock] = []
+        for it in items:
+            code = str(it.get("f12") or "")
+            pct = _num(it.get("f3"))
+            if pct is None:
+                continue
+            name = str(it.get("f14") or "")
+            board, is_st = infer_board(code, name)
+            if board in ("CYB", "STAR"):
+                th = -19.5
+            elif board in ("BSE",):
+                th = -29.5
+            else:
+                th = -9.8
+            if pct <= th:
+                out.append(LimitUpStock(
+                    code=code, name=name,
+                    price=_num(it.get("f2")) or 0.0,
+                    change_pct=pct,
+                    seal_amount=0.0,
+                    amount=_num(it.get("f6")),
+                    turnover=_num(it.get("f8")),
+                    kind="dt", board=board, is_st=is_st,
+                ))
+        out.sort(key=lambda s: s.change_pct)
+        return out[:limit]
+
     def limit_down_count(self) -> Optional[int]:
         """跌停总数（东财 getTopicDTPool 的 tc 字段，pool 可能为空但 tc 准确）。"""
         url = "https://push2ex.eastmoney.com/getTopicDTPool"

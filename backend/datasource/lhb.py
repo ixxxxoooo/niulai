@@ -115,11 +115,12 @@ def _dedup_seats(rows: List[dict]) -> List[dict]:
     return out
 
 
-def fetch_lhb_list(limit: int = 50) -> Dict[str, Any]:
-    """最近一个有数据的交易日龙虎榜列表。"""
+def fetch_lhb_list(limit: int = 50, date: str = "") -> Dict[str, Any]:
+    """龙虎榜列表。date 为空时取最近有数据的交易日；指定 date 则按该日查询（非交易日返回空）。"""
     cols = ("SECURITY_CODE,SECURITY_NAME_ABBR,TRADE_DATE,CLOSE_PRICE,CHANGE_RATE,"
             "BILLBOARD_NET_AMT,BILLBOARD_BUY_AMT,BILLBOARD_SELL_AMT,EXPLANATION")
-    for day in _recent_days():
+    days = [date] if date else _recent_days()
+    for day in days:
         rows = _dc_get(
             "RPT_DAILYBILLBOARD_DETAILSNEW", cols,
             f"(TRADE_DATE='{day}')", page_size=limit,

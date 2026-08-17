@@ -62,6 +62,7 @@ export const api = {
   etfRank: (by = 'change_pct', limit = 50) => get(`/etf/rank?by=${by}&limit=${limit}`),
   sectorMoneyflow: (type = 'industry', limit = 100) =>
     get(`/sectors/moneyflow?type=${type}&limit=${limit}`),
+  sectorsRangeStats: (days = 5) => get(`/sectors/range-stats?days=${days}`),
   sectorConceptCode: (name, type = 'concept') => get(`/sectors/concept-code?name=${encodeURIComponent(name)}&type=${type}`),
   stock: (code) => get(`/stocks/${code}`),
   trends: (code) => get(`/stocks/${code}/trends`),
@@ -73,9 +74,10 @@ export const api = {
   holdings: (code) => get(`/stocks/${code}/holdings`),
   limitUp: (limit = 100) => get(`/market/limit-up?limit=${limit}`),
   limitBreak: (limit = 100) => get(`/market/limit-break?limit=${limit}`),
+  limitDown: (limit = 100) => get(`/market/limit-down?limit=${limit}`),
   stockLimitTag: (code) => get(`/stocks/${code}/limit-tag`),
   thsHot: (type = 'hour', limit = 50) => get(`/ths/hot?type=${type}&limit=${limit}`),
-  lhb: (limit = 50) => get(`/market/lhb?limit=${limit}`),
+  lhb: (limit = 50, date = '') => get(`/market/lhb?limit=${limit}${date ? `&date=${date}` : ''}`),
   indexQuote: (secid) => get(`/indices/quote?secid=${encodeURIComponent(secid)}`),
   indicesQuotes: (secids = '1.000001,0.399006,1.000688') =>
     get(`/indices/quotes?secids=${encodeURIComponent(secids)}`),

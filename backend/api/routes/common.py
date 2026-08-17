@@ -136,6 +136,19 @@ def cached_limit_break_pool() -> list:
     return _enrich_rows(eastmoney.get_client().limit_break_pool(300))
 
 
+@ttl_cache(ttl=config.CACHE_TTL)
+def cached_limit_down_pool() -> list:
+    """共享跌停池缓存（固定 300 条）。
+
+    数据源用 clist 全市场筛选跌停（东财 getTopicDTPool 的 pool 在跌停极少时常为空），
+    与大盘涨跌家数统计口径一致。
+
+    @author ygw
+    返回: 已补全标签的跌停股 dict 列表
+    """
+    return _enrich_rows(eastmoney.get_client().limit_down_list(300))
+
+
 # 最近交易日游资动向缓存（复用龙虎榜游资徽章逻辑，避免每次查库）
 _youzi_map_cache: Dict[str, list] = {}
 _youzi_map_ts = 0.0

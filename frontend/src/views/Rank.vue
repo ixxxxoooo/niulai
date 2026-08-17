@@ -8,6 +8,7 @@
       <div class="tab" :class="{ active: tab === 'moneyflow' }" @click="switchTab('moneyflow')">主力净流入</div>
       <div class="tab" :class="{ active: tab === 'hot' }" @click="switchTab('hot')">热门股</div>
       <div class="tab" :class="{ active: tab === 'zt' }" @click="switchTab('zt')">涨停池</div>
+      <div class="tab" :class="{ active: tab === 'dt' }" @click="switchTab('dt')">跌停池</div>
       <div class="tab" :class="{ active: tab === 'etf' }" @click="switchTab('etf')">ETF排行</div>
       <div class="tab" :class="{ active: tab === 'ths' }" @click="switchTab('ths')">同花顺热榜</div>
       <div class="tab" :class="{ active: tab === 'lhb' }" @click="switchTab('lhb')">龙虎榜</div>
@@ -80,6 +81,39 @@
         </div>
       </template>
 
+      <template v-else-if="tab === 'dt'">
+        <div class="card-title">今日跌停（{{ rows.length }} 家）</div>
+        <div class="table-wrap">
+          <table class="data-table">
+            <thead><tr>
+              <th>名称</th>
+              <th>代码</th>
+              <th>现价</th>
+              <th class="sortable" :class="{ sorted: sort.sortKey === 'change_pct' }" @click="sort.toggleSort('change_pct')">跌幅</th>
+              <th>行业</th>
+              <th class="sortable" :class="{ sorted: sort.sortKey === 'amount' }" @click="sort.toggleSort('amount')">成交额</th>
+              <th class="sortable" :class="{ sorted: sort.sortKey === 'turnover' }" @click="sort.toggleSort('turnover')">换手</th>
+            </tr></thead>
+            <tbody>
+              <tr v-for="p in sort.sorted" :key="p.code" @click="openFromRank(p)">
+                <td class="stock-name down">
+                  <MiniTrend :code="p.code" :name="p.name">
+                    <span class="name-cell"><BoardBadges :row="p" />{{ p.name }}</span>
+                  </MiniTrend>
+                </td>
+                <td>{{ p.code }}</td>
+                <td>{{ fmtPrice(p.price) }}</td>
+                <td class="down">{{ fmtPct(p.change_pct) }}</td>
+                <td><span class="rank-industry" @click.stop="gotoIndustry(p.industry)">{{ p.industry || '-' }}</span></td>
+                <td>{{ fmtAmount(p.amount) }}</td>
+                <td>{{ fmtPct(p.turnover) }}</td>
+              </tr>
+              <tr v-if="!sort.sorted.length"><td colspan="7" class="empty">今日无跌停</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </template>
+
       <template v-else-if="tab === 'etf'">
         <div class="card-title">ETF 排行（共 {{ etfTotal }} 只 · 点击列名排序）</div>
         <StockTable :rows="rows" :columns="etfCols" @row-click="openFromRank" />
@@ -134,7 +168,13 @@
       </template>
 
       <template v-else-if="tab === 'lhb'">
-        <div class="card-title">龙虎榜{{ lhbDate ? ' · ' + lhbDate : '' }}</div>
+        <div class="card-title">
+          龙虎榜{{ lhbDate ? ' · ' + lhbDate : '' }}
+          <span class="lhb-date-picker">
+            <input type="date" v-model="lhbDateInput" :max="todayStr" @change="onLhbDateChange" title="选择日期回看历史龙虎榜（留空 = 最近交易日）" />
+            <button v-if="lhbDateInput" class="lhb-clear" @click="onLhbDateClear" title="返回最近交易日">最近</button>
+          </span>
+        </div>
         <div class="table-wrap">
           <table class="data-table">
             <thead><tr>
@@ -198,7 +238,7 @@ function openFromRank(row) {
     : tab.value === 'ths' ? thsRows.value
     : tab.value === 'lhb' ? lhbRows.value
     : tab.value === 'changes' ? changesRows.value
-    : rows.value
+    : sort.sorted.value
   openStock(row, {
     list,
     origin: '/rank/' + tab.value,
@@ -207,7 +247,7 @@ function openFromRank(row) {
 }
 
 const props = defineProps({ tab: { type: String, default: '' } })
-const VALID = ['zhangsu', 'moneyflow', 'hot', 'zt', 'etf', 'ths', 'lhb', 'changes']
+const VALID = ['zhangsu', 'moneyflow', 'hot', 'zt', 'dt', 'etf', 'ths', 'lhb', 'changes']
 const tab = ref(VALID.includes(props.tab) ? props.tab : 'zhangsu')
 const thsType = ref('hour')
 const PREMIUM_TEXT = { positive: '正面', neutral_positive: '偏正面', neutral: '中性', negative: '负面' }
@@ -243,6 +283,8 @@ async function gotoIndustry(name) {
 const rows = ref([])
 const etfTotal = ref(0)
 const lhbDate = ref('')
+const lhbDateInput = ref('')
+const todayStr = new Date().toISOString().slice(0, 10)
 const error = ref('')
 
 watch(() => props.tab, (n) => {
@@ -295,6 +337,7 @@ const thsRows = computed(() => applyListFilter(rows.value))
 const lhbRows = computed(() => applyListFilter(rows.value))
 const changesRows = computed(() => applyListFilter(rows.value))
 const ztSort = useTableSort(ztRows)
+const sort = useTableSort(rows)
 
 function changeTagClass(typeName) {
   if (!typeName) return ''
@@ -310,19 +353,30 @@ function switchTab(t) {
   load()
 }
 
+function onLhbDateChange() {
+  logAction('lhb_date', lhbDateInput.value)
+  load()
+}
+
+function onLhbDateClear() {
+  lhbDateInput.value = ''
+  load()
+}
+
 async function load() {
   try {
     if (tab.value === 'zhangsu') rows.value = await api.zhangsu(80)
     else if (tab.value === 'moneyflow') rows.value = await api.moneyflow(80)
     else if (tab.value === 'hot') rows.value = await api.hot('change_pct', 80)
     else if (tab.value === 'zt') rows.value = await api.limitUp(100)
+    else if (tab.value === 'dt') rows.value = await api.limitDown(100)
     else if (tab.value === 'etf') {
       rows.value = await api.etfRank('change_pct', 80)
       etfTotal.value = rows.value.length
     } else if (tab.value === 'ths') {
       rows.value = await api.thsHot(thsType.value, 50)
     } else if (tab.value === 'lhb') {
-      const r = await api.lhb(80)
+      const r = await api.lhb(80, lhbDateInput.value)
       lhbDate.value = r.date || ''
       rows.value = r.items || []
     } else if (tab.value === 'changes') {
@@ -338,6 +392,18 @@ usePolling(load, 3000)
 </script>
 
 <style scoped>
+.lhb-date-picker {
+  display: inline-flex; align-items: center; gap: 6px; margin-left: 12px;
+}
+.lhb-date-picker input[type="date"] {
+  background: var(--bg-card); border: 1px solid var(--border); border-radius: 6px;
+  color: var(--text); font-size: 12px; padding: 3px 6px;
+}
+.lhb-clear {
+  background: var(--accent-bg); color: var(--accent); border: 1px solid var(--accent);
+  border-radius: 6px; padding: 2px 10px; font-size: 12px; cursor: pointer;
+}
+.lhb-clear:hover { opacity: 0.85; }
 .analyse {
   text-align: left; max-width: 420px; white-space: normal;
   font-size: 12px; color: var(--text-dim);

@@ -99,6 +99,7 @@
                 <tr v-for="st in sec.stocks" :key="st.code" @click="openKplStock(sec, st)">
                   <td class="stock-name up">
                     <span class="name-cell">{{ st.name }}</span>
+                    <span class="kpl-role" :class="roleClass(st.role)" v-if="st.role && st.role !== '首板'">{{ st.role }}</span>
                     <span class="kpl-concepts" v-if="st.concepts">{{ st.concepts }}</span>
                   </td>
                   <td><span class="kpl-lb" :class="{ first: st.is_first }">{{ st.lbc || '首板' }}</span></td>
@@ -159,6 +160,12 @@ function openKplStock(sec, st) {
     origin: '/ladder',
     originLabel: '返回梯队',
   })
+}
+
+function roleClass(role) {
+  if (role === '龙头') return 'role-leader'
+  if (role === '副龙头') return 'role-sub'
+  return 'role-follow'
 }
 
 /**
@@ -312,4 +319,11 @@ watch(tab, (t) => { if (t === 'reason') loadKpl() })
 }
 .kpl-lb.first { color: var(--text-dim); background: var(--bg-hover); border-color: var(--border); }
 .kpl-reason { max-width: 340px; color: var(--text-dim); font-size: 12px; }
+.kpl-role {
+  display: inline-block; font-size: 11px; font-weight: 700;
+  border-radius: 10px; padding: 1px 8px; margin-left: 4px; white-space: nowrap;
+}
+.role-leader { color: var(--up); background: var(--up-bg); border: 1px solid var(--up); }
+.role-sub { color: var(--yellow); background: rgba(227,179,65,.14); border: 1px solid rgba(227,179,65,.45); }
+.role-follow { color: var(--text-dim); background: var(--bg-hover); border: 1px solid var(--border); }
 </style>

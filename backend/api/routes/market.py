@@ -9,7 +9,7 @@ from ...analyzer import rank as rank_an
 from ...analyzer import sector as sector_an
 from ...datasource import eastmoney
 
-from .common import ttl_cache, _calc_indicators, _enrich_rows, cached_limit_up_pool, cached_limit_break_pool, attach_youzi
+from .common import ttl_cache, _calc_indicators, _enrich_rows, cached_limit_up_pool, cached_limit_break_pool, cached_limit_down_pool, attach_youzi
 
 router = APIRouter()
 
@@ -82,6 +82,14 @@ def sectors_moneyflow(
 ):
     """板块主力净流入排行（全量拉取后排序，含净流出板块）"""
     return [s.model_dump() for s in rank_an.sector_moneyflow(type, limit)]
+
+
+@router.get("/sectors/range-stats")
+@ttl_cache(ttl=300)
+def sectors_range_stats(days: int = Query(5, ge=1, le=20)):
+    """板块区间统计：最近 N 个交易日各板块累计强度/涨停数/主力净流入（开盘啦逐日聚合）。"""
+    from ...datasource.kaipanla import range_sector_stats
+    return range_sector_stats(days)
 
 
 _concept_code_cache: dict = {}
@@ -260,6 +268,14 @@ def limit_break_pool(limit: int = Query(100, ge=1, le=300)):
     return rows[:limit] if limit < len(rows) else rows
 
 
+@router.get("/market/limit-down")
+def limit_down_pool(limit: int = Query(100, ge=1, le=300)):
+    """今日跌停池（共享缓存，limit 仅截断展示数量）。跌停极少时可能返回空列表。"""
+    rows = cached_limit_down_pool()
+    attach_youzi(rows)
+    return rows[:limit] if limit < len(rows) else rows
+
+
 @router.get("/ths/hot")
 @ttl_cache(ttl=30)
 def ths_hot(
@@ -273,20 +289,24 @@ def ths_hot(
 
 @router.get("/market/lhb")
 @ttl_cache(ttl=60)
-def market_lhb(limit: int = Query(50, ge=1, le=100)):
-    """东财龙虎榜（最近有数据的交易日）。命中游资的股票额外带 youzi 徽章列表。"""
+def market_lhb(
+    limit: int = Query(50, ge=1, le=100),
+    date: str = Query("", max_length=16),
+):
+    """东财龙虎榜。date 为空时取最近有数据的交易日；指定 date 则按该日查询（非交易日返回空列表）。
+    命中游资的股票额外带 youzi 徽章列表。"""
     from ...datasource import lhb
-    data = lhb.fetch_lhb_list(limit)
+    data = lhb.fetch_lhb_list(limit, date)
     items = data.get("items") or []
     data["items"] = _enrich_rows(items)
-    date = data.get("date")
-    if date:
+    lhb_day = data.get("date")
+    if lhb_day:
         from ...db.lhb_moves import moves_by_date
         from ...db.lhb_seats import list_seats
         youzi: dict = {}
         try:
             for side in ("buy", "sell"):
-                for g in moves_by_date(date, side, limit=500):
+                for g in moves_by_date(lhb_day, side, limit=500):
                     st = youzi.setdefault(g["code"], set())
                     for s in g["seats"]:
                         st.add(s["nickname"])

@@ -9,7 +9,7 @@
 import threading
 import time
 import uuid
-from datetime import datetime
+from datetime import datetime, timedelta
 from typing import Dict, List, Optional
 
 import httpx
@@ -135,6 +135,7 @@ def limit_up_sectors(date: Optional[str] = None) -> Optional[dict]:
                 "is_first": 1 if st[18] else 0,
             })
         if code and name:
+            stocks = _mark_leader(stocks)
             sectors.append({
                 "code": code,
                 "name": name,
@@ -142,6 +143,51 @@ def limit_up_sectors(date: Optional[str] = None) -> Optional[dict]:
                 "stocks": stocks,
             })
     return {"date": result.get("date", date), "summary": summary, "sectors": sectors}
+
+
+def _mark_leader(stocks: List[dict]) -> List[dict]:
+    """板块内标注龙头/跟风（轻量版）。
+
+    龙头判定：连板数最高且封板时间最早者为「龙头」；
+    与龙头连板数相同者为「副龙头」，其余按连板数标记为「跟风」或「首板」。
+
+    参数:
+        stocks: 板块涨停股列表
+
+    返回:
+        追加 role 字段后的列表（不改变原顺序，保持开盘啦默认排序）
+    """
+    if not stocks:
+        return stocks
+
+    def _lbc(st: dict) -> int:
+        """连板数解析：'2连板'→2、'首板'→1，失败默认 1。"""
+        raw = st.get("lbc") or ""
+        if isinstance(raw, (int, float)):
+            return int(raw)
+        import re
+        m = re.search(r"\d+", str(raw))
+        if m:
+            return int(m.group())
+        return 1 if "首板" in str(raw) else 0
+
+    def _key(st: dict):
+        return (-_lbc(st), st.get("seal_time") or "99:99")
+
+    top = sorted(stocks, key=_key)[0]
+    top_lbc = _lbc(top)
+    top_code = top.get("code")
+    for st in stocks:
+        lbc = _lbc(st)
+        if st.get("code") == top_code:
+            st["role"] = "龙头"
+        elif lbc == top_lbc and top_lbc >= 2:
+            st["role"] = "副龙头"
+        elif lbc >= 2:
+            st["role"] = "跟风"
+        else:
+            st["role"] = "首板"
+    return stocks
 
 
 def sector_strength(code: str, date: Optional[str] = None) -> Optional[float]:
@@ -291,3 +337,67 @@ def sector_strengths(date: Optional[str] = None) -> Optional[dict]:
         items = list(ex.map(_one, sectors))
     items.sort(key=lambda x: -(x["strength"] if x["strength"] is not None else -1))
     return {"date": data["date"], "summary": data["summary"], "items": items}
+
+
+def _recent_trade_days(days: int) -> list:
+    """最近 days 个自然日中的交易日（按自然日向前取，非交易日返回空结果由调用方跳过）。"""
+    out: list = []
+    d = datetime.now()
+    while len(out) < days:
+        if d.weekday() < 5:
+            out.append(d.strftime("%Y-%m-%d"))
+        d -= timedelta(days=1)
+    return out
+
+
+def range_sector_stats(days: int = 5) -> Optional[dict]:
+    """板块区间统计：最近 N 个交易日各板块累计强度/涨停数/主力净流入。
+
+    数据源为开盘啦每日涨停原因板块列表 + 板块强度/资金盘口，逐日聚合，
+    无数据的交易日（周末/节假日）自动跳过。
+
+    参数:
+        days: 统计区间天数（自然日），默认 5
+
+    返回:
+        {"items": [{name, code, days, total_strength, avg_strength,
+                    limit_up_count, main_inflow}]}；失败返回 None
+    """
+    from concurrent.futures import ThreadPoolExecutor
+
+    dates = _recent_trade_days(days)
+    acc: Dict[str, dict] = {}
+    day_ok = 0
+    for date in dates:
+        data = sector_strengths(date)
+        if not data or not data.get("items"):
+            continue
+        day_ok += 1
+        for sec in data["items"]:
+            name = sec["name"]
+            if not name:
+                continue
+            a = acc.setdefault(name, {
+                "name": name, "code": sec["code"], "days": 0,
+                "total_strength": 0.0, "limit_up_count": 0, "main_inflow": 0.0,
+            })
+            a["days"] += 1
+            if sec.get("strength") is not None:
+                a["total_strength"] += sec["strength"]
+            a["limit_up_count"] += sec.get("limit_up_count") or 0
+            a["main_inflow"] += sec.get("main_inflow") or 0
+    if not acc or not day_ok:
+        return None
+    items = []
+    for a in acc.values():
+        items.append({
+            "name": a["name"],
+            "code": a["code"],
+            "days": a["days"],
+            "avg_strength": round(a["total_strength"] / a["days"], 2) if a["days"] else 0,
+            "total_strength": round(a["total_strength"], 2),
+            "limit_up_count": a["limit_up_count"],
+            "main_inflow": round(a["main_inflow"]),
+        })
+    items.sort(key=lambda x: (-x["avg_strength"], -x["limit_up_count"]))
+    return {"days": day_ok, "items": items}
