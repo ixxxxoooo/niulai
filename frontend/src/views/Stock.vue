@@ -31,35 +31,6 @@
       :concept-list="conceptList"
     />
 
-    <!-- ETF 持仓成分股 -->
-    <div class="card mt16" v-if="isEtf">
-      <div class="card-title">
-        <span>ETF 持仓成分（前 {{ holdings.length || 10 }} 大持仓）</span>
-        <span class="card-title-sub" style="font-weight:400;color:var(--text-dim);font-size:12px">占比 = 占净值比例 · 行情为实时</span>
-      </div>
-      <div v-if="holdingsLoading" class="empty">正在加载持仓…</div>
-      <div class="table-wrap" v-else-if="holdings.length">
-        <table class="data-table">
-          <thead><tr>
-            <th>#</th><th>代码</th><th>名称</th><th>占净值比</th><th>最新价</th><th>涨跌幅</th><th>持股数(万股)</th><th>持仓市值(万元)</th>
-          </tr></thead>
-          <tbody>
-            <tr v-for="h in holdings" :key="h.code">
-              <td class="dim">{{ h.rank }}</td>
-              <td class="dim">{{ h.code }}</td>
-              <td><a class="leader-chip" @click="openStockFromHoldings(h)">{{ h.name }}</a></td>
-              <td><span class="ratio-pill">{{ h.ratio != null ? h.ratio.toFixed(2) + '%' : '-' }}</span></td>
-              <td>{{ h.price != null ? fmtPrice(h.price) : '-' }}</td>
-              <td :class="h.change_pct != null ? pctClass(h.change_pct) : ''">{{ h.change_pct != null ? fmtPct(h.change_pct) : '-' }}</td>
-              <td>{{ h.shares != null ? fmtNum(h.shares, 0) : '-' }}</td>
-              <td>{{ h.market_value != null ? fmtNum(h.market_value, 0) : '-' }}</td>
-            </tr>
-          </tbody>
-        </table>
-      </div>
-      <div v-else class="empty">暂无持仓数据</div>
-    </div>
-
     <div class="grid-3 mt16">
       <StockCharts
         ref="chartsRef"
@@ -107,6 +78,35 @@
         :code="code"
         @screenshot="screenshotFlow"
       />
+    </div>
+
+    <!-- ETF 持仓成分股（成交明细下方） -->
+    <div class="card mt16" v-if="isEtf">
+      <div class="card-title">
+        <span>ETF 持仓成分（前 {{ holdings.length || 10 }} 大持仓）</span>
+        <span class="card-title-sub" style="font-weight:400;color:var(--text-dim);font-size:12px">占比 = 占净值比例 · 行情为实时</span>
+      </div>
+      <div v-if="holdingsLoading" class="empty">正在加载持仓…</div>
+      <div class="table-wrap" v-else-if="holdings.length">
+        <table class="data-table">
+          <thead><tr>
+            <th>#</th><th>代码</th><th>名称</th><th>占净值比</th><th>最新价</th><th>涨跌幅</th><th>持股数(万股)</th><th>持仓市值(万元)</th>
+          </tr></thead>
+          <tbody>
+            <tr v-for="h in holdings" :key="h.code">
+              <td class="dim">{{ h.rank }}</td>
+              <td class="dim">{{ h.code }}</td>
+              <td><a class="leader-chip" @click="openStockFromHoldings(h)">{{ h.name }}</a></td>
+              <td><span class="ratio-pill">{{ h.ratio != null ? h.ratio.toFixed(2) + '%' : '-' }}</span></td>
+              <td>{{ h.price != null ? fmtPrice(h.price) : '-' }}</td>
+              <td :class="h.change_pct != null ? pctClass(h.change_pct) : ''">{{ h.change_pct != null ? fmtPct(h.change_pct) : '-' }}</td>
+              <td>{{ h.shares != null ? fmtNum(h.shares, 0) : '-' }}</td>
+              <td>{{ h.market_value != null ? fmtNum(h.market_value, 0) : '-' }}</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+      <div v-else class="empty">暂无持仓数据</div>
     </div>
 
     <AiAnalysisPanel ref="aiPanelRef" :code="code" :name="displayName" />
