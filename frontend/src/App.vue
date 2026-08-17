@@ -242,12 +242,15 @@ function manualRefresh() {
   triggerPrimaryRefresh()
 }
 
-/** 整页截图：截取内容区（container），复制到剪贴板或下载 PNG */
+/** 整页截图：截取应用主体（含导航栏 + 内容区），复制到剪贴板或下载 PNG */
 async function screenshotPage() {
-  const el = document.querySelector('.container')
+  const el = document.querySelector('.app-shell')
   const routeName = route.value?.name || 'overview'
   const ts = new Date().toISOString().slice(0, 19).replace(/[:T]/g, '-')
-  await captureElement(el, `niulai_${routeName}_${ts}.png`, { withFrame: false })
+  await captureElement(el, `niulai_${routeName}_${ts}.png`, {
+    withFrame: false,
+    removeSelectors: ['.topbar .icon-btn[title="整页截图"]', '.side-foot .icon-btn[title="整页截图"]'],
+  })
 }
 
 // 搜索选中 → 跳转个股页（支持中文模糊搜索）

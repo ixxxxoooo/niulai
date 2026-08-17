@@ -179,6 +179,9 @@ export async function captureElement(el, filename, opts = {}) {
       logging: false,
       onclone: (doc) => {
         doc.querySelectorAll('.btn-screenshot').forEach((n) => n.remove())
+        for (const sel of (opts.removeSelectors || [])) {
+          doc.querySelectorAll(sel).forEach((n) => n.remove())
+        }
       },
     })
     if (withFrame) canvas = frameCanvas(canvas, 14, scale)
