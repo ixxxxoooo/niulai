@@ -25,7 +25,35 @@ const hasData = computed(() =>
   props.trend && props.trend.points && props.trend.points.length > 1)
 
 const preClose = computed(() => props.trend?.pre_close || 0)
-const prices = computed(() => (props.trend?.points || []).map(p => p.price))
+
+// 全天固定时间轴 09:30~11:30 + 13:00~15:00（每分钟），数据按时间定位
+const fullTimes = buildFullTrendTimes()
+const timeIndex = new Map(fullTimes.map((t, i) => [t, i]))
+
+function buildFullTrendTimes() {
+  const out = []
+  const push = (startH, startM, endH, endM) => {
+    for (let m = startH * 60 + startM; m <= endH * 60 + endM; m++) {
+      out.push(`${String(Math.floor(m / 60)).padStart(2, '0')}:${String(m % 60).padStart(2, '0')}`)
+    }
+  }
+  push(9, 30, 11, 30)
+  push(13, 0, 15, 0)
+  return out
+}
+
+// 带时间索引的数据点 [{time, price, idx}]
+const spacedPoints = computed(() => {
+  const pts = props.trend?.points || []
+  const out = []
+  for (const p of pts) {
+    const idx = timeIndex.get(p.time)
+    if (idx != null) out.push({ price: p.price, idx })
+  }
+  return out
+})
+
+const prices = computed(() => spacedPoints.value.map(p => p.price))
 
 // 以昨收为基准中心，按涨跌幅比例缩放（两边留等距），避免个别大波动压扁整体
 const scale = computed(() => {
@@ -44,13 +72,13 @@ const up = computed(() => {
 const baseY = computed(() => PAD + (vh - PAD * 2) / 2)
 
 const polyPoints = computed(() => {
-  const pts = prices.value
-  const n = pts.length
+  const pts = spacedPoints.value
+  const n = fullTimes.length
   const stepX = (vw - PAD * 2) / (n - 1)
-  const pre = preClose.value || pts[0]
-  return pts.map((p, i) => {
-    const x = PAD + i * stepX
-    const y = baseY.value - ((p - pre) / (scale.value.range * pre)) * ((vh - PAD * 2) / 2)
+  const pre = preClose.value || (pts[0] && pts[0].price)
+  return pts.map((pt) => {
+    const x = PAD + pt.idx * stepX
+    const y = baseY.value - ((pt.price - pre) / (scale.value.range * pre)) * ((vh - PAD * 2) / 2)
     return `${x.toFixed(1)},${y.toFixed(1)}`
   }).join(' ')
 })
