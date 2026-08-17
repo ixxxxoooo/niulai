@@ -123,8 +123,10 @@
               </td>
               <td class="dim">{{ r.last_triggered_at || '-' }}</td>
               <td>
-                <UiButton size="sm" variant="ghost" @click="toggle(r)">{{ r.enabled ? '停用' : '启用' }}</UiButton>
-                <UiButton size="sm" variant="ghost" @click="remove(r)">删除</UiButton>
+                <div class="td-actions">
+                  <UiButton size="sm" variant="ghost" @click="toggle(r)">{{ r.enabled ? '停用' : '启用' }}</UiButton>
+                  <UiButton size="sm" variant="ghost" @click="remove(r)">删除</UiButton>
+                </div>
               </td>
             </tr>
             <tr v-if="!rows.length"><td colspan="8" class="empty">暂无监控，上方添加一条试试</td></tr>
@@ -375,6 +377,7 @@ onMounted(load)
 .form-actions {
   margin-top: 14px; display: flex; align-items: center; gap: 12px; flex-wrap: wrap;
 }
+.td-actions { display: inline-flex; align-items: center; gap: 8px; }
 .form-tip { font-size: 12px; color: var(--text-dim); }
 .dim { color: var(--text-dim); font-size: 12px; margin-left: 4px; }
 </style>

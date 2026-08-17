@@ -44,8 +44,7 @@
                 <td>{{ fmtAmount(s.amount) }}</td>
                 <td :class="pctClass(s.main_inflow)">{{ fmtAmount(s.main_inflow) }}</td>
                 <td>
-                  <UiButton size="sm" variant="ghost" @click.stop="edit(s)">{{ s.shares ? '改仓' : '录入' }}</UiButton>
-                  <UiButton size="sm" variant="danger" @click.stop="removeStock(s.code)">删除</UiButton>
+                  <div class="td-actions"><UiButton size="sm" variant="ghost" @click.stop="edit(s)">{{ s.shares ? '改仓' : '录入' }}</UiButton><UiButton size="sm" variant="danger" @click.stop="removeStock(s.code)">删除</UiButton></div>
                 </td>
               </tr>
             </tbody>
@@ -87,8 +86,7 @@
                 <td>{{ fmtAmount(s.amount) }}</td>
                 <td :class="pctClass(s.main_inflow)">{{ fmtAmount(s.main_inflow) }}</td>
                 <td>
-                  <UiButton size="sm" variant="ghost" @click.stop="edit(s)">{{ s.shares ? '改仓' : '录入' }}</UiButton>
-                  <UiButton size="sm" variant="danger" @click.stop="removeStock(s.code)">删除</UiButton>
+                  <div class="td-actions"><UiButton size="sm" variant="ghost" @click.stop="edit(s)">{{ s.shares ? '改仓' : '录入' }}</UiButton><UiButton size="sm" variant="danger" @click.stop="removeStock(s.code)">删除</UiButton></div>
                 </td>
               </tr>
             </tbody>
@@ -169,8 +167,7 @@
                   </div>
                 </td>
                 <td>
-                  <UiButton size="sm" variant="ghost" @click.stop="edit(s)">改仓</UiButton>
-                  <UiButton size="sm" variant="danger" @click.stop="clearOne(s)">清仓</UiButton>
+                  <div class="td-actions"><UiButton size="sm" variant="ghost" @click.stop="edit(s)">改仓</UiButton><UiButton size="sm" variant="danger" @click.stop="clearOne(s)">清仓</UiButton></div>
                 </td>
               </tr>
             </tbody>
@@ -226,8 +223,7 @@
                   </div>
                 </td>
                 <td>
-                  <UiButton size="sm" variant="ghost" @click.stop="edit(s)">改仓</UiButton>
-                  <UiButton size="sm" variant="danger" @click.stop="clearOne(s)">清仓</UiButton>
+                  <div class="td-actions"><UiButton size="sm" variant="ghost" @click.stop="edit(s)">改仓</UiButton><UiButton size="sm" variant="danger" @click.stop="clearOne(s)">清仓</UiButton></div>
                 </td>
               </tr>
             </tbody>
@@ -573,4 +569,8 @@ usePolling(load, 3000)
 /* 数量 / 成本 ± 调整 */
 .modal-qty { display: flex; gap: 6px; align-items: center; }
 .modal-qty .ui-input { flex: 1; min-width: 0; }
+
+/* 弹窗底部按钮组 */
+.modal-actions { display: flex; justify-content: flex-end; gap: 10px; margin-top: 14px; }
+.td-actions { display: inline-flex; align-items: center; gap: 8px; }
 </style>

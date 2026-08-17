@@ -617,7 +617,7 @@ onUnmounted(() => {
 .src-builtin { color: var(--text-dim); font-size: 12px; }
 .src-custom { color: #d97706; font-size: 12px; }
 .src-mixed { color: var(--accent); font-size: 12px; }
-.seat-ops { white-space: nowrap; }
+.seat-ops { white-space: nowrap; display: inline-flex; align-items: center; gap: 8px; }
 .btn-sm { padding: 2px 10px; font-size: 12px; }
 .btn-danger { color: #dc2626; border-color: #dc262666; }
 .btn-danger:hover { background: #dc2626; color: #fff; }
