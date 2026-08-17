@@ -27,9 +27,6 @@
       </nav>
       <div class="topbar-right">
         <SearchSuggest placeholder="代码 / 名称 / 拼音" @select="onSearchSelect" />
-        <button class="icon-btn" title="设置" @click="go('/settings')">
-          <UiIcon name="settings" :size="16" />
-        </button>
         <div class="clock">
           <div>{{ now }}</div>
           <div class="clock-sub">
@@ -45,6 +42,14 @@
               <span class="ri-dot" :class="{ active: polling.refreshing }"></span>
               <span>{{ polling.countdown }}s</span>
             </span>
+          </div>
+          <div class="topbar-actions">
+            <button class="icon-btn" title="整页截图" @click="screenshotPage">
+              <UiIcon name="screenshot" :size="16" />
+            </button>
+            <button class="icon-btn" title="设置" @click="go('/settings')">
+              <UiIcon name="settings" :size="16" />
+            </button>
           </div>
         </div>
       </div>
@@ -159,6 +164,7 @@ import { logAction } from './composables/useActionLog.js'
 import { loadWatchlist } from './composables/useWatchlist.js'
 import { loadSettings, migrateFromLocalStorage, settingsState, applyThemeMode, resolveThemeLight } from './composables/useSettings.js'
 import { openStock } from './composables/useStockMeta.js'
+import { captureElement } from './composables/useScreenshot.js'
 import SearchSuggest from './components/SearchSuggest.vue'
 import IndexTicker from './components/IndexTicker.vue'
 import GlobalTip from './components/GlobalTip.vue'
@@ -234,6 +240,14 @@ function onSideBrandClick() {
 function manualRefresh() {
   if (polling.refreshing) return
   triggerPrimaryRefresh()
+}
+
+/** 整页截图：截取内容区（container），复制到剪贴板或下载 PNG */
+async function screenshotPage() {
+  const el = document.querySelector('.container')
+  const routeName = route.value?.name || 'overview'
+  const ts = new Date().toISOString().slice(0, 19).replace(/[:T]/g, '-')
+  await captureElement(el, `niulai_${routeName}_${ts}.png`, { withFrame: false })
 }
 
 // 搜索选中 → 跳转个股页（支持中文模糊搜索）

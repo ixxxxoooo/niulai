@@ -274,6 +274,7 @@ a:hover { text-decoration: underline; }
 
 .clock { color: var(--text-dim); font-size: 13px; text-align: right; }
 .clock-sub { display: flex; align-items: center; justify-content: flex-end; gap: 8px; margin-top: 2px; }
+.topbar-actions { display: flex; align-items: center; justify-content: flex-end; gap: 4px; margin-top: 2px; }
 .clock .session { color: var(--yellow); font-weight: 600; }
 .clock-count {
   display: inline-flex; align-items: center; gap: 5px;
