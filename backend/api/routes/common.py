@@ -86,7 +86,14 @@ _cache: Dict[str, tuple] = {}
 _cache_lock = threading.Lock()
 
 
-def ttl_cache(ttl: float = config.CACHE_TTL):
+def ttl_cache(ttl: float = config.CACHE_TTL, cache_empty: bool = False):
+    """带 TTL 的缓存装饰器。
+
+    参数:
+        ttl: 交易时段缓存秒数；非交易时段自动取 max(ttl, CACHE_TTL_OFFHOURS)
+        cache_empty: 为 False 时空结果（None/空列表/空字典/空串）不写入缓存，
+                     避免上游接口偶发返回空导致界面数据"突然消失"
+    """
     def deco(fn: Callable):
         @functools.wraps(fn)
         def wrapper(*args, **kwargs):
@@ -103,8 +110,9 @@ def ttl_cache(ttl: float = config.CACHE_TTL):
                 if hit and now - hit[0] < effective:
                     return hit[1]
             val = fn(*args, **kwargs)
-            with _cache_lock:
-                _cache[key] = (now, val)
+            if cache_empty or val not in (None, "", [], {}):
+                with _cache_lock:
+                    _cache[key] = (now, val)
             return val
         return wrapper
     return deco
@@ -116,7 +124,7 @@ def clear_cache():
 
 
 # ------------------------------------------------------------------ 涨停/炸板池共享缓存
-@ttl_cache(ttl=config.CACHE_TTL)
+@ttl_cache(ttl=config.CACHE_TTL, cache_empty=False)
 def cached_limit_up_pool() -> list:
     """共享涨停池缓存（固定 300 条），供涨停池/连板梯队/个股标签复用。
 
@@ -126,7 +134,7 @@ def cached_limit_up_pool() -> list:
     return _enrich_rows(eastmoney.get_client().limit_up_pool(300))
 
 
-@ttl_cache(ttl=config.CACHE_TTL)
+@ttl_cache(ttl=config.CACHE_TTL, cache_empty=False)
 def cached_limit_break_pool() -> list:
     """共享炸板池缓存（固定 300 条），供炸板池/个股标签复用。
 
@@ -136,7 +144,7 @@ def cached_limit_break_pool() -> list:
     return _enrich_rows(eastmoney.get_client().limit_break_pool(300))
 
 
-@ttl_cache(ttl=config.CACHE_TTL)
+@ttl_cache(ttl=config.CACHE_TTL, cache_empty=False)
 def cached_limit_down_pool() -> list:
     """共享跌停池缓存（固定 300 条）。
 

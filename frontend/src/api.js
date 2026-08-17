@@ -62,7 +62,6 @@ export const api = {
   etfRank: (by = 'change_pct', limit = 50) => get(`/etf/rank?by=${by}&limit=${limit}`),
   sectorMoneyflow: (type = 'industry', limit = 100) =>
     get(`/sectors/moneyflow?type=${type}&limit=${limit}`),
-  sectorsRangeStats: (days = 5) => get(`/sectors/range-stats?days=${days}`),
   sectorConceptCode: (name, type = 'concept') => get(`/sectors/concept-code?name=${encodeURIComponent(name)}&type=${type}`),
   stock: (code) => get(`/stocks/${code}`),
   trends: (code) => get(`/stocks/${code}/trends`),

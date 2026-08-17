@@ -27,7 +27,7 @@
       </div>
       <div class="item">
         <div class="label">涨停 / 跌停</div>
-        <div class="value"><a class="up" @click="go('/rank/zt')">{{ overview.limit_up_count ?? '-' }}</a> / <span class="down">{{ overview.limit_down_count ?? '-' }}</span></div>
+        <div class="value"><a class="up" @click="go('/rank/zt')">{{ overview.limit_up_count ?? '-' }}</a> / <a class="down" @click="go('/rank/dt')">{{ overview.limit_down_count ?? '-' }}</a></div>
       </div>
       <div class="item">
         <div class="label" data-tip="两市今日总成交额比上一交易日多/少的金额。放量=资金大幅进场，缩量=观望为主。上涨放量健康，下跌放量要警惕。">两市量能</div>

@@ -9,7 +9,7 @@
 import threading
 import time
 import uuid
-from datetime import datetime, timedelta
+from datetime import datetime
 from typing import Dict, List, Optional
 
 import httpx
@@ -337,67 +337,3 @@ def sector_strengths(date: Optional[str] = None) -> Optional[dict]:
         items = list(ex.map(_one, sectors))
     items.sort(key=lambda x: -(x["strength"] if x["strength"] is not None else -1))
     return {"date": data["date"], "summary": data["summary"], "items": items}
-
-
-def _recent_trade_days(days: int) -> list:
-    """最近 days 个自然日中的交易日（按自然日向前取，非交易日返回空结果由调用方跳过）。"""
-    out: list = []
-    d = datetime.now()
-    while len(out) < days:
-        if d.weekday() < 5:
-            out.append(d.strftime("%Y-%m-%d"))
-        d -= timedelta(days=1)
-    return out
-
-
-def range_sector_stats(days: int = 5) -> Optional[dict]:
-    """板块区间统计：最近 N 个交易日各板块累计强度/涨停数/主力净流入。
-
-    数据源为开盘啦每日涨停原因板块列表 + 板块强度/资金盘口，逐日聚合，
-    无数据的交易日（周末/节假日）自动跳过。
-
-    参数:
-        days: 统计区间天数（自然日），默认 5
-
-    返回:
-        {"items": [{name, code, days, total_strength, avg_strength,
-                    limit_up_count, main_inflow}]}；失败返回 None
-    """
-    from concurrent.futures import ThreadPoolExecutor
-
-    dates = _recent_trade_days(days)
-    acc: Dict[str, dict] = {}
-    day_ok = 0
-    for date in dates:
-        data = sector_strengths(date)
-        if not data or not data.get("items"):
-            continue
-        day_ok += 1
-        for sec in data["items"]:
-            name = sec["name"]
-            if not name:
-                continue
-            a = acc.setdefault(name, {
-                "name": name, "code": sec["code"], "days": 0,
-                "total_strength": 0.0, "limit_up_count": 0, "main_inflow": 0.0,
-            })
-            a["days"] += 1
-            if sec.get("strength") is not None:
-                a["total_strength"] += sec["strength"]
-            a["limit_up_count"] += sec.get("limit_up_count") or 0
-            a["main_inflow"] += sec.get("main_inflow") or 0
-    if not acc or not day_ok:
-        return None
-    items = []
-    for a in acc.values():
-        items.append({
-            "name": a["name"],
-            "code": a["code"],
-            "days": a["days"],
-            "avg_strength": round(a["total_strength"] / a["days"], 2) if a["days"] else 0,
-            "total_strength": round(a["total_strength"], 2),
-            "limit_up_count": a["limit_up_count"],
-            "main_inflow": round(a["main_inflow"]),
-        })
-    items.sort(key=lambda x: (-x["avg_strength"], -x["limit_up_count"]))
-    return {"days": day_ok, "items": items}

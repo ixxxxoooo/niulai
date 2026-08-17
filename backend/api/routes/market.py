@@ -84,14 +84,6 @@ def sectors_moneyflow(
     return [s.model_dump() for s in rank_an.sector_moneyflow(type, limit)]
 
 
-@router.get("/sectors/range-stats")
-@ttl_cache(ttl=300)
-def sectors_range_stats(days: int = Query(5, ge=1, le=20)):
-    """板块区间统计：最近 N 个交易日各板块累计强度/涨停数/主力净流入（开盘啦逐日聚合）。"""
-    from ...datasource.kaipanla import range_sector_stats
-    return range_sector_stats(days)
-
-
 _concept_code_cache: dict = {}
 
 

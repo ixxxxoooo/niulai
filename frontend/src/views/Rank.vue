@@ -169,10 +169,21 @@
 
       <template v-else-if="tab === 'lhb'">
         <div class="card-title">
-          龙虎榜{{ lhbDate ? ' · ' + lhbDate : '' }}
-          <span class="lhb-date-picker">
-            <input type="date" v-model="lhbDateInput" :max="todayStr" @change="onLhbDateChange" title="选择日期回看历史龙虎榜（留空 = 最近交易日）" />
-            <button v-if="lhbDateInput" class="lhb-clear" @click="onLhbDateClear" title="返回最近交易日">最近</button>
+          <span class="lhb-title">龙虎榜{{ lhbDate ? ' · ' + lhbDate : '' }}</span>
+          <span class="lhb-date-bar">
+            <button
+              v-for="(d, i) in lhbQuickDates"
+              :key="d"
+              class="lhb-quick"
+              :class="{ active: lhbSelectedIndex === i }"
+              @click="onLhbQuick(d)"
+              :data-tip="d"
+            >{{ lhbQuickLabel(d) }}</button>
+            <label class="lhb-custom">
+              <span class="lhb-custom-icon">📅</span>
+              <input type="date" v-model="lhbDateInput" :max="todayStr" @change="onLhbDateChange" title="选择历史日期回看龙虎榜" />
+            </label>
+            <button v-if="lhbSelectedIndex === null && lhbDateInput" class="lhb-clear" @click="onLhbDateClear" title="回到最近交易日">最近</button>
           </span>
         </div>
         <div class="table-wrap">
@@ -287,6 +298,47 @@ const lhbDateInput = ref('')
 const todayStr = new Date().toISOString().slice(0, 10)
 const error = ref('')
 
+const lhbQuickDates = computed(() => {
+  const out = []
+  const d = new Date()
+  while (out.length < 5) {
+    if (d.getDay() !== 0 && d.getDay() !== 6) {
+      out.push(d.toISOString().slice(0, 10))
+    }
+    d.setDate(d.getDate() - 1)
+  }
+  return out
+})
+const lhbSelectedIndex = computed(() => {
+  const i = lhbQuickDates.value.indexOf(lhbDateInput.value)
+  return i === -1 ? null : i
+})
+
+function lhbQuickLabel(date) {
+  const d = new Date(date + 'T00:00:00')
+  const today = new Date()
+  const diff = Math.round((today - d) / 86400000)
+  if (diff === 0) return '今'
+  if (diff === 1) return '昨'
+  return '周' + '一二三四五'[d.getDay() - 1]
+}
+
+function onLhbQuick(date) {
+  lhbDateInput.value = date
+  logAction('lhb_date', date)
+  load()
+}
+
+function onLhbDateChange() {
+  logAction('lhb_date', lhbDateInput.value)
+  load()
+}
+
+function onLhbDateClear() {
+  lhbDateInput.value = ''
+  load()
+}
+
 watch(() => props.tab, (n) => {
   if (n && VALID.includes(n) && n !== tab.value) {
     tab.value = n
@@ -353,24 +405,18 @@ function switchTab(t) {
   load()
 }
 
-function onLhbDateChange() {
-  logAction('lhb_date', lhbDateInput.value)
-  load()
-}
-
-function onLhbDateClear() {
-  lhbDateInput.value = ''
-  load()
-}
-
 async function load() {
   try {
     if (tab.value === 'zhangsu') rows.value = await api.zhangsu(80)
     else if (tab.value === 'moneyflow') rows.value = await api.moneyflow(80)
     else if (tab.value === 'hot') rows.value = await api.hot('change_pct', 80)
-    else if (tab.value === 'zt') rows.value = await api.limitUp(100)
-    else if (tab.value === 'dt') rows.value = await api.limitDown(100)
-    else if (tab.value === 'etf') {
+    else if (tab.value === 'zt') {
+      const r = await api.limitUp(100)
+      if (r.length || !rows.value.length) rows.value = r
+    } else if (tab.value === 'dt') {
+      const r = await api.limitDown(100)
+      if (r.length || !rows.value.length) rows.value = r
+    } else if (tab.value === 'etf') {
       rows.value = await api.etfRank('change_pct', 80)
       etfTotal.value = rows.value.length
     } else if (tab.value === 'ths') {
@@ -392,12 +438,27 @@ usePolling(load, 3000)
 </script>
 
 <style scoped>
-.lhb-date-picker {
+.lhb-title { white-space: nowrap; }
+.lhb-date-bar {
   display: inline-flex; align-items: center; gap: 6px; margin-left: 12px;
+  flex-wrap: wrap; row-gap: 4px;
 }
-.lhb-date-picker input[type="date"] {
+.lhb-quick {
+  min-width: 34px; padding: 3px 8px; font-size: 12px; font-weight: 600;
+  border: 1px solid var(--border); border-radius: 6px;
+  background: var(--bg-card); color: var(--text-dim); cursor: pointer;
+  text-align: center; transition: all 0.15s;
+}
+.lhb-quick:hover { border-color: var(--accent); color: var(--accent); }
+.lhb-quick.active {
+  background: var(--accent); color: var(--accent-text, #fff);
+  border-color: var(--accent); font-weight: 700;
+}
+.lhb-custom { display: inline-flex; align-items: center; gap: 4px; }
+.lhb-custom-icon { font-size: 13px; }
+.lhb-custom input[type="date"] {
   background: var(--bg-card); border: 1px solid var(--border); border-radius: 6px;
-  color: var(--text); font-size: 12px; padding: 3px 6px;
+  color: var(--text); font-size: 12px; padding: 2px 6px; max-width: 132px;
 }
 .lhb-clear {
   background: var(--accent-bg); color: var(--accent); border: 1px solid var(--accent);
