@@ -171,19 +171,13 @@
         <div class="card-title">
           <span class="lhb-title">龙虎榜{{ lhbDate ? ' · ' + lhbDate : '' }}</span>
           <span class="lhb-date-bar">
-            <button
-              v-for="(d, i) in lhbQuickDates"
-              :key="d"
-              class="lhb-quick"
-              :class="{ active: lhbSelectedIndex === i }"
-              @click="onLhbQuick(d)"
-              :data-tip="d"
-            >{{ lhbQuickLabel(d) }}</button>
-            <label class="lhb-custom">
-              <span class="lhb-custom-icon">📅</span>
-              <input type="date" v-model="lhbDateInput" :max="todayStr" @change="onLhbDateChange" title="选择历史日期回看龙虎榜" />
-            </label>
-            <button v-if="lhbSelectedIndex === null && lhbDateInput" class="lhb-clear" @click="onLhbDateClear" title="回到最近交易日">最近</button>
+            <UiDatePicker
+              v-model="lhbDateInput"
+              :max="todayStr"
+              :trading-dates="lhbTradingDates"
+              @change="onLhbDateChange"
+            />
+            <button v-if="lhbDateInput" class="lhb-clear" @click="onLhbDateClear" title="回到最近交易日">最近</button>
           </span>
         </div>
         <div class="table-wrap">
@@ -235,6 +229,7 @@ import { logAction } from '../composables/useActionLog.js'
 import { applyListFilter } from '../composables/useListFilter.js'
 import { useTableSort } from '../composables/useTableSort.js'
 import { openStock } from '../composables/useStockMeta.js'
+import UiDatePicker from '../components/ui/UiDatePicker.vue'
 import StockTable from '../components/StockTable.vue'
 import MiniTrend from '../components/MiniTrend.vue'
 import BoardBadges from '../components/BoardBadges.vue'
@@ -298,10 +293,10 @@ const lhbDateInput = ref('')
 const todayStr = new Date().toISOString().slice(0, 10)
 const error = ref('')
 
-const lhbQuickDates = computed(() => {
+const lhbTradingDates = computed(() => {
   const out = []
   const d = new Date()
-  while (out.length < 5) {
+  while (out.length < 30) {
     if (d.getDay() !== 0 && d.getDay() !== 6) {
       out.push(d.toISOString().slice(0, 10))
     }
@@ -309,25 +304,6 @@ const lhbQuickDates = computed(() => {
   }
   return out
 })
-const lhbSelectedIndex = computed(() => {
-  const i = lhbQuickDates.value.indexOf(lhbDateInput.value)
-  return i === -1 ? null : i
-})
-
-function lhbQuickLabel(date) {
-  const d = new Date(date + 'T00:00:00')
-  const today = new Date()
-  const diff = Math.round((today - d) / 86400000)
-  if (diff === 0) return '今'
-  if (diff === 1) return '昨'
-  return '周' + '一二三四五'[d.getDay() - 1]
-}
-
-function onLhbQuick(date) {
-  lhbDateInput.value = date
-  logAction('lhb_date', date)
-  load()
-}
 
 function onLhbDateChange() {
   logAction('lhb_date', lhbDateInput.value)
@@ -342,6 +318,10 @@ function onLhbDateClear() {
 watch(() => props.tab, (n) => {
   if (n && VALID.includes(n) && n !== tab.value) {
     tab.value = n
+    rows.value = []
+    etfTotal.value = 0
+    lhbDate.value = ''
+    error.value = ''
     load()
   }
 })
@@ -398,38 +378,65 @@ function changeTagClass(typeName) {
   return 'tag-neutral'
 }
 
+let loadSeq = 0
+
 function switchTab(t) {
   tab.value = t
   logAction('rank_tab', t)
   navigate('/rank/' + t)
+  rows.value = []
+  etfTotal.value = 0
+  lhbDate.value = ''
+  error.value = ''
   load()
 }
 
 async function load() {
+  const seq = ++loadSeq
   try {
-    if (tab.value === 'zhangsu') rows.value = await api.zhangsu(80)
-    else if (tab.value === 'moneyflow') rows.value = await api.moneyflow(80)
-    else if (tab.value === 'hot') rows.value = await api.hot('change_pct', 80)
-    else if (tab.value === 'zt') {
+    if (tab.value === 'zhangsu') {
+      const r = await api.zhangsu(80)
+      if (seq !== loadSeq) return
+      rows.value = r
+    } else if (tab.value === 'moneyflow') {
+      const r = await api.moneyflow(80)
+      if (seq !== loadSeq) return
+      rows.value = r
+    } else if (tab.value === 'hot') {
+      const r = await api.hot('change_pct', 80)
+      if (seq !== loadSeq) return
+      rows.value = r
+    } else if (tab.value === 'zt') {
       const r = await api.limitUp(100)
+      if (seq !== loadSeq) return
       if (r.length || !rows.value.length) rows.value = r
     } else if (tab.value === 'dt') {
       const r = await api.limitDown(100)
+      if (seq !== loadSeq) return
       if (r.length || !rows.value.length) rows.value = r
     } else if (tab.value === 'etf') {
-      rows.value = await api.etfRank('change_pct', 80)
-      etfTotal.value = rows.value.length
+      const r = await api.etfRank('change_pct', 80)
+      if (seq !== loadSeq) return
+      rows.value = r
+      etfTotal.value = r.length
     } else if (tab.value === 'ths') {
-      rows.value = await api.thsHot(thsType.value, 50)
+      const r = await api.thsHot(thsType.value, 50)
+      if (seq !== loadSeq) return
+      rows.value = r
     } else if (tab.value === 'lhb') {
       const r = await api.lhb(80, lhbDateInput.value)
+      if (seq !== loadSeq) return
       lhbDate.value = r.date || ''
       rows.value = r.items || []
     } else if (tab.value === 'changes') {
-      rows.value = await api.stockChanges(80)
+      const r = await api.stockChanges(80)
+      if (seq !== loadSeq) return
+      rows.value = r
     }
+    if (seq !== loadSeq) return
     error.value = ''
   } catch (e) {
+    if (seq !== loadSeq) return
     error.value = '榜单加载失败：' + e.message
   }
 }
@@ -442,23 +449,6 @@ usePolling(load, 3000)
 .lhb-date-bar {
   display: inline-flex; align-items: center; gap: 6px; margin-left: 12px;
   flex-wrap: wrap; row-gap: 4px;
-}
-.lhb-quick {
-  min-width: 34px; padding: 3px 8px; font-size: 12px; font-weight: 600;
-  border: 1px solid var(--border); border-radius: 6px;
-  background: var(--bg-card); color: var(--text-dim); cursor: pointer;
-  text-align: center; transition: all 0.15s;
-}
-.lhb-quick:hover { border-color: var(--accent); color: var(--accent); }
-.lhb-quick.active {
-  background: var(--accent); color: var(--accent-text, #fff);
-  border-color: var(--accent); font-weight: 700;
-}
-.lhb-custom { display: inline-flex; align-items: center; gap: 4px; }
-.lhb-custom-icon { font-size: 13px; }
-.lhb-custom input[type="date"] {
-  background: var(--bg-card); border: 1px solid var(--border); border-radius: 6px;
-  color: var(--text); font-size: 12px; padding: 2px 6px; max-width: 132px;
 }
 .lhb-clear {
   background: var(--accent-bg); color: var(--accent); border: 1px solid var(--accent);
