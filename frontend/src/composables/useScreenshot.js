@@ -53,6 +53,21 @@ export async function copyCanvas(canvas, filename) {
 }
 
 /**
+ * 将 canvas 直接保存为 PNG 文件下载（不经过剪贴板）。
+ * @param {HTMLCanvasElement} canvas
+ * @param {string} filename
+ */
+export function downloadCanvas(canvas, filename) {
+  const url = canvas.toDataURL('image/png')
+  const a = document.createElement('a')
+  a.href = url
+  a.download = filename || '截图.png'
+  document.body.appendChild(a)
+  a.click()
+  a.remove()
+}
+
+/**
  * 在截图外绘制留白 + 圆角描边（纯 canvas，不碰页面）。
  * @param {HTMLCanvasElement} src
  * @param {number} padCss 外边距（CSS 像素）
@@ -169,6 +184,11 @@ export async function captureElement(el, filename, opts = {}) {
     if (withFrame) canvas = frameCanvas(canvas, 14, scale)
     await applyWatermark(canvas)
 
+    if (opts.forceDownload) {
+      downloadCanvas(canvas, filename)
+      showToast(`截图成功，已下载 ${filename || '截图.png'}`, 'success')
+      return true
+    }
     const copied = await copyCanvas(canvas, filename)
     showToast(copied ? '截图成功，已复制到剪贴板' : `截图成功，已下载 ${filename || '截图.png'}`, 'success')
     return copied

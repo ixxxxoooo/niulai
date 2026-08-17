@@ -240,7 +240,7 @@ function close() {
 async function screenshot() {
   if (!modalEl.value) return
   const name = (props.name || props.code || 'AI') + '_AI分析.png'
-  await captureElement(modalEl.value, name)
+  await captureElement(modalEl.value, name, { forceDownload: true })
 }
 
 defineExpose({ open: openModal, close })
