@@ -8,6 +8,7 @@ import sys
 import threading
 import time
 from datetime import datetime, timezone, timedelta
+from pathlib import Path
 from typing import Any, Dict, List, Optional, Sequence
 
 from .. import config
@@ -16,7 +17,13 @@ from .tags import infer_board
 
 TZ_CN = timezone(timedelta(hours=8))
 DATA_DIR = config.BASE_DIR / "data"
-DB_PATH = DATA_DIR / "stock.db"
+
+# 测试环境使用临时数据库，避免 pytest 与运行中的容器并发写真实 data/stock.db 造成 WAL 损坏
+if "pytest" in sys.modules or os.environ.get("PYTEST_CURRENT_TEST"):
+    import tempfile
+    DB_PATH = Path(tempfile.gettempdir()) / "niulai_test_stock.db"
+else:
+    DB_PATH = DATA_DIR / "stock.db"
 
 _SCHEMA = """
 CREATE TABLE IF NOT EXISTS stocks (

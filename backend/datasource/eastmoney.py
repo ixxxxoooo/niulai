@@ -650,6 +650,75 @@ class EastMoneyClient:
         items = self.clist("b:MK0021", fid, limit)
         return [self._brief(it) for it in items]
 
+    def etf_holdings(self, code: str, top: int = 10) -> Dict[str, Any]:
+        """ETF 前 N 大持仓股（fundf10 股票投资明细，HTML 解析）。
+
+        返回: {"name": str, "date": str, "items": [{rank, code, name, ratio, price, change_pct, shares, market_value}]}
+        失败/非 ETF 时返回空 items。
+        """
+        url = "https://fundf10.eastmoney.com/FundArchivesDatas.aspx"
+        params = {"type": "jjcc", "code": code, "topline": str(max(1, min(top, 20)))}
+        headers = {
+            "User-Agent": config.USER_AGENT,
+            "Referer": f"https://fundf10.eastmoney.com/{code}.html",
+        }
+        resp = httpx.get(url, params=params, headers=headers,
+                         timeout=config.REQUEST_TIMEOUT)
+        resp.raise_for_status()
+        html = resp.content.decode("utf-8", errors="ignore")
+        items = self._parse_fund_holdings(html, top)
+        return {"code": code, "items": items}
+
+    @staticmethod
+    def _parse_fund_holdings(html: str, top: int) -> List[Dict[str, Any]]:
+        """解析 fundf10 持仓 HTML。列：序号 | 代码 | 名称 | 最新价(span) | 涨跌幅(span) | 相关资讯 | 占净值比 | 持股数(万股) | 持仓市值(万元)。"""
+        import re
+        out = []
+        if not html:
+            return out
+        try:
+            # 按 <tr> 切分 tbody 行
+            body = html.split("<tbody>", 1)
+            if len(body) < 2:
+                return out
+            rows_html = body[1].split("</tbody>", 1)[0].split("<tr")
+            for row in rows_html[1:]:
+                tds = re.findall(r"<td[^>]*>(.*?)</td>", row, re.S)
+                if len(tds) < 7:
+                    continue
+                cells = [re.sub(r"<[^>]+>", "", t).strip() for t in tds]
+                rank = cells[0]
+                code = re.search(r"\d{6}", tds[1] or "").group(0) if re.search(r"\d{6}", tds[1] or "") else cells[1]
+                name = cells[2]
+                price = cells[3]
+                change_pct = cells[4]
+                ratio = cells[6] if len(cells) > 6 else ""
+                shares = cells[7] if len(cells) > 7 else ""
+                market_value = cells[8] if len(cells) > 8 else ""
+                if not code or not name:
+                    continue
+                def _num(s):
+                    s = (s or "").replace(",", "").replace("%", "").strip()
+                    try:
+                        return float(s)
+                    except (TypeError, ValueError):
+                        return None
+                out.append({
+                    "rank": int(rank) if rank.isdigit() else None,
+                    "code": code,
+                    "name": name,
+                    "price": _num(price),
+                    "change_pct": _num(change_pct),
+                    "ratio": _num(ratio),
+                    "shares": _num(shares),
+                    "market_value": _num(market_value),
+                })
+                if len(out) >= top:
+                    break
+        except Exception:
+            pass
+        return out
+
     # ---------------------------------------------------------------- 板块
     def sector_list(self, stype: str = "industry", limit: int = 100,
                     sort_by: str = "change_pct", all_pages: bool = False) -> List[SectorQuote]:

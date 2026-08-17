@@ -141,6 +141,25 @@ def stock_limit_tag(code: str):
     return None
 
 
+@router.get("/stocks/{code}/holdings")
+@ttl_cache(ttl=config.CACHE_TTL_OFFHOURS)
+def stock_holdings(code: str):
+    """ETF 持仓成分股（fundf10 前 N 大持仓）。
+
+    @author ygw
+    参数:
+        code: 6 位基金/ETF 代码
+    返回: {"code": str, "is_etf": bool, "items": [{rank, code, name, price, change_pct, ratio, shares, market_value}]}
+    """
+    code = (code or "").strip()
+    try:
+        data = eastmoney.get_client().etf_holdings(code, top=10)
+        items = data.get("items") or []
+        return {"code": code, "is_etf": bool(items), "items": items}
+    except Exception:
+        return {"code": code, "is_etf": False, "items": []}
+
+
 @router.get("/stocks/{code}/trends")
 @ttl_cache()
 def stock_trends(code: str):

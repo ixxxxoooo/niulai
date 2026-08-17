@@ -70,6 +70,7 @@ export const api = {
   moneyflowHistory: (code, days = 5) => get(`/stocks/${code}/moneyflow?days=${days}`),
   stockLhb: (code) => get(`/stocks/${code}/lhb`),
   batch: (codes) => get(`/stocks/batch?codes=${codes.join(',')}`),
+  holdings: (code) => get(`/stocks/${code}/holdings`),
   limitUp: (limit = 100) => get(`/market/limit-up?limit=${limit}`),
   limitBreak: (limit = 100) => get(`/market/limit-break?limit=${limit}`),
   stockLimitTag: (code) => get(`/stocks/${code}/limit-tag`),

@@ -31,6 +31,35 @@
       :concept-list="conceptList"
     />
 
+    <!-- ETF 持仓成分股 -->
+    <div class="card mt16" v-if="isEtf">
+      <div class="card-title">
+        <span>ETF 持仓成分（前 {{ holdings.length || 10 }} 大持仓）</span>
+        <span class="card-title-sub" style="font-weight:400;color:var(--text-dim);font-size:12px">占比 = 占净值比例 · 行情为实时</span>
+      </div>
+      <div v-if="holdingsLoading" class="empty">正在加载持仓…</div>
+      <div class="table-wrap" v-else-if="holdings.length">
+        <table class="data-table">
+          <thead><tr>
+            <th>#</th><th>代码</th><th>名称</th><th>占净值比</th><th>最新价</th><th>涨跌幅</th><th>持股数(万股)</th><th>持仓市值(万元)</th>
+          </tr></thead>
+          <tbody>
+            <tr v-for="h in holdings" :key="h.code">
+              <td class="dim">{{ h.rank }}</td>
+              <td class="dim">{{ h.code }}</td>
+              <td><a class="leader-chip" @click="openStockFromHoldings(h)">{{ h.name }}</a></td>
+              <td><span class="ratio-pill">{{ h.ratio != null ? h.ratio.toFixed(2) + '%' : '-' }}</span></td>
+              <td>{{ h.price != null ? fmtPrice(h.price) : '-' }}</td>
+              <td :class="h.change_pct != null ? pctClass(h.change_pct) : ''">{{ h.change_pct != null ? fmtPct(h.change_pct) : '-' }}</td>
+              <td>{{ h.shares != null ? fmtNum(h.shares, 0) : '-' }}</td>
+              <td>{{ h.market_value != null ? fmtNum(h.market_value, 0) : '-' }}</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+      <div v-else class="empty">暂无持仓数据</div>
+    </div>
+
     <div class="grid-3 mt16">
       <StockCharts
         ref="chartsRef"
@@ -169,7 +198,7 @@ import { parseHash, navigate } from '../router.js'
 import { usePolling } from '../composables/usePolling.js'
 import { isWatched as codeWatched, toggleWatch as tw } from '../composables/useWatchlist.js'
 import { ensureIndicators } from '../chartIndicators.js'
-import { lookupMeta, peekMeta, rememberStock } from '../composables/useStockMeta.js'
+import { lookupMeta, peekMeta, rememberStock, openStock } from '../composables/useStockMeta.js'
 import { stockNavState, stockNavIndex, switchSiblingStock } from '../composables/useStockNav.js'
 import AlertQuickModal from '../components/AlertQuickModal.vue'
 import AiAnalysisPanel from '../components/AiAnalysisPanel.vue'
@@ -202,6 +231,9 @@ const aiPanelRef = ref(null)
 const lhbEl = ref(null)
 const localMeta = ref(peekMeta(code.value) || {})
 const limitTag = ref(null)
+const holdings = ref([])
+const holdingsLoading = ref(false)
+const isEtf = computed(() => String(detail.classify || localMeta.value.classify || '').toUpperCase() === 'FUND' || /ETF/i.test(String(detail.name || '')))
 
 const PREMIUM_TEXT = { positive: '正面', neutral_positive: '偏正面', neutral: '中性', negative: '负面' }
 
@@ -483,9 +515,39 @@ async function loadFast() {
     quoteSource.value = d.data_source || d.source || '东财/腾讯'
     quoteFetchedAt.value = d.fetched_at || nowLabel()
     error.value = ''
+    loadHoldings()
   } catch (e) {
     error.value = '实时数据加载失败：' + e.message
   }
+}
+
+/** 从 ETF 持仓点击成分股，进入其详情页（带返回当前 ETF） */
+function openStockFromHoldings(h) {
+  if (h && h.code) openStock({ code: h.code, name: h.name }, { origin: `/stock/${code.value}`, originLabel: '返回 ETF' })
+}
+
+/** 加载 ETF 持仓成分股并批量补实时行情 */
+async function loadHoldings() {
+  if (!isEtf.value) { holdings.value = []; return }
+  holdingsLoading.value = true
+  try {
+    const data = await api.holdings(code.value)
+    const items = data.items || []
+    if (!items.length) { holdings.value = []; return }
+    const codes = items.map(i => i.code)
+    const quotes = await api.batch(codes).catch(() => [])
+    const qMap = {}
+    for (const q of quotes) if (q && q.code) qMap[q.code] = q
+    holdings.value = items.map(i => {
+      const q = qMap[i.code] || {}
+      return {
+        ...i,
+        price: i.price ?? q.price ?? null,
+        change_pct: i.change_pct ?? q.change_pct ?? null,
+      }
+    })
+  } catch (e) { holdings.value = [] }
+  finally { holdingsLoading.value = false }
 }
 
 async function loadSlow() {
@@ -548,6 +610,7 @@ watch(() => props.code, (n) => {
   klineDay.value = null
   dayPoints.value = []
   flow.value = []
+  holdings.value = []
   limitTag.value = null
   hydrateLocal()
   loadFast()
@@ -590,4 +653,11 @@ onUnmounted(() => {
 .seat-name-cell { min-width: 100px; }
 .lhb-history-list { display: flex; flex-direction: column; gap: 3px; margin-top: 6px; }
 .lhb-history-item { display: flex; gap: 12px; font-size: 12px; align-items: center; }
+
+/* ETF 持仓成分 */
+.ratio-pill {
+  display: inline-block; padding: 1px 8px; border-radius: 10px;
+  font-size: 12px; font-weight: 600; color: var(--accent);
+  background: var(--accent-bg); border: 1px solid var(--accent);
+}
 </style>
