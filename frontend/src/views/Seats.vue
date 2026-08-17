@@ -15,21 +15,21 @@
           <span class="setting-value">{{ seatCount }} 条席位 / {{ seatGroups.length }} 位游资</span>
         </div>
         <div class="filter-bar">
-          <UiSelect v-model="filterTier" class="setting-input">
+          <UiSelect v-model="filterTier" style="width:150px">
             <option value="">全部级别</option>
             <option value="legend">殿堂级</option>
             <option value="new_gen">新生代</option>
             <option value="regional">地方帮派</option>
             <option value="broker">普通</option>
           </UiSelect>
-          <UiSelect v-model="filterPremium" class="setting-input">
+          <UiSelect v-model="filterPremium" style="width:150px">
             <option value="">全部属性</option>
             <option value="positive">正面</option>
             <option value="neutral_positive">偏正面</option>
             <option value="neutral">中性</option>
             <option value="negative">负面</option>
           </UiSelect>
-          <UiInput class="setting-input" v-model="filterKw" placeholder="搜索名称 / 席位" style="flex:1;min-width:160px" />
+          <UiInput v-model="filterKw" placeholder="搜索名称 / 席位" style="flex:1;min-width:160px" />
           <UiButton variant="subtle" @click="openSeatEditor()"><UiIcon name="plus" :size="14" /> 新增游资</UiButton>
           <UiButton variant="subtle" :disabled="seatSyncing" @click="syncSeats">{{ seatSyncing ? '同步中…' : '恢复内置字典' }}</UiButton>
         </div>
@@ -44,7 +44,7 @@
         <div class="setting-row" style="border:none;padding-bottom:0">
           <span class="setting-label" style="font-size:12px;color:var(--text-dim)">近期活跃度 = 近30天该游资在龙虎榜中出现的次数</span>
           <div class="setting-control" style="margin-left:auto">
-            <UiSelect v-model="sortMode" class="setting-input" style="width:auto" @change="applySeatSort">
+            <UiSelect v-model="sortMode" style="width:160px" @change="applySeatSort">
               <option value="activity">按活跃度排序</option>
               <option value="name">按名称排序</option>
             </UiSelect>
@@ -104,7 +104,7 @@
         <div class="setting-row">
           <span class="setting-label">按游资筛选</span>
           <div class="setting-control">
-            <UiSelect v-model="filterNick" class="setting-input" style="width:auto" @change="onFilterNick">
+            <UiSelect v-model="filterNick" style="width:160px" @change="onFilterNick">
               <option value="">全部（按日期查看当日）</option>
               <option v-for="g in seatGroups" :key="g.nickname" :value="g.nickname">
                 {{ g.nickname }}（{{ tierLabel(g.tier) }}）
@@ -116,7 +116,7 @@
         <div class="setting-row">
           <span class="setting-label">交易日</span>
           <div class="setting-control">
-            <UiInput type="date" v-model="movesDate" class="setting-input" style="width:auto" @change="loadMoves()" />
+            <UiInput type="date" v-model="movesDate" style="width:160px" @change="loadMoves()" />
             <span style="color:var(--text-dim);font-size:12px">{{ syncedDates.length }} 天已同步</span>
           </div>
         </div>
@@ -135,9 +135,9 @@
         <div class="setting-row">
           <span class="setting-label">同步日期范围</span>
           <div class="setting-control">
-            <UiInput type="date" v-model="syncStart" class="setting-input" style="width:auto" />
+            <UiInput type="date" v-model="syncStart" style="width:160px" />
             <span style="color:var(--text-dim)">至</span>
-            <UiInput type="date" v-model="syncEnd" class="setting-input" style="width:auto" />
+            <UiInput type="date" v-model="syncEnd" style="width:160px" />
             <UiButton variant="subtle" :disabled="movesSyncing" @click="doMovesSync">{{ movesSyncing ? '同步中…' : '同步' }}</UiButton>
           </div>
         </div>
@@ -224,14 +224,14 @@
       <div class="seat-modal">
         <div class="seat-modal-title">{{ editingSeatNick ? '编辑游资：' + editingSeatNick : '新增游资' }}</div>
         <label class="seat-form-row">名称
-          <UiInput class="setting-input" v-model="seatForm.nickname" :disabled="!!editingSeatNick" placeholder="如：章盟主" />
+          <UiInput v-model="seatForm.nickname" :disabled="!!editingSeatNick" placeholder="如：章盟主" full />
         </label>
         <label class="seat-form-row">实名
-          <UiInput class="setting-input" v-model="seatForm.real_name" placeholder="可选" />
+          <UiInput v-model="seatForm.real_name" placeholder="可选" full />
         </label>
         <div class="seat-form-row">
           <span class="seat-form-label">级别</span>
-          <UiSelect class="setting-input" v-model="seatForm.tier">
+          <UiSelect v-model="seatForm.tier" full>
             <option value="legend">殿堂级</option>
             <option value="new_gen">新生代</option>
             <option value="regional">地方帮派</option>
@@ -239,11 +239,11 @@
           </UiSelect>
         </div>
         <label class="seat-form-row">风格
-          <UiInput class="setting-input" v-model="seatForm.style" placeholder="如：打板，龙头接力" />
+          <UiInput v-model="seatForm.style" placeholder="如：打板，龙头接力" full />
         </label>
         <div class="seat-form-row">
           <span class="seat-form-label">属性</span>
-          <UiSelect class="setting-input" v-model="seatForm.premium">
+          <UiSelect v-model="seatForm.premium" full>
             <option value="positive">正面</option>
             <option value="neutral_positive">偏正面</option>
             <option value="neutral">中性</option>
@@ -259,7 +259,7 @@
           </div>
         </div>
         <label class="seat-form-row seat-form-textarea">自定义席位（每行一个营业部名称，可自由增删改）
-          <UiTextarea class="setting-input" v-model="seatForm.customSeatsText" :rows="5" placeholder="每行一个营业部名称，如：&#10;国泰君安证券股份有限公司上海江苏路证券营业部" />
+          <UiTextarea v-model="seatForm.customSeatsText" :rows="5" placeholder="每行一个营业部名称，如：&#10;国泰君安证券股份有限公司上海江苏路证券营业部" full />
         </label>
         <div class="seat-modal-ops">
           <UiButton variant="ghost" @click="closeSeatEditor">取消</UiButton>

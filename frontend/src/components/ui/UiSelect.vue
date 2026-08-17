@@ -29,7 +29,7 @@ function onChange(e) {
 <style scoped>
 .ui-select { position: relative; display: inline-flex; align-items: center; }
 .ui-select select {
-  height: 32px; padding: 0 30px 0 12px; border-radius: 6px;
+  height: 32px; width: 100%; padding: 0 30px 0 12px; border-radius: 6px;
   border: 1px solid var(--border); background: var(--bg-card); color: var(--text);
   font-size: 13px; outline: none; cursor: pointer; font-family: inherit;
   appearance: none; -webkit-appearance: none; transition: border-color 0.15s;

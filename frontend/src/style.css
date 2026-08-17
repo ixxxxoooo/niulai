@@ -623,7 +623,7 @@ table.data-table { width: 100%; border-collapse: collapse; font-size: 13px; }
   cursor: pointer; font-size: 13px; color: var(--text); user-select: none;
   background: var(--bg-card);
 }
-.filter-opt input { accent-color: var(--accent); }
+.filter-opt:has(input:disabled) { opacity: 0.5; cursor: not-allowed; }
 .filter-opt.on { border-color: var(--accent); background: var(--accent-bg); }
 
 /* 资金流数值摘要 */

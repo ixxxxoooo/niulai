@@ -31,18 +31,14 @@
       <div class="setting-row">
         <span class="setting-label">过滤标的</span>
         <div class="setting-control" style="flex-wrap:wrap">
-          <label class="filter-opt" :class="{ on: hideKcb }">
-            <UiCheckbox :checked="hideKcb" @change="toggleHide('hideKcb')"> 科创板</UiCheckbox>
-          </label>
-          <label class="filter-opt" :class="{ on: hideCyb }">
-            <UiCheckbox :checked="hideCyb" @change="toggleHide('hideCyb')"> 创业板</UiCheckbox>
-          </label>
-          <label class="filter-opt" :class="{ on: hideSt }">
-            <UiCheckbox :checked="hideSt" @change="toggleHide('hideSt')"> ST</UiCheckbox>
-          </label>
-          <label class="filter-opt" :class="{ on: hideBse }">
-            <UiCheckbox :checked="hideBse" @change="toggleHide('hideBse')"> 北交所</UiCheckbox>
-          </label>
+          <span class="filter-opt" :class="{ on: hideKcb }">
+            <UiCheckbox :checked="hideKcb" @change="toggleHide('hideKcb')"> 科创板</UiCheckbox></span>
+          <span class="filter-opt" :class="{ on: hideCyb }">
+            <UiCheckbox :checked="hideCyb" @change="toggleHide('hideCyb')"> 创业板</UiCheckbox></span>
+          <span class="filter-opt" :class="{ on: hideSt }">
+            <UiCheckbox :checked="hideSt" @change="toggleHide('hideSt')"> ST</UiCheckbox></span>
+          <span class="filter-opt" :class="{ on: hideBse }">
+            <UiCheckbox :checked="hideBse" @change="toggleHide('hideBse')"> 北交所</UiCheckbox></span>
         </div>
       </div>
     </div>
@@ -249,11 +245,11 @@
       </div>
       <div class="setting-row">
         <span class="setting-label">API Base URL</span>
-        <UiInput class="setting-input" v-model="aiBaseUrl" placeholder="https://api.deepseek.com" @change="setAi('aiBaseUrl', aiBaseUrl)" />
+        <UiInput v-model="aiBaseUrl" placeholder="https://api.deepseek.com" style="width:360px;max-width:60vw" @change="setAi('aiBaseUrl', aiBaseUrl)" />
       </div>
       <div class="setting-row">
         <span class="setting-label">API Key</span>
-        <UiInput class="setting-input" type="password" v-model="aiApiKey" placeholder="sk-..." @change="setAi('aiApiKey', aiApiKey)" />
+        <UiInput type="password" v-model="aiApiKey" placeholder="sk-..." style="width:360px;max-width:60vw" @change="setAi('aiApiKey', aiApiKey)" />
       </div>
       <div class="setting-row">
         <span class="setting-label">模型</span>
@@ -267,7 +263,7 @@
       </div>
       <div class="setting-row" v-if="showCustomModel || !['deepseek-chat','deepseek-reasoner','deepseek-v4-flash','gpt-4o'].includes(aiModel)">
         <span class="setting-label">自定义模型名</span>
-        <UiInput class="setting-input" v-model="customModelName" placeholder="model-name" @change="setAi('aiModel', customModelName)" />
+        <UiInput v-model="customModelName" placeholder="model-name" style="width:360px;max-width:60vw" @change="setAi('aiModel', customModelName)" />
       </div>
       <div class="setting-row">
         <span class="setting-label" style="font-size:12px; color:var(--text-dim)">说明：推理类模型（R1 / V4 Flash）会先「思考」再输出，耗时更长；盘中分析建议优先用 DeepSeek Chat。API Key 保存在本机后端，分析经 `/api/ai/chat` 代理。</span>
@@ -285,7 +281,7 @@
       </div>
       <div class="setting-row">
         <span class="setting-label">Webhook URL</span>
-        <UiInput class="setting-input" v-model="feishuWebhook" placeholder="https://open.feishu.cn/open-apis/bot/v2/hook/..." @change="setFeishu('feishu_webhook', feishuWebhook)" />
+        <UiInput v-model="feishuWebhook" placeholder="https://open.feishu.cn/open-apis/bot/v2/hook/..." style="width:360px;max-width:60vw" @change="setFeishu('feishu_webhook', feishuWebhook)" />
       </div>
       <div class="setting-row">
         <span class="setting-label">如何配置</span>
@@ -315,9 +311,8 @@
       <div class="setting-row">
         <span class="setting-label">监控异动类型</span>
         <div class="setting-control" style="flex-wrap:wrap">
-          <label class="filter-opt" :class="{ on: watchTypes.includes(t.code) }" v-for="t in changeTypeOptions" :key="t.code">
-            <UiCheckbox :checked="watchTypes.includes(t.code)" @change="toggleChangeType(t.code)"> {{ t.label }}</UiCheckbox>
-          </label>
+          <span class="filter-opt" :class="{ on: watchTypes.includes(t.code) }" v-for="t in changeTypeOptions" :key="t.code">
+            <UiCheckbox :checked="watchTypes.includes(t.code)" @change="toggleChangeType(t.code)"> {{ t.label }}</UiCheckbox></span>
         </div>
       </div>
       <div class="setting-row">

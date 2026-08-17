@@ -1,6 +1,7 @@
 <template>
   <textarea
     class="ui-textarea"
+    :class="{ full }"
     :value="modelValue"
     :rows="rows"
     :placeholder="placeholder"
@@ -16,6 +17,7 @@ const props = defineProps({
   rows: { type: [String, Number], default: 4 },
   placeholder: { type: String, default: '' },
   disabled: { type: Boolean, default: false },
+  full: { type: Boolean, default: false },
 })
 const emit = defineEmits(['update:modelValue', 'change'])
 function onInput(e) {
@@ -36,4 +38,5 @@ function onChange(e) {
 .ui-textarea::placeholder { color: var(--text-dim); }
 .ui-textarea:focus { border-color: var(--accent); }
 .ui-textarea:disabled { opacity: 0.5; cursor: not-allowed; }
+.ui-textarea.full { width: 100%; }
 </style>

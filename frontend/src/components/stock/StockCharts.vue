@@ -20,10 +20,10 @@
     </div>
     <div class="sr-picker" v-if="srOptions.length && chartPeriod !== 'trend'">
       <span class="sr-picker-label">压力/支撑</span>
-      <label v-for="opt in srOptions" :key="opt.id" class="sr-opt" :class="{ on: selectedSR.has(opt.id), resist: opt.side==='r', support: opt.side==='s' }">
+      <span v-for="opt in srOptions" :key="opt.id" class="sr-opt" :class="{ on: selectedSR.has(opt.id), resist: opt.side==='r', support: opt.side==='s' }">
         <UiCheckbox :checked="selectedSR.has(opt.id)" @change="toggleSRItem(opt.id)" />
         <span>{{ opt.label }} {{ opt.price }}</span>
-      </label>
+      </span>
     </div>
     <!-- 分时 / K 线分组件，共享同一 DOM 容器由父级切换渲染 -->
     <TrendChart
