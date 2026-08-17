@@ -26,7 +26,7 @@ def _safe(fn, default=None):
 
 
 def market_overview() -> MarketOverview:
-    """聚合大盘概况：指数、两市成交额、涨跌家数、涨停家数（不含量能，量能走独立接口）"""
+    """聚合大盘概况：指数、沪深京三市成交额、涨跌家数、涨停家数（不含量能，量能走独立接口）"""
     client = eastmoney.get_client()
 
     # 并发拉取页面直接展示的数据源
@@ -34,10 +34,13 @@ def market_overview() -> MarketOverview:
         f_indices = ex.submit(client.index_quotes)
         f_pool = ex.submit(lambda: client.limit_up_pool(limit=300))
         f_tq = ex.submit(lambda: tencent.get_client().fetch_quotes(["000001"]))
+        # 北证50：通达信/同花顺涨跌家数为沪深京三市口径，需补北交所
+        f_bj = ex.submit(lambda: client.index_quotes(["0.899050"]))
 
         indices = _safe(lambda: f_indices.result(), [])
         pool = _safe(lambda: f_pool.result(), [])
         tq = _safe(lambda: f_tq.result(), {})
+        bj = _safe(lambda: f_bj.result(), [])
 
     total_amount: Optional[float] = None
     up = down = flat = 0
@@ -47,6 +50,11 @@ def market_overview() -> MarketOverview:
             up += q.up_count or 0
             down += q.down_count or 0
             flat += q.flat_count or 0
+    # 北交所（北证50 的涨跌家数即全北交所，东财对同市场指数返回同一份数据）
+    for q in bj:
+        up += q.up_count or 0
+        down += q.down_count or 0
+        flat += q.flat_count or 0
 
     limit_up_count = len(pool) if pool else None
 
