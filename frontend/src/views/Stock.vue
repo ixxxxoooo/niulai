@@ -193,7 +193,7 @@
  */
 import { ref, reactive, computed, watch, onMounted, onUnmounted } from 'vue'
 import { api } from '../api.js'
-import { fmtAmount, fmtPrice, fmtNum, pctClass } from '../utils.js'
+import { fmtAmount, fmtPrice, fmtNum, fmtPct, pctClass } from '../utils.js'
 import { parseHash, navigate } from '../router.js'
 import { usePolling } from '../composables/usePolling.js'
 import { isWatched as codeWatched, toggleWatch as tw } from '../composables/useWatchlist.js'
