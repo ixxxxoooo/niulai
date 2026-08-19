@@ -48,10 +48,10 @@
         </div>
       </div>
 
-      <div class="card mt12" v-if="watchStocks.length" ref="stockCard">
+      <div class="card mt12" v-if="watchRows.length" ref="stockCard">
         <div class="card-title">
-          <span>{{ currentGroupName }} · 个股（{{ watchStocks.length }}）</span>
-          <button class="btn-screenshot" @click="captureElement(stockCard, `${currentGroupName}个股.png`)" title="截图">
+          <span>{{ currentGroupName }}（{{ watchRows.length }}）</span>
+          <button class="btn-screenshot" @click="captureElement(stockCard, `${currentGroupName}自选.png`)" title="截图">
             <UiIcon name="screenshot" :size="14" />
           </button>
         </div>
@@ -60,16 +60,16 @@
             <thead>
               <tr>
                 <th>名称</th><th>代码</th>
-                <th class="sortable" :class="{ sorted: tsWS.sortKey === 'price' }" @click="tsWS.toggleSort('price')">现价</th>
-                <th class="sortable" :class="{ sorted: tsWS.sortKey === 'change_pct' }" @click="tsWS.toggleSort('change_pct')">涨跌幅</th>
-                <th class="sortable" :class="{ sorted: tsWS.sortKey === 'zhangsu' }" @click="tsWS.toggleSort('zhangsu')">涨速</th>
-                <th class="sortable" :class="{ sorted: tsWS.sortKey === 'amount' }" @click="tsWS.toggleSort('amount')">成交额</th>
-                <th class="sortable" :class="{ sorted: tsWS.sortKey === 'main_inflow' }" @click="tsWS.toggleSort('main_inflow')">主力净流入</th>
+                <th class="sortable" :class="{ sorted: tsW.sortKey === 'price' }" @click="tsW.toggleSort('price')">现价</th>
+                <th class="sortable" :class="{ sorted: tsW.sortKey === 'change_pct' }" @click="tsW.toggleSort('change_pct')">涨跌幅</th>
+                <th class="sortable" :class="{ sorted: tsW.sortKey === 'zhangsu' }" @click="tsW.toggleSort('zhangsu')">涨速</th>
+                <th class="sortable" :class="{ sorted: tsW.sortKey === 'amount' }" @click="tsW.toggleSort('amount')">成交额</th>
+                <th class="sortable" :class="{ sorted: tsW.sortKey === 'main_inflow' }" @click="tsW.toggleSort('main_inflow')">主力净流入</th>
                 <th>操作</th>
               </tr>
             </thead>
             <tbody>
-              <tr v-for="s in tsWS.sorted" :key="s.code" @click="openFromList(s, tsWS.sorted, '返回自选')">
+              <tr v-for="s in tsW.sorted" :key="s.code" @click="openFromList(s, tsW.sorted, '返回自选')">
                 <td class="stock-name">
                   <MiniTrend :code="s.code" :name="s.name">
                     <span class="name-cell">
@@ -107,56 +107,10 @@
         </div>
       </div>
 
-      <div class="card mt12" v-if="watchEtfs.length" ref="etfCard">
-        <div class="card-title">
-          <span>{{ currentGroupName }} · ETF（{{ watchEtfs.length }}）</span>
-          <button class="btn-screenshot" @click="captureElement(etfCard, `${currentGroupName}ETF.png`)" title="截图">
-            <UiIcon name="screenshot" :size="14" />
-          </button>
-        </div>
-        <div class="table-wrap">
-          <table class="data-table">
-            <thead>
-              <tr>
-                <th>名称</th><th>代码</th>
-                <th class="sortable" :class="{ sorted: tsWE.sortKey === 'price' }" @click="tsWE.toggleSort('price')">现价</th>
-                <th class="sortable" :class="{ sorted: tsWE.sortKey === 'change_pct' }" @click="tsWE.toggleSort('change_pct')">涨跌幅</th>
-                <th class="sortable" :class="{ sorted: tsWE.sortKey === 'zhangsu' }" @click="tsWE.toggleSort('zhangsu')">涨速</th>
-                <th class="sortable" :class="{ sorted: tsWE.sortKey === 'amount' }" @click="tsWE.toggleSort('amount')">成交额</th>
-                <th class="sortable" :class="{ sorted: tsWE.sortKey === 'main_inflow' }" @click="tsWE.toggleSort('main_inflow')">主力净流入</th>
-                <th>操作</th>
-              </tr>
-            </thead>
-            <tbody>
-              <tr v-for="s in tsWE.sorted" :key="s.code" @click="openFromList(s, tsWE.sorted, '返回自选')">
-                <td class="stock-name">
-                  <MiniTrend :code="s.code" :name="s.name">
-                    <span class="name-cell"><BoardBadges :row="s" />{{ s.name }}<span v-if="s.shares" class="hold-tag">持仓</span></span>
-                  </MiniTrend>
-                </td>
-                <td>{{ s.code }}</td>
-                <td :class="pctClass(s.change_pct)">{{ fmtPrice(s.price) }}</td>
-                <td><span class="pct-badge" :class="pctClass(s.change_pct)">{{ fmtPct(s.change_pct) }}</span></td>
-                <td :class="pctClass(s.zhangsu)">{{ fmtPct(s.zhangsu) }}</td>
-                <td>{{ fmtAmount(s.amount) }}</td>
-                <td :class="pctClass(s.main_inflow)">{{ fmtAmount(s.main_inflow) }}</td>
-                <td>
-                  <div class="td-actions">
-                    <UiButton size="sm" variant="ghost" @click.stop="openStockGroup(s)">分组</UiButton>
-                    <UiButton size="sm" variant="ghost" @click.stop="edit(s)">{{ s.shares ? '改仓' : '录入' }}</UiButton>
-                    <UiButton size="sm" variant="danger" @click.stop="removeStock(s)">{{ currentGroupId !== null ? '移出' : '删除' }}</UiButton>
-                  </div>
-                </td>
-              </tr>
-            </tbody>
-          </table>
-        </div>
-      </div>
-
       <div class="card mt12" v-if="!watchRows.length">
         <div class="empty">
-          <div class="empty-title">当前分组「{{ currentGroupName }}」暂无自选股</div>
-          <div class="empty-desc">可点击「分组管理」导入热门预设，或在其他页面搜索添加。</div>
+          <div class="empty-title">当前分组「{{ currentGroupName }}」暂无自选标的</div>
+          <div class="empty-desc">可点击右下角「分组管理」导入预设或添加标的，或在搜索框添加。</div>
           <div class="empty-actions mt12">
             <UiButton size="sm" variant="primary" @click="showGroupManage = true">管理分组 / 导入预设</UiButton>
             <UiButton size="sm" variant="ghost" v-if="currentGroupId !== null" @click="selectGroup(null)">查看全部自选</UiButton>
@@ -498,6 +452,7 @@ const currentGroupName = computed(() => {
 })
 
 function groupIcon(name) {
+  if (/ETF|基金/i.test(name)) return '📊'
   if (/光通信|CPO/i.test(name)) return '📡'
   if (/PCB|覆铜/i.test(name)) return '🖨️'
   if (/封装|Chiplet|HBM/i.test(name)) return '🧩'
@@ -507,7 +462,7 @@ function groupIcon(name) {
   if (/AI软件|大模型|软件/i.test(name)) return '🌐'
   if (/消费电子|苹果|华为/i.test(name)) return '📱'
   if (/锂电|固态电池|电池/i.test(name)) return '🔋'
-  if (/电网|特高压|电力设备/i.test(name)) return '⚡'
+  if (/电网|特高压|电力设备|电力|绿电|水电|核电/i.test(name)) return '⚡'
   if (/光伏|储能|太阳能/i.test(name)) return '☀️'
   if (/券商|证券|互联网金融/i.test(name)) return '📈'
   if (/商业航天|卫星/i.test(name)) return '🛰️'
@@ -560,14 +515,13 @@ const quotesMap = computed(() => {
   return map
 })
 
-// 计算某个分组内全部股票的平均涨跌幅
+/** 获取任意分组中成分股的平均涨跌幅百分比 */
 function getGroupAvgPct(g) {
-  const codes = g?.codes || []
-  if (!codes.length) return null
+  if (!g || !g.codes || !g.codes.length) return null
   let total = 0
   let count = 0
-  for (const c of codes) {
-    const q = quotesMap.value[c]
+  for (const code of g.codes) {
+    const q = quotesMap.value[code]
     if (q && q.change_pct != null && !isNaN(q.change_pct)) {
       total += Number(q.change_pct)
       count++
@@ -651,8 +605,6 @@ const filtered = computed(() => withPos(applyListFilter(list.value)))
 
 /** 自选 tab：只展示真实自选（持仓股默认已在自选里，带「持仓」标记） */
 const watchRows = computed(() => filtered.value.filter(s => watchState.codes.includes(s.code)))
-const watchStocks = computed(() => watchRows.value.filter(s => !isEtf(s)))
-const watchEtfs = computed(() => watchRows.value.filter(s => isEtf(s)))
 
 /** 持仓 tab：全部持仓（个股 / ETF 分表），按市值降序、附仓位占比 */
 const holdings = computed(() => {
@@ -666,8 +618,7 @@ const holdStocks = computed(() => holdings.value.filter(s => !isEtf(s)))
 const holdEtfs = computed(() => holdings.value.filter(s => isEtf(s)))
 const hasPos = computed(() => holdings.value.length > 0)
 
-const tsWS = useTableSort(watchStocks, 'watchlist_stocks')
-const tsWE = useTableSort(watchEtfs, 'watchlist_etfs')
+const tsW = useTableSort(watchRows, 'watchlist_stocks')
 const tsHS = useTableSort(holdStocks, 'holdings_stocks')
 const tsHE = useTableSort(holdEtfs, 'holdings_etfs')
 
