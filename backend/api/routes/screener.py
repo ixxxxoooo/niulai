@@ -13,6 +13,7 @@ class SyncBarsBody(BaseModel):
     """日 K 同步参数"""
     lookback_days: int = Field(default=120, ge=30, le=500)
     scope: str = Field(default="all", pattern="^(all|watchlist)$")
+    mode: str = Field(default="today_bulk", pattern="^(today_bulk|history)$")
 
 
 class ScreenRunBody(BaseModel):
@@ -53,7 +54,7 @@ class SeatGroupPatchBody(BaseModel):
 def screener_sync_bars(body: SyncBarsBody):
     """触发日 K 线后台同步任务。"""
     from ...db.daily_sync import start_daily_sync_job
-    return {"ok": True, **start_daily_sync_job(body.lookback_days, body.scope)}
+    return {"ok": True, **start_daily_sync_job(body.lookback_days, body.scope, body.mode)}
 
 
 @router.get("/screener/sync-status")

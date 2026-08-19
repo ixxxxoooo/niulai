@@ -53,6 +53,7 @@ def test_lhb_multi_slot_auto_sync():
     store.init_db()
     store.set_setting("lhbAutoSync", "1")
     today = "2026-08-10"  # 周一
+    store.set_setting(f"lhbSyncedSlots_{today}", "")
 
     # 1. 16:00 未到达任何槽位，不触发
     with mock.patch("backend.db.lhb_moves.sync_records_for_dates") as mock_sync:

@@ -178,8 +178,8 @@ export const api = {
 
   // 盘后选股
   screenerRules: () => get('/screener/rules'),
-  screenerSyncBars: (lookback = 120, scope = 'all') =>
-    send('POST', '/screener/sync-bars', { lookback_days: lookback, scope }),
+  screenerSyncBars: (lookback = 120, scope = 'all', mode = 'today_bulk') =>
+    send('POST', '/screener/sync-bars', { lookback_days: lookback, scope, mode }),
   screenerSyncStatus: () => get('/screener/sync-status'),
   screenerRun: (rules, scope = 'all', notifyFeishu = false, params = null) =>
     send('POST', '/screener/run', { rules, scope, notify_feishu: notifyFeishu, params }),

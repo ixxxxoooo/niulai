@@ -223,6 +223,13 @@ def start_background_sync() -> None:
                 except Exception:
                     logger.exception("定时同步失败")
 
+            # 每日 15:30 全市场收盘日 K 自动极速批量同步检查
+            try:
+                from .daily_sync import auto_sync_daily_bars_if_needed
+                auto_sync_daily_bars_if_needed()
+            except Exception:
+                logger.debug("每日收盘日K自动同步检查失败")
+
             # 龙虎榜高精度定时节点检查（每 30 秒检查一次是否有到达的触发时间点）
             try:
                 from .lhb_moves import auto_sync_today_if_needed

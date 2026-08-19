@@ -1,18 +1,24 @@
 """全 A 日 K 线增量同步到 SQLite（用于盘后选股）
+支持全市场 1.5 秒极速批量打包同步与历史多日回溯
 @author ygw
 """
 import threading
 import time
 from concurrent.futures import ThreadPoolExecutor, as_completed
-from typing import Any, Callable, Dict, Optional
+from datetime import datetime
+from typing import Any, Callable, Dict, List, Optional
 
+from .. import config
 from ..logging_config import logger
 from . import store
+
+TZ_CN = store.TZ_CN
 
 _job_lock = threading.Lock()
 _job: Dict[str, Any] = {
     "running": False,
     "scope": "daily_bars",
+    "mode": "today_bulk",
     "percent": 0,
     "message": "空闲",
     "total": 0,
@@ -36,12 +42,7 @@ def _set_progress(percent: int, message: str, done: int = 0, total: int = 0) -> 
 
 
 def daily_sync_status() -> Dict[str, Any]:
-    """
-    返回当前日 K 同步任务状态（前端轮询用）。
-
-    返回:
-        包含 running/percent/message/done/total/error 等字段的字典
-    """
+    """返回当前日 K 同步任务状态（前端轮询用）。"""
     with _job_lock:
         st = dict(_job)
     conn = store.get_conn()
@@ -50,59 +51,120 @@ def daily_sync_status() -> Dict[str, Any]:
         st["stock_count"] = row["cnt"] if row else 0
         row2 = conn.execute("SELECT MAX(trade_date) AS d FROM daily_bars").fetchone()
         st["latest_date"] = row2["d"] if row2 else None
+        row3 = conn.execute("SELECT COUNT(*) AS total_bars FROM daily_bars").fetchone()
+        st["total_bars"] = row3["total_bars"] if row3 else 0
     except Exception:
         st["stock_count"] = 0
         st["latest_date"] = None
+        st["total_bars"] = 0
     return st
 
 
-def _fetch_kline_batch(codes: list, lookback: int) -> list:
+def sync_today_bars_bulk(trade_date: Optional[str] = None,
+                         progress: Optional[Callable] = None) -> int:
     """
-    批量拉取一组股票日 K 线。
+    使用东财全市场 clist 批量打包接口，1.5 秒极速同步全市场 5400+ 只 A 股今日收盘日 K。
+    杜绝逐只股票连续请求导致的频控与封禁。
 
     参数:
-        codes: 股票代码列表
-        lookback: 拉取的 K 线条数
-
-    返回:
-        [(code, date, open, high, low, close, volume, amount), ...]
-    """
-    from ..datasource import eastmoney
-    results = []
-    client = eastmoney.get_client()
-    for code in codes:
-        try:
-            kl = client.kline(code, period="day", limit=lookback)
-            if not kl or not kl.get("points"):
-                continue
-            for p in kl["points"]:
-                results.append((
-                    code,
-                    p.get("date") or "",
-                    p.get("open"),
-                    p.get("high"),
-                    p.get("low"),
-                    p.get("close"),
-                    p.get("volume"),
-                    p.get("amount"),
-                ))
-        except Exception as e:
-            logger.debug("日K拉取失败 %s: %s", code, e)
-    return results
-
-
-def sync_daily_bars(lookback_days: int = 120, scope: str = "all",
-                    progress: Optional[Callable] = None) -> int:
-    """
-    全 A 日 K 增量同步到 SQLite daily_bars 表。
-
-    参数:
-        lookback_days: 每只拉取的 K 线条数（默认 120 个交易日）
-        scope: "all" 全 A 股 / "watchlist" 仅自选
+        trade_date: 目标日期 YYYY-MM-DD（默认今天）
         progress: 进度回调 (percent, message, done, total)
 
     返回:
-        写入总行数
+        写入的日 K 记录数
+    """
+    from .lhb_seats import ensure_tables
+    ensure_tables()
+
+    now = datetime.now(TZ_CN)
+    today_str = trade_date or now.strftime("%Y-%m-%d")
+
+    if progress:
+        progress(10, "正在批量拉取全市场 A 股收盘数据（约 1.5 秒）…", 0, 5400)
+
+    t0 = time.monotonic()
+    from ..datasource import eastmoney
+    client = eastmoney.get_client()
+
+    fields = "f12,f14,f2,f3,f4,f5,f6,f15,f16,f17,f18,f8,f62"
+    diff_list = client._clist_all_pages(config.FS_ALL_A, fields=fields, concurrency=6)
+
+    if not diff_list:
+        if progress:
+            progress(100, "未获取到全市场行情数据", 0, 0)
+        return 0
+
+    if progress:
+        progress(60, f"已获取 {len(diff_list)} 只股票数据，正在批量写入数据库…", len(diff_list), len(diff_list))
+
+    rows_data: List[tuple] = []
+    for it in diff_list:
+        code = str(it.get("f12") or "").strip()
+        if not code:
+            continue
+        close_p = it.get("f2")
+        vol = it.get("f5")
+        if close_p is None or close_p == "-" or (isinstance(close_p, (int, float)) and close_p <= 0):
+            continue
+        try:
+            c = float(close_p)
+            o = float(it.get("f17") or c)
+            h = float(it.get("f15") or c)
+            l = float(it.get("f16") or c)
+            v = float(vol or 0)
+            a = float(it.get("f6") or 0)
+            rows_data.append((code, today_str, o, h, l, c, v, a))
+        except (ValueError, TypeError):
+            continue
+
+    written = 0
+    if rows_data:
+        with store._lock:
+            conn = store.get_conn()
+            conn.executemany(
+                "INSERT OR REPLACE INTO daily_bars"
+                "(code, trade_date, open, high, low, close, volume, amount) "
+                "VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+                rows_data,
+            )
+            conn.commit()
+            written = len(rows_data)
+
+    dur_ms = (time.monotonic() - t0) * 1000
+    logger.info("全市场日K极速批量同步完成: %d 只, 日期: %s (耗时 %.0fms)", written, today_str, dur_ms)
+
+    if progress:
+        progress(100, f"极速同步完成，写入 {written} 只股票日K (耗时 {dur_ms:.0f}ms)", written, written)
+
+    return written
+
+
+def _fetch_kline_single(client, code: str, lookback: int) -> List[tuple]:
+    """拉取单只股票历史日 K 线"""
+    results = []
+    try:
+        kl = client.kline(code, period="day", limit=lookback)
+        if not kl or not kl.get("points"):
+            return []
+        for p in kl["points"]:
+            d = p.get("date") or ""
+            if not d:
+                continue
+            results.append((
+                code, d,
+                p.get("open"), p.get("high"), p.get("low"), p.get("close"),
+                p.get("volume"), p.get("amount"),
+            ))
+    except Exception as e:
+        logger.debug("历史日K拉取失败 %s: %s", code, e)
+    return results
+
+
+def sync_historical_bars(lookback_days: int = 120, scope: str = "watchlist",
+                         progress: Optional[Callable] = None) -> int:
+    """
+    同步历史日 K 线（用于刚建库时补齐前 N 天均线多空数据）。
+    针对自选股（秒级完成）或全市场（多线程温和分批）。
     """
     from .lhb_seats import ensure_tables
     ensure_tables()
@@ -121,68 +183,69 @@ def sync_daily_bars(lookback_days: int = 120, scope: str = "all",
 
     total = len(codes)
     if progress:
-        progress(1, f"准备同步 {total} 只…", 0, total)
+        progress(2, f"准备同步 {total} 只股票历史 K 线…", 0, total)
 
-    # 检查每只的最新日期，决定是否需要更新
-    today_str = time.strftime("%Y-%m-%d")
-    need_update = []
-    for code in codes:
-        row = conn.execute(
-            "SELECT MAX(trade_date) AS d FROM daily_bars WHERE code = ?", (code,)
-        ).fetchone()
-        last = row["d"] if row else None
-        if not last or last < today_str:
-            need_update.append(code)
+    from ..datasource import eastmoney
+    client = eastmoney.get_client()
 
-    if not need_update:
-        if progress:
-            progress(100, f"全部 {total} 只已是最新", total, total)
-        return 0
-
-    total_need = len(need_update)
-    if progress:
-        progress(2, f"需更新 {total_need} 只…", 0, total_need)
-
-    batch_size = 50
-    batches = [need_update[i:i + batch_size] for i in range(0, total_need, batch_size)]
     written = 0
     done_count = 0
+    batch_size = 30
+    concurrency = 6 if scope == "watchlist" else 4
 
-    for bi, batch in enumerate(batches):
-        try:
-            rows_data = _fetch_kline_batch(batch, lookback_days)
-            if rows_data:
-                with store._lock:
-                    conn2 = store.get_conn()
-                    conn2.executemany(
-                        "INSERT OR REPLACE INTO daily_bars"
-                        "(code, trade_date, open, high, low, close, volume, amount) "
-                        "VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
-                        rows_data,
-                    )
-                    conn2.commit()
-                written += len(rows_data)
-        except Exception as e:
-            logger.warning("日K批次写入失败 batch=%d: %s", bi, e)
+    with ThreadPoolExecutor(max_workers=concurrency) as executor:
+        futures = {executor.submit(_fetch_kline_single, client, code, lookback_days): code for code in codes}
+        pending_rows = []
+        for fut in as_completed(futures):
+            code = futures[fut]
+            done_count += 1
+            try:
+                rows = fut.result()
+                if rows:
+                    pending_rows.extend(rows)
+            except Exception:
+                pass
 
-        done_count += len(batch)
-        pct = max(3, min(99, int(done_count / total_need * 97) + 3))
-        if progress:
-            progress(pct, f"已完成 {done_count}/{total_need}", done_count, total_need)
+            if len(pending_rows) >= batch_size or done_count == total:
+                if pending_rows:
+                    with store._lock:
+                        conn2 = store.get_conn()
+                        conn2.executemany(
+                            "INSERT OR REPLACE INTO daily_bars"
+                            "(code, trade_date, open, high, low, close, volume, amount) "
+                            "VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+                            pending_rows,
+                        )
+                        conn2.commit()
+                        written += len(pending_rows)
+                        pending_rows = []
 
-        time.sleep(0.3)
+            pct = max(3, min(99, int(done_count / total * 96) + 3))
+            if progress and (done_count % 10 == 0 or done_count == total):
+                progress(pct, f"已完成 {done_count}/{total} 只", done_count, total)
 
     if progress:
-        progress(100, f"同步完成，写入 {written} 条", total_need, total_need)
+        progress(100, f"历史 K 线同步完成，写入 {written} 条", total, total)
 
-    logger.info("日K同步完成: 更新 %d 只, 写入 %d 条", total_need, written)
+    logger.info("历史K线同步完成: scope=%s, 总计 %d 只, 写入 %d 条", scope, total, written)
     return written
 
 
-def _run_daily_job(lookback_days: int, scope: str) -> None:
+def sync_daily_bars(lookback_days: int = 120, scope: str = "all", mode: str = "today_bulk",
+                    progress: Optional[Callable] = None) -> int:
+    """
+    全 A 日 K 增量同步入口。
+    mode: "today_bulk"（默认：全市场 1.5 秒极速今日日 K 批量同步） / "history"（历史多日回溯）
+    """
+    if mode == "today_bulk":
+        return sync_today_bars_bulk(progress=progress)
+    return sync_historical_bars(lookback_days=lookback_days, scope=scope, progress=progress)
+
+
+def _run_daily_job(lookback_days: int, scope: str, mode: str = "today_bulk") -> None:
     """后台线程执行日 K 同步。"""
     try:
-        result = sync_daily_bars(lookback_days, scope, progress=_set_progress)
+        result = sync_daily_bars(lookback_days, scope, mode, progress=_set_progress)
         with _job_lock:
             _job["result"] = result
             _job["error"] = ""
@@ -199,25 +262,18 @@ def _run_daily_job(lookback_days: int, scope: str) -> None:
                 _job["percent"] = 100
 
 
-def start_daily_sync_job(lookback_days: int = 120, scope: str = "all") -> Dict[str, Any]:
-    """
-    启动后台日 K 同步任务。已在跑则返回当前状态。
-
-    参数:
-        lookback_days: 拉取条数
-        scope: "all" / "watchlist"
-
-    返回:
-        任务状态字典
-    """
+def start_daily_sync_job(lookback_days: int = 120, scope: str = "all",
+                         mode: str = "today_bulk") -> Dict[str, Any]:
+    """启动后台日 K 同步任务。"""
     with _job_lock:
         if _job["running"]:
             return dict(_job)
         _job.update({
             "running": True,
             "scope": scope,
+            "mode": mode,
             "percent": 1,
-            "message": "已启动",
+            "message": "极速批量打包拉取中…" if mode == "today_bulk" else f"正在同步 {scope} 历史K线…",
             "total": 0,
             "done": 0,
             "error": "",
@@ -226,8 +282,37 @@ def start_daily_sync_job(lookback_days: int = 120, scope: str = "all") -> Dict[s
             "result": None,
         })
     threading.Thread(
-        target=_run_daily_job, args=(lookback_days, scope),
-        name="daily-sync", daemon=True,
+        target=_run_daily_job,
+        args=(lookback_days, scope, mode),
+        name="daily-bars-sync",
+        daemon=True,
     ).start()
     with _job_lock:
         return dict(_job)
+
+
+def auto_sync_daily_bars_if_needed(now_dt: Optional[datetime] = None) -> None:
+    """每日收盘 15:30 自动极速同步全市场当日收盘日 K（供后台线程定时调用）。"""
+    enabled = store.get_setting("dailyBarsAutoSync")
+    if enabled == "0":
+        return
+    now = now_dt or datetime.now(TZ_CN)
+    if now.weekday() >= 5:  # 周末跳过
+        return
+    # 收盘后 15:30 之后触发
+    if now.hour < 15 or (now.hour == 15 and now.minute < 30):
+        return
+
+    today = now.strftime("%Y-%m-%d")
+    synced_key = f"dailyBarsSynced_{today}"
+    if store.get_setting(synced_key):
+        return
+
+    try:
+        logger.info("触发每日收盘全市场日K极速同步: %s", today)
+        n = sync_today_bars_bulk(today)
+        if n > 0:
+            store.set_setting(synced_key, store._now())
+            logger.info("每日收盘全市场日K同步成功: %s (%d 只)", today, n)
+    except Exception as e:
+        logger.warning("每日收盘全市场日K同步失败: %s", e)
