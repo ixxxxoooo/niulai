@@ -303,7 +303,7 @@
               <td>
                 <div class="resonance-tags">
                   <span
-                    v-for="r_id in (item.hit_rules || (activeTab !== 'all_aggregated' ? [activeTab] : []))"
+                    v-for="r_id in (item.hit_rules && item.hit_rules.length ? item.hit_rules : [activeTab])"
                     :key="r_id"
                     class="tag-resonance"
                     :class="getRuleTagClass(r_id)"
@@ -312,7 +312,7 @@
                   </span>
                 </div>
               </td>
-              <td class="signal-col">{{ item.detail }}</td>
+              <td class="signal-col">{{ (item.signals && item.signals.length > 1) ? item.signals.map(s => `[${s.name}] ${s.detail}`).join(' · ') : item.detail }}</td>
               <td class="tac">
                 <button class="btn-view" @click.stop="openStockModal(item.code, item.name)">速览</button>
               </td>
@@ -669,7 +669,7 @@ onMounted(async () => {
 </script>
 
 <style scoped>
-.screener-page { max-width: 1060px; margin: 0 auto; padding-bottom: 40px; }
+.screener-page { width: 100%; margin: 0 auto; padding-bottom: 40px; }
 
 .header-section {
   display: flex; align-items: center; justify-content: space-between;

@@ -531,6 +531,15 @@ def run_screen(rules: List[str], params: Optional[Dict[str, dict]] = None,
         else:
             aggregated_items.append(s)
 
+    # 为每个单策略列表中的股票补充全量命中的 hit_rules 与共振标签
+    for r_id, items in hits_by_rule.items():
+        for it in items:
+            c = it["code"]
+            if c in stock_hits_map:
+                it["hit_rules"] = stock_hits_map[c]["hit_rules"]
+                it["match_count"] = stock_hits_map[c]["match_count"]
+                it["signals"] = stock_hits_map[c]["signals"]
+
     # 优先按共振策略数量降序，再按涨跌幅降序
     aggregated_items.sort(key=lambda x: (x["match_count"], x.get("change_pct") or 0), reverse=True)
 
@@ -643,6 +652,14 @@ def get_run_hits(run_id: int) -> Dict[str, Any]:
     for s in stock_map.values():
         s["match_count"] = len(s["hit_rules"])
         s["detail"] = " · ".join(f"[{item['name']}] {item['detail']}" for item in s["signals"])
+
+    for r_id, items in hits_by_rule.items():
+        for it in items:
+            c = it["code"]
+            if c in stock_map:
+                it["hit_rules"] = stock_map[c]["hit_rules"]
+                it["match_count"] = stock_map[c]["match_count"]
+                it["signals"] = stock_map[c]["signals"]
 
     items = sorted(stock_map.values(), key=lambda x: (x["match_count"], x.get("change_pct") or 0), reverse=True)
 
