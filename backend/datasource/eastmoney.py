@@ -1424,21 +1424,43 @@ class EastMoneyClient:
         out.sort(key=lambda s: s.change_pct)
         return out[:limit]
 
+    def topic_pool_stats(self) -> Dict[str, Optional[int]]:
+        """全市场涨停/跌停/炸板真实总数 (从官方专题池 tc 字段获取，毫秒级)"""
+        from concurrent.futures import ThreadPoolExecutor
+
+        def _get_tc(path: str):
+            url = f"https://push2ex.eastmoney.com/{path}"
+            for day in self._recent_trading_dates(3):
+                try:
+                    data = self._ex.get_raw(url, {
+                        "ut": "7eea3edcaed734bea9cbfc24409ed989",
+                        "dpt": "wz.ztzt",
+                        "Pageindex": 0, "pagesize": 1,
+                        "sort": "fbt:asc", "date": day,
+                    })
+                    d = (data or {}).get("data") or {}
+                    tc = d.get("tc")
+                    if tc is not None:
+                        return int(tc)
+                except Exception:
+                    continue
+            return None
+
+        with ThreadPoolExecutor(max_workers=3) as ex:
+            f_zt = ex.submit(_get_tc, "getTopicZTPool")
+            f_dt = ex.submit(_get_tc, "getTopicDTPool")
+            f_zb = ex.submit(_get_tc, "getTopicZBPool")
+            return {
+                "limit_up": f_zt.result(),
+                "limit_down": f_dt.result(),
+                "limit_break": f_zb.result(),
+            }
+
     def limit_down_count(self) -> Optional[int]:
         """跌停总数（东财 getTopicDTPool 的 tc 字段，pool 可能为空但 tc 准确）。"""
-        url = "https://push2ex.eastmoney.com/getTopicDTPool"
-        for day in self._recent_trading_dates():
-            data = self._ex.get_raw(url, {
-                "ut": "7eea3edcaed734bea9cbfc24409ed989",
-                "dpt": "wz.ztzt",
-                "Pageindex": 0, "pagesize": 1,
-                "sort": "fbt:asc", "date": day,
-            })
-            d = (data or {}).get("data") or {}
-            tc = d.get("tc")
-            if tc is not None:
-                return int(tc)
-        return None
+        stats = self.topic_pool_stats()
+        return stats.get("limit_down")
+
 
     def stock_changes(self, limit: int = 80) -> List[dict]:
         """

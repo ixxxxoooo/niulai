@@ -15,8 +15,8 @@ from ..datasource.models import MarketOverview
 from .. import config
 from . import schedule
 
-# 两市代表指数：上证指数=沪市全部，深证成指=深市全部
-_TOTAL_AMOUNT_INDICES = {"000001", "399001"}
+# 全 A 股市场三大代表指数：上证指数=沪市全部，深证成指=深市全部，北证50/北证A指=北交所全部
+_TOTAL_AMOUNT_INDICES = {"000001", "399001", "899050"}
 
 
 def _safe(fn, default=None):
@@ -27,25 +27,22 @@ def _safe(fn, default=None):
 
 
 def market_overview() -> MarketOverview:
-    """聚合大盘概况：指数、两市总成交额、涨跌平家数、涨停/跌停家数（毫秒级轻量接口）
+    """聚合大盘概况：指数、两市总成交额、涨跌平家数、涨停/跌停家数（单接口+专题池 tc 官方权威数据）
 
-    - 涨跌平家数：直接从东财指数行情（上证指数 + 深证成指）自带的 f104/f105/f106 字段求和获取，无需拉取全市场
-    - 涨停/跌停数：复用涨停池/跌停池现成接口数量
+    - 涨跌平家数与总成交额：从东财指数行情（沪市 000001 + 深市 399001 + 北交所 899050）自带的官方 f104/f105/f106/f6 求和
+    - 涨停/跌停数：直接从东财官方专题池（getTopicZTPool / getTopicDTPool）返回的真实 tc 字段提取
     """
     client = eastmoney.get_client()
 
-    # 并发拉取指数、腾讯快照时间、涨跌停池条数（全部使用毫秒级接口，严禁全量分页扫描）
-    with ThreadPoolExecutor(max_workers=4) as ex:
+    # 并发拉取指数（含涨跌平统计）、腾讯快照时间、官方涨跌停真实 tc
+    with ThreadPoolExecutor(max_workers=3) as ex:
         f_indices = ex.submit(client.index_quotes)
         f_tq = ex.submit(lambda: tencent.get_client().fetch_quotes(["000001"]))
-        f_zt = ex.submit(lambda: len(client.limit_up_pool(300)))
-        f_dt = ex.submit(lambda: len(client.limit_down_pool(300)))
+        f_topic_stats = ex.submit(client.topic_pool_stats)
 
         indices = _safe(lambda: f_indices.result(), [])
         tq = _safe(lambda: f_tq.result(), {})
-        limit_up_count = _safe(lambda: f_zt.result(), None)
-        limit_down_count = _safe(lambda: f_dt.result(), None)
-
+        topic_stats = _safe(lambda: f_topic_stats.result(), {}) or {}
 
     total_amount: Optional[float] = None
     up_count = 0
@@ -63,6 +60,9 @@ def market_overview() -> MarketOverview:
                 down_count += int(q.down_count)
             if q.flat_count is not None:
                 flat_count += int(q.flat_count)
+
+    limit_up_count = topic_stats.get("limit_up")
+    limit_down_count = topic_stats.get("limit_down")
 
     # 数据时间：优先用腾讯行情的更新时间
     quote_time = None
@@ -83,6 +83,7 @@ def market_overview() -> MarketOverview:
         is_trading_time=schedule.is_trading_time(),
         quote_time=quote_time,
     )
+
 
 
 
