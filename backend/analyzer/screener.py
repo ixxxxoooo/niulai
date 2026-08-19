@@ -575,6 +575,15 @@ def list_rules() -> List[Dict[str, Any]]:
     return res
 
 
+def list_runs(limit: int = 20) -> List[Dict[str, Any]]:
+    """获取历史选股任务列表。"""
+    conn = store.get_conn()
+    rows = conn.execute(
+        "SELECT * FROM screener_runs ORDER BY id DESC LIMIT ?", (limit,)
+    ).fetchall()
+    return [dict(r) for r in rows]
+
+
 def clear_runs() -> int:
     """清空历史选股归档数据。"""
     with store._lock:

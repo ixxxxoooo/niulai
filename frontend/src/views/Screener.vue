@@ -167,13 +167,12 @@
       <div class="execute-center-wrap">
         <button
           class="btn-execute-glow"
-          :disabled="running || !selectedRules.length || !syncSt.stock_count"
+          :disabled="running || !selectedRules.length"
           @click="runScreen"
         >
           <UiIcon name="search" :size="18" />
           <span>{{ running ? '量化引擎极速扫描中…' : '开始量化选股 (一键多策略共振扫描)' }}</span>
         </button>
-        <span class="warn-tip" v-if="!syncSt.stock_count">请先同步日 K 数据底座后再执行选股</span>
       </div>
     </div>
 
@@ -632,6 +631,9 @@ onMounted(async () => {
   loadStatus()
   try { ruleList.value = (await api.screenerRules()).rules || [] } catch {}
   loadRuns()
+  if (!result.value) {
+    runScreen()
+  }
 })
 </script>
 
