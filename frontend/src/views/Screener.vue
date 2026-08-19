@@ -1,75 +1,56 @@
 <template>
   <div class="page screener-page">
-    <!-- 顶部标题 -->
+    <!-- 顶部标题栏与数据底座紧凑条 -->
     <div class="header-section">
       <div class="title-wrap">
         <h2>盘后量化选股</h2>
-        <span class="sub-title">8 大高胜率经典实战策略 · 多策略共振扫描 · 智能排雷去杂</span>
+        <span class="sub-title">12 大经典高胜率实战策略 · 多策略共振严选 · 智能排雷去杂</span>
       </div>
-      <div class="auto-badge" title="交易日 15:30 自动收盘归档">
-        <UiIcon name="flash" :size="13" /> 交易日 15:30 自动全市场归档
-      </div>
-    </div>
-
-    <!-- 步骤一：数据底座状态 -->
-    <div class="card section-card">
-      <div class="card-title">
-        <span class="step-num">1</span>
-        <span>日 K 线数据底座</span>
-        <span class="card-sub-info">选股依赖本地收盘日 K 线数据，1.5 秒极速全量归档</span>
-      </div>
-
-      <div class="stats-row">
-        <div class="stat-card">
-          <div class="stat-meta">覆盖股票池</div>
-          <div class="stat-num">{{ syncSt.stock_count || 0 }} <span class="stat-unit">只</span></div>
+      <div class="top-status-bar">
+        <div class="status-kvs">
+          <span class="sk-item">股票池 <b>{{ syncSt.stock_count || 0 }}</b> 只</span>
+          <span class="sk-sep">/</span>
+          <span class="sk-item">收盘日期 <b class="accent">{{ syncSt.latest_date || '—' }}</b></span>
+          <span class="sk-sep">/</span>
+          <span class="sk-item">本地K线 <b>{{ fmtNum(syncSt.total_bars || 0) }}</b> 条</span>
         </div>
-        <div class="stat-card">
-          <div class="stat-meta">最新收盘日期</div>
-          <div class="stat-num accent">{{ syncSt.latest_date || '—' }}</div>
-        </div>
-        <div class="stat-card">
-          <div class="stat-meta">本地 K 线总条数</div>
-          <div class="stat-num">{{ fmtNum(syncSt.total_bars || 0) }} <span class="stat-unit">条</span></div>
-        </div>
-        <div class="stat-card">
-          <div class="stat-meta">批量接口性能</div>
-          <div class="stat-num success">11 次请求 / 1.5s (0频控)</div>
-        </div>
-      </div>
-
-      <div class="sync-bar-row">
-        <UiButton variant="primary" :disabled="syncing" @click="startSyncToday">
-          <UiIcon name="flash" :size="14" />
-          {{ syncing && syncMode === 'today_bulk' ? '全市场极速同步中…' : '⚡ 极速同步今日日K (1.5秒)' }}
-        </UiButton>
-        <UiButton variant="subtle" :disabled="syncing" @click="startSyncHistory">
-          <UiIcon name="sync" :size="14" />
-          {{ syncing && syncMode === 'history' ? '历史K线同步中…' : '同步历史K线 (前120日)' }}
-        </UiButton>
-        <span class="sync-hint" v-if="syncSt.latest_date">
-          数据已归档至 {{ syncSt.latest_date }}，随时可开启量化选股
-        </span>
-      </div>
-
-      <div class="progress-wrap" v-if="syncing || syncMsg">
-        <div class="progress-track"><i :style="{ width: syncPct + '%' }"></i></div>
-        <div class="progress-info">
-          <span>{{ syncMsg || '正在处理中…' }}</span>
-          <span class="progress-pct">{{ syncPct }}%</span>
+        <div class="status-actions">
+          <button class="btn-sync-compact primary" :disabled="syncing" @click="startSyncToday">
+            <UiIcon name="flash" :size="12" />
+            <span>{{ syncing && syncMode === 'today_bulk' ? '同步中…' : '⚡ 极速同步今日' }}</span>
+          </button>
+          <button class="btn-sync-compact ghost" :disabled="syncing" @click="startSyncHistory">
+            <UiIcon name="sync" :size="12" />
+            <span>{{ syncing && syncMode === 'history' ? '补齐中…' : '🔄 补齐历史K线' }}</span>
+          </button>
         </div>
       </div>
     </div>
 
-    <!-- 步骤二：选股策略与参数配置 -->
+    <!-- 同步进度条 -->
+    <div class="progress-wrap-compact" v-if="syncing || syncMsg">
+      <div class="progress-track"><i :style="{ width: syncPct + '%' }"></i></div>
+      <div class="progress-info">
+        <span>{{ syncMsg || '正在处理中…' }}</span>
+        <span class="progress-pct">{{ syncPct }}%</span>
+      </div>
+    </div>
+
+    <!-- 步骤一：量化策略选择与智能配置 -->
     <div class="card section-card">
-      <div class="card-title">
-        <span class="step-num">2</span>
-        <span>量化策略选择与智能排雷</span>
-        <span class="card-sub-info">点击卡片即可勾选策略，多策略叠加将自动计算「共振强势标的」</span>
+      <div class="card-header-compact">
+        <div class="card-title-compact">
+          <span class="step-num">1</span>
+          <span class="st-title-text">量化策略选择（已选 <b>{{ selectedRules.length }}</b> 项）</span>
+        </div>
+        <div class="quick-pick-actions">
+          <button class="quick-link-btn" @click="selectPresetGolden">🌟 推荐黄金组合</button>
+          <button class="quick-link-btn" @click="selectAllRules">全选</button>
+          <button class="quick-link-btn" @click="clearAllRules">清空</button>
+        </div>
       </div>
 
-      <!-- 8 大高胜率策略卡片网格 -->
+      <!-- 12 大策略紧凑网格 -->
       <div class="strategy-cards-grid">
         <div
           v-for="r in ruleList"
@@ -80,12 +61,12 @@
         >
           <div class="st-header">
             <div class="st-check-box">
-              <UiIcon v-if="selectedRules.includes(r.id)" name="check" :size="13" />
+              <UiIcon v-if="selectedRules.includes(r.id)" name="check" :size="12" />
             </div>
             <div class="st-name">{{ r.name }}</div>
             <span class="st-badge" :class="getBadgeClass(r.badge)">{{ r.badge || r.tag }}</span>
           </div>
-          <div class="st-desc">{{ r.desc }}</div>
+          <div class="st-desc" :title="r.desc">{{ r.desc }}</div>
         </div>
       </div>
 
@@ -141,8 +122,8 @@
               :class="{ active: filters.exclude_st }"
               @click="filters.exclude_st = !filters.exclude_st"
             >
-              <UiIcon name="check" :size="12" v-if="filters.exclude_st" />
-              <span>排除 ST / *ST 股</span>
+              <UiIcon name="check" :size="11" v-if="filters.exclude_st" />
+              <span>排除 ST 股</span>
             </div>
 
             <div
@@ -150,8 +131,8 @@
               :class="{ active: filters.exclude_broken }"
               @click="filters.exclude_broken = !filters.exclude_broken"
             >
-              <UiIcon name="check" :size="12" v-if="filters.exclude_broken" />
-              <span>排除破位大跌股 (&lt;-3%)</span>
+              <UiIcon name="check" :size="11" v-if="filters.exclude_broken" />
+              <span>排除破位股 (&lt;-3%)</span>
             </div>
 
             <div
@@ -159,8 +140,8 @@
               :class="{ active: filters.exclude_bjs }"
               @click="filters.exclude_bjs = !filters.exclude_bjs"
             >
-              <UiIcon name="check" :size="12" v-if="filters.exclude_bjs" />
-              <span>排除北交所 (8/4/920)</span>
+              <UiIcon name="check" :size="11" v-if="filters.exclude_bjs" />
+              <span>排除北交所</span>
             </div>
 
             <div
@@ -168,8 +149,8 @@
               :class="{ active: filters.exclude_kcb }"
               @click="filters.exclude_kcb = !filters.exclude_kcb"
             >
-              <UiIcon name="check" :size="12" v-if="filters.exclude_kcb" />
-              <span>排除科创板 (688)</span>
+              <UiIcon name="check" :size="11" v-if="filters.exclude_kcb" />
+              <span>排除科创板</span>
             </div>
 
             <div
@@ -177,8 +158,8 @@
               :class="{ active: filters.exclude_cyb }"
               @click="filters.exclude_cyb = !filters.exclude_cyb"
             >
-              <UiIcon name="check" :size="12" v-if="filters.exclude_cyb" />
-              <span>排除创业板 (300/301)</span>
+              <UiIcon name="check" :size="11" v-if="filters.exclude_cyb" />
+              <span>排除创业板</span>
             </div>
 
             <div
@@ -186,34 +167,34 @@
               :class="{ active: notifyFeishu }"
               @click="notifyFeishu = !notifyFeishu"
             >
-              <UiIcon name="check" :size="12" v-if="notifyFeishu" />
-              <span>完成推送到飞书群</span>
+              <UiIcon name="check" :size="11" v-if="notifyFeishu" />
+              <span>推送到飞书</span>
             </div>
           </div>
         </div>
       </div>
 
-      <!-- 居中大气的主执行按钮 -->
+      <!-- 紧凑执行主操作条 -->
       <div class="execute-center-wrap">
         <button
           class="btn-execute-glow"
           :disabled="running || !selectedRules.length"
           @click="runScreen"
         >
-          <UiIcon name="search" :size="18" />
+          <UiIcon name="search" :size="15" />
           <span>{{ running ? '量化引擎极速扫描中…' : (filters.match_mode === 'and' ? '开始量化选股 (执行严格交集严选)' : '开始量化选股 (一键多策略共振扫描)') }}</span>
         </button>
       </div>
     </div>
 
-    <!-- 步骤三：选股结果看板 -->
+    <!-- 步骤二：选股结果看板 -->
     <div class="card section-card result-panel" v-if="result">
       <div class="result-header">
         <div class="result-title-group">
-          <span class="step-num">3</span>
+          <span class="step-num">2</span>
           <span class="result-main-title">选股结果看板</span>
           <span class="result-stat-badge">
-            扫描 <b>{{ result.scanned }}</b> 只 · 精选命中 <b>{{ result.hit_count }}</b> 只优质标的
+            扫描 <b>{{ result.scanned }}</b> 只 · 精选命中 <b>{{ result.hit_count }}</b> 只标的
           </span>
         </div>
         <div class="result-extra-info">
@@ -321,7 +302,7 @@
         </table>
       </div>
       <div v-else class="empty-box">
-        <UiIcon name="search" :size="28" style="opacity:0.3;margin-bottom:8px" />
+        <UiIcon name="search" :size="24" style="opacity:0.3;margin-bottom:6px" />
         <div>所选策略组合在当前股票池中未命中符合条件的标的</div>
       </div>
     </div>
@@ -334,7 +315,7 @@
         </div>
         <div class="history-summary-right">
           <button class="btn-clear-history" @click.prevent.stop="clearHistory">
-            <UiIcon name="trash" :size="12" /> 清空历史归档
+            <UiIcon name="trash" :size="11" /> 清空历史
           </button>
           <span class="chevron-indicator">
             <span class="chevron-text">展开历史</span>
@@ -349,20 +330,18 @@
               <th>执行时间</th>
               <th>执行策略组合</th>
               <th>扫描范围</th>
-              <th class="tar">命中标的数</th>
-              <th class="tac">状态</th>
-              <th class="tac">操作</th>
+              <th>命中数</th>
+              <th>操作</th>
             </tr>
           </thead>
           <tbody>
             <tr v-for="r in runs" :key="r.id">
-              <td class="dim">{{ (r.started_at || '').slice(5) }}</td>
+              <td>{{ r.started_at }}</td>
               <td>{{ formatRules(r.rules) }}</td>
               <td>{{ r.scope === 'watchlist' ? '自选股' : '全A股' }}</td>
-              <td class="tar num-val" style="font-weight:700">{{ r.hit_count }}</td>
-              <td class="tac"><span class="badge-status">{{ r.status }}</span></td>
-              <td class="tac">
-                <a @click.prevent="loadRun(r.id)" class="action-btn">查看该次结果</a>
+              <td><b class="accent">{{ r.hit_count }}</b> 只</td>
+              <td>
+                <span class="action-btn" @click="loadRunDetail(r.id)">回放结果</span>
               </td>
             </tr>
           </tbody>
@@ -370,7 +349,7 @@
       </div>
     </details>
 
-    <!-- 个股快捷居中大弹窗 -->
+    <!-- 个股沉浸式速览大弹窗 (直接嵌入完整 Stock.vue) -->
     <StockQuickModal
       :code="modalCode"
       :name="modalName"
@@ -385,7 +364,6 @@ import { api } from '../api.js'
 import { showToast } from '../composables/useToast.js'
 import { showConfirm } from '../composables/useConfirm.js'
 import { fmtPrice, fmtPct, fmtNum, fmtAmount, pctClass } from '../utils.js'
-import UiButton from '../components/ui/UiButton.vue'
 import UiIcon from '../components/ui/UiIcon.vue'
 import StockQuickModal from '../components/StockQuickModal.vue'
 
@@ -393,19 +371,30 @@ const STORAGE_KEY = 'niulai_screener_state_v1'
 
 const syncSt = ref({})
 const syncing = ref(false)
-const syncPct = ref(0)
 const syncMsg = ref('')
-const syncMode = ref('today_bulk')
-let syncTimer = null
+const syncPct = ref(0)
+const syncMode = ref('')
+let pollTimer = null
 
 const ruleList = ref([])
-const selectedRules = ref(['breakout', 'ma_bullish', 'main_inflow_surge', 'volume_surge', 'box_breakout'])
+
+// 默认勾选 5 大黄金主升浪共振战法
+const DEFAULT_RULES = [
+  'breakout',
+  'ma_bullish',
+  'main_inflow_surge',
+  'volume_surge',
+  'box_breakout',
+]
+
+const selectedRules = ref([...DEFAULT_RULES])
 const scope = ref('all')
 const notifyFeishu = ref(false)
+const sortBy = ref('resonance')
+const activeTab = ref('all_aggregated')
+
 const running = ref(false)
 const result = ref(null)
-const activeTab = ref('all_aggregated')
-const sortBy = ref('resonance')
 const runs = ref([])
 
 // 弹窗状态
@@ -428,6 +417,18 @@ const filters = reactive({
   exclude_kcb: true,
   exclude_cyb: true,
 })
+
+function selectPresetGolden() {
+  selectedRules.value = [...DEFAULT_RULES]
+}
+
+function selectAllRules() {
+  selectedRules.value = ruleList.value.map(r => r.id)
+}
+
+function clearAllRules() {
+  selectedRules.value = []
+}
 
 // 状态持久化存储
 function saveState() {
@@ -551,7 +552,7 @@ async function startSyncToday() {
   syncMode.value = 'today_bulk'
   syncing.value = true
   syncPct.value = 5
-  syncMsg.value = '正在全市场批量打包拉取今日收盘日K（约1.5秒）…'
+  syncMsg.value = '正在全市场批量打包拉取收盘日K（约1.5秒）…'
   try {
     await api.screenerSyncBars(1, 'all', 'today_bulk')
     startPolling()
@@ -565,7 +566,7 @@ async function startSyncHistory() {
   syncMode.value = 'history'
   syncing.value = true
   syncPct.value = 2
-  syncMsg.value = `正在同步 ${scope.value === 'watchlist' ? '自选股' : '全市场'} 历史K线…`
+  syncMsg.value = `正在增量补齐 ${scope.value === 'watchlist' ? '自选股' : '全市场'} 历史K线…`
   try {
     await api.screenerSyncBars(120, scope.value, 'history')
     startPolling()
@@ -576,84 +577,102 @@ async function startSyncHistory() {
 }
 
 function startPolling() {
-  clearInterval(syncTimer)
-  syncTimer = setInterval(pollSync, 800)
-}
-
-async function pollSync() {
-  try {
-    const st = await api.screenerSyncStatus()
-    syncSt.value = st
-    syncPct.value = st.percent || 0
-    syncMsg.value = st.message || ''
-    if (!st.running && syncPct.value >= 100) {
-      clearInterval(syncTimer)
-      syncTimer = null
-      syncing.value = false
-      showToast('全市场日K线极速同步完成！')
-      setTimeout(() => { if (!syncing.value) { syncMsg.value = ''; syncPct.value = 0 } }, 3500)
-    }
-  } catch {
-    clearInterval(syncTimer)
-    syncTimer = null
-    syncing.value = false
-  }
+  if (pollTimer) clearInterval(pollTimer)
+  pollTimer = setInterval(async () => {
+    try {
+      const st = await api.screenerSyncStatus()
+      syncSt.value = st
+      if (!st.running) {
+        clearInterval(pollTimer)
+        pollTimer = null
+        syncing.value = false
+        syncMsg.value = ''
+        syncPct.value = 0
+        if (st.error) {
+          showToast('同步异常：' + st.error, 'error')
+        } else {
+          showToast('日 K 数据底座同步完成', 'success')
+        }
+      } else {
+        syncMsg.value = st.message
+        syncPct.value = st.percent || 0
+      }
+    } catch {}
+  }, 1000)
 }
 
 async function runScreen() {
+  if (!selectedRules.value.length) {
+    showToast('请至少选择一个量化策略', 'warn')
+    return
+  }
   running.value = true
-  result.value = null
   try {
-    const res = await api.screenerRun(selectedRules.value, scope.value, notifyFeishu.value, null, filters)
+    const res = await api.screenerRun(
+      selectedRules.value,
+      scope.value,
+      notifyFeishu.value,
+      null,
+      filters,
+    )
     result.value = res
     activeTab.value = 'all_aggregated'
+    showToast(`选股完成：扫描 ${res.scanned} 只，精选命中 ${res.hit_count} 只标的`, 'success')
     loadRuns()
-    showToast(`选股完成！扫描 ${res.scanned} 只，命中 ${res.hit_count || 0} 只优质标的`)
   } catch (e) {
-    showToast('选股失败：' + (e.message || e), 'error')
+    showToast('选股执行失败：' + (e.message || e), 'error')
   } finally {
     running.value = false
   }
 }
 
 async function loadRuns() {
-  try { runs.value = (await api.screenerRuns(20)).runs || [] } catch {}
-}
-
-async function clearHistory() {
-  const confirmed = await showConfirm({
-    title: '清空历史选股归档',
-    message: '确认清空所有历史选股任务归档记录吗？',
-    detail: '清空后历史扫描记录将全部移除，但不会影响本地日 K 数据库和当前选股策略。',
-    confirmText: '确认清空',
-    cancelText: '取消',
-    variant: 'danger',
-  })
-  if (!confirmed) return
   try {
-    await api.screenerClearRuns()
-    runs.value = []
-    showToast('已清空历史选股记录')
+    const res = await api.screenerRuns(20)
+    runs.value = res.runs || []
   } catch (e) {
-    showToast('清空失败：' + (e.message || e), 'error')
+    console.error('loadRuns error:', e)
   }
 }
 
-async function loadRun(id) {
+async function loadRunDetail(id) {
   try {
-    const data = await api.screenerRunDetail(id)
+    const detail = await api.screenerRunDetail(id)
+    if (detail.error) {
+      showToast('加载失败：' + detail.error, 'error')
+      return
+    }
     result.value = {
-      ...data.run,
-      items: data.items || [],
-      hits: data.hits || {},
-      scanned: '—',
-      hit_count: data.run?.hit_count || (data.items ? data.items.length : 0),
-      elapsed_ms: '—'
+      run_id: detail.run.id,
+      scanned: detail.items ? detail.items.length : 0,
+      hit_count: detail.items ? detail.items.length : 0,
+      elapsed_ms: 0,
+      items: detail.items || [],
+      hits: detail.hits || {},
     }
     activeTab.value = 'all_aggregated'
-    showToast(`已调出第 ${id} 次历史扫描结果`)
+    showToast(`已加载历史任务 #${id} 结果看板`, 'info')
   } catch (e) {
-    showToast('加载历史记录失败：' + (e.message || e), 'error')
+    showToast('加载任务详情失败：' + (e.message || e), 'error')
+  }
+}
+
+async function clearHistory() {
+  const ok = await showConfirm({
+    title: '清空选股归档确认',
+    content: '确定要清空所有历史选股任务归档记录吗？该操作不可撤回。',
+    confirmText: '确认清空',
+    cancelText: '取消',
+    danger: true,
+  })
+  if (!ok) return
+
+  try {
+    await api.screenerClearRuns()
+    runs.value = []
+    showToast('历史选股归档记录已成功清空', 'success')
+  } catch (e) {
+    showToast('清空历史记录失败：' + (e.message || e), 'error')
   }
 }
 
@@ -669,124 +688,141 @@ onMounted(async () => {
 </script>
 
 <style scoped>
-.screener-page { width: 100%; margin: 0 auto; padding-bottom: 40px; }
+.screener-page { width: 100%; margin: 0 auto; padding-bottom: 30px; }
 
 .header-section {
   display: flex; align-items: center; justify-content: space-between;
-  margin-bottom: 18px; flex-wrap: wrap; gap: 10px;
+  margin-bottom: 10px; flex-wrap: wrap; gap: 8px;
 }
-.title-wrap h2 { margin: 0 0 4px; font-size: 22px; font-weight: 700; color: var(--text); }
-.sub-title { font-size: 13px; color: var(--text-dim); }
+.title-wrap h2 { margin: 0 0 2px; font-size: 18px; font-weight: 700; color: var(--text); }
+.sub-title { font-size: 11px; color: var(--text-dim); }
 
-.auto-badge {
-  font-size: 12px; color: var(--accent); background: var(--accent-bg);
-  padding: 5px 12px; border-radius: var(--radius-pill); display: inline-flex;
-  align-items: center; gap: 6px; border: 1px solid rgba(76, 154, 255, 0.25);
-  font-weight: 500;
+/* 顶部紧凑数据状态条 */
+.top-status-bar {
+  display: flex; align-items: center; gap: 12px; background: var(--bg-card);
+  border: 1px solid var(--border); border-radius: var(--radius-md);
+  padding: 5px 10px; flex-wrap: wrap;
 }
+.status-kvs { display: flex; align-items: center; gap: 8px; font-size: 11px; color: var(--text-dim); }
+.status-kvs b { color: var(--text); font-variant-numeric: tabular-nums; }
+.status-kvs b.accent { color: var(--accent); }
+.sk-sep { color: var(--border); }
 
-.section-card { margin-bottom: 16px; }
-.card-title {
-  display: flex; align-items: center; gap: 8px; font-size: 15px; font-weight: 600;
-  color: var(--text); margin-bottom: 14px;
+.status-actions { display: flex; align-items: center; gap: 6px; }
+.btn-sync-compact {
+  display: inline-flex; align-items: center; gap: 4px; padding: 3px 8px;
+  border-radius: var(--radius-sm); font-size: 11px; font-weight: 600; cursor: pointer;
+  border: 1px solid var(--border); transition: all .15s;
 }
-.step-num {
-  width: 22px; height: 22px; border-radius: 50%; background: var(--accent);
-  color: #fff; font-size: 12px; display: inline-flex; align-items: center;
-  justify-content: center; font-weight: 700;
+.btn-sync-compact.primary {
+  background: var(--accent-bg); color: var(--accent); border-color: rgba(76, 154, 255, 0.4);
 }
-.card-sub-info { font-size: 12px; color: var(--text-dim); font-weight: normal; margin-left: 6px; }
+.btn-sync-compact.primary:hover:not(:disabled) {
+  background: var(--accent); color: #fff;
+}
+.btn-sync-compact.ghost {
+  background: var(--kv-bg); color: var(--text-dim);
+}
+.btn-sync-compact.ghost:hover:not(:disabled) {
+  border-color: var(--accent); color: var(--text);
+}
+.btn-sync-compact:disabled { opacity: 0.5; cursor: not-allowed; }
 
-/* 统计卡片网格 */
-.stats-row {
-  display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
-  gap: 12px; margin-bottom: 14px;
-}
-.stat-card {
-  background: var(--kv-bg); border: 1px solid var(--border); border-radius: var(--radius-md);
-  padding: 10px 14px;
-}
-.stat-meta { font-size: 12px; color: var(--text-dim); margin-bottom: 4px; }
-.stat-num { font-size: 18px; font-weight: 700; color: var(--text); font-variant-numeric: tabular-nums; }
-.stat-num.accent { color: var(--accent); }
-.stat-num.success { color: var(--down); font-size: 14px; }
-.stat-unit { font-size: 12px; font-weight: normal; color: var(--text-dim); margin-left: 3px; }
-
-.sync-bar-row { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
-.sync-hint { font-size: 12px; color: var(--text-dim); margin-left: 4px; }
-
-.progress-wrap {
-  margin-top: 12px; padding: 10px 12px; background: var(--kv-bg);
+.progress-wrap-compact {
+  margin-bottom: 8px; padding: 6px 10px; background: var(--bg-card);
   border-radius: var(--radius-md); border: 1px solid var(--border);
 }
-.progress-track { height: 6px; background: var(--border); border-radius: 3px; overflow: hidden; }
-.progress-track i { display: block; height: 100%; background: var(--accent); border-radius: 3px; transition: width .3s ease; }
-.progress-info { display: flex; justify-content: space-between; font-size: 12px; color: var(--text-dim); margin-top: 6px; }
+.progress-track { height: 3px; background: var(--border); border-radius: 2px; overflow: hidden; }
+.progress-track i { display: block; height: 100%; background: var(--accent); border-radius: 2px; transition: width .3s ease; }
+.progress-info { display: flex; justify-content: space-between; font-size: 11px; color: var(--text-dim); margin-top: 3px; }
 .progress-pct { font-weight: 700; color: var(--accent); }
 
-/* 策略选择卡片 */
+/* 卡片模块与标题 */
+.section-card { margin-bottom: 10px; padding: 10px 14px; }
+.card-header-compact {
+  display: flex; align-items: center; justify-content: space-between;
+  margin-bottom: 8px; flex-wrap: wrap; gap: 6px;
+}
+.card-title-compact { display: flex; align-items: center; gap: 6px; }
+.step-num {
+  width: 17px; height: 17px; border-radius: 50%; background: var(--accent);
+  color: #fff; font-size: 10px; display: inline-flex; align-items: center;
+  justify-content: center; font-weight: 700; flex-shrink: 0;
+}
+.st-title-text { font-size: 13px; font-weight: 600; color: var(--text); }
+.st-title-text b { color: var(--accent); }
+
+.quick-pick-actions { display: flex; align-items: center; gap: 6px; }
+.quick-link-btn {
+  background: transparent; border: none; font-size: 11px; color: var(--accent);
+  cursor: pointer; padding: 1px 5px; border-radius: 3px; transition: all .12s;
+}
+.quick-link-btn:hover { background: var(--accent-bg); text-decoration: underline; }
+
+/* 12 大策略紧凑网格 */
 .strategy-cards-grid {
-  display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
-  gap: 12px; margin-bottom: 16px;
+  display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  gap: 6px; margin-bottom: 10px;
 }
 .strategy-card-item {
-  background: var(--kv-bg); border: 1px solid var(--border); border-radius: var(--radius-md);
-  padding: 12px 14px; cursor: pointer; transition: all .16s ease;
-  display: flex; flex-direction: column; gap: 6px; user-select: none;
+  background: var(--kv-bg); border: 1px solid var(--border); border-radius: var(--radius-sm);
+  padding: 6px 8px; cursor: pointer; transition: all .14s ease;
+  display: flex; flex-direction: column; gap: 2px; user-select: none;
 }
 .strategy-card-item:hover { border-color: var(--accent); background: var(--bg-hover); }
 .strategy-card-item.active {
   border-color: var(--accent); background: rgba(76, 154, 255, 0.08);
-  box-shadow: 0 0 12px rgba(76, 154, 255, 0.15);
+  box-shadow: 0 0 6px rgba(76, 154, 255, 0.12);
 }
-.st-header { display: flex; align-items: center; gap: 8px; }
+.st-header { display: flex; align-items: center; gap: 5px; }
 .st-check-box {
-  width: 18px; height: 18px; border-radius: 4px; border: 1px solid var(--border);
+  width: 14px; height: 14px; border-radius: 3px; border: 1px solid var(--border);
   background: var(--bg-card); display: inline-flex; align-items: center; justify-content: center;
-  color: transparent; transition: all .15s; flex-shrink: 0;
+  color: transparent; transition: all .12s; flex-shrink: 0;
 }
 .strategy-card-item.active .st-check-box {
   background: var(--accent); border-color: var(--accent); color: #fff;
 }
-.st-name { font-size: 14px; font-weight: 600; color: var(--text); }
+.st-name { font-size: 12px; font-weight: 600; color: var(--text); white-space: nowrap; }
 .st-badge {
-  margin-left: auto; font-size: 11px; color: var(--text-dim);
-  background: var(--bg-hover); padding: 2px 6px; border-radius: 4px;
+  margin-left: auto; font-size: 10px; color: var(--text-dim);
+  background: var(--bg-hover); padding: 1px 4px; border-radius: 3px; white-space: nowrap;
 }
 .badge-fire { color: var(--up); background: var(--up-bg); font-weight: 600; }
 .badge-diamond { color: var(--accent); background: var(--accent-bg); font-weight: 600; }
 .badge-rocket { color: #a855f7; background: rgba(168, 85, 247, 0.12); font-weight: 600; }
 .badge-target { color: #22c55e; background: rgba(34, 197, 94, 0.12); font-weight: 600; }
-.st-desc { font-size: 12px; color: var(--text-dim); line-height: 1.45; }
+.st-desc {
+  font-size: 10.5px; color: var(--text-dim); line-height: 1.3;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
 
 /* 过滤排雷面板 */
 .filter-panel {
-  border-top: 1px solid var(--border); padding-top: 14px;
-  display: flex; flex-direction: column; gap: 12px; margin-bottom: 20px;
+  border-top: 1px solid var(--border); padding-top: 8px;
+  display: flex; flex-direction: column; gap: 6px; margin-bottom: 10px;
 }
-.filter-row { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
-.filter-title { font-size: 13px; font-weight: 600; color: var(--text-dim); min-width: 80px; }
-.filter-options { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+.filter-row { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+.filter-title { font-size: 11px; font-weight: 600; color: var(--text-dim); min-width: 60px; }
+.filter-options { display: flex; gap: 6px; align-items: center; flex-wrap: wrap; }
 .radio-pill {
-  display: inline-flex; align-items: center; gap: 6px; padding: 6px 14px;
+  display: inline-flex; align-items: center; gap: 4px; padding: 3px 8px;
   border-radius: var(--radius-pill); border: 1px solid var(--border);
-  background: var(--kv-bg); color: var(--text-dim); font-size: 13px;
+  background: var(--kv-bg); color: var(--text-dim); font-size: 11px;
   cursor: pointer; user-select: none; transition: all .15s;
 }
 .radio-pill:hover { border-color: var(--accent); color: var(--text); }
 .radio-pill.active {
   background: var(--accent-bg); color: var(--accent); border-color: var(--accent); font-weight: 600;
 }
-.radio-dot {
-  width: 8px; height: 8px; border-radius: 50%; background: var(--border);
-}
+.radio-dot { width: 5px; height: 5px; border-radius: 50%; background: var(--border); }
 .radio-pill.active .radio-dot { background: var(--accent); }
 
-.filter-chips { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+.filter-chips { display: flex; gap: 5px; align-items: center; flex-wrap: wrap; }
 .chip-btn {
-  display: inline-flex; align-items: center; gap: 6px; padding: 6px 12px;
+  display: inline-flex; align-items: center; gap: 3px; padding: 3px 7px;
   border-radius: var(--radius-sm); border: 1px solid var(--border);
-  background: var(--kv-bg); color: var(--text-dim); font-size: 12px;
+  background: var(--kv-bg); color: var(--text-dim); font-size: 11px;
   cursor: pointer; user-select: none; transition: all .15s;
 }
 .chip-btn:hover { border-color: var(--accent); color: var(--text); }
@@ -796,63 +832,59 @@ onMounted(async () => {
 
 /* 居中执行主按钮 */
 .execute-center-wrap {
-  display: flex; flex-direction: column; align-items: center; justify-content: center;
-  padding: 10px 0 8px;
+  display: flex; justify-content: center; padding: 2px 0 0;
 }
 .btn-execute-glow {
-  display: inline-flex; align-items: center; justify-content: center; gap: 10px;
-  padding: 14px 42px; border-radius: 30px; border: none;
+  display: inline-flex; align-items: center; justify-content: center; gap: 6px;
+  padding: 7px 30px; border-radius: 18px; border: none;
   background: linear-gradient(135deg, #4c9aff 0%, #2563eb 100%);
-  color: #ffffff; font-size: 16px; font-weight: 700; cursor: pointer;
-  box-shadow: 0 4px 18px rgba(37, 99, 235, 0.35); transition: all .2s ease;
+  color: #ffffff; font-size: 13px; font-weight: 700; cursor: pointer;
+  box-shadow: 0 2px 10px rgba(37, 99, 235, 0.35); transition: all .16s ease;
 }
 .btn-execute-glow:hover:not(:disabled) {
-  transform: translateY(-2px);
-  box-shadow: 0 6px 24px rgba(37, 99, 235, 0.45);
+  transform: translateY(-1px);
+  box-shadow: 0 3px 14px rgba(37, 99, 235, 0.45);
   background: linear-gradient(135deg, #60a5fa 0%, #1d4ed8 100%);
 }
 .btn-execute-glow:active:not(:disabled) { transform: translateY(0); }
-.btn-execute-glow:disabled {
-  opacity: 0.5; cursor: not-allowed; box-shadow: none;
-}
-.warn-tip { font-size: 12px; color: var(--up); margin-top: 8px; }
+.btn-execute-glow:disabled { opacity: 0.5; cursor: not-allowed; box-shadow: none; }
 
 /* 结果面板 */
 .result-header {
   display: flex; align-items: center; justify-content: space-between;
-  margin-bottom: 14px; flex-wrap: wrap; gap: 10px;
+  margin-bottom: 8px; flex-wrap: wrap; gap: 6px;
 }
-.result-title-group { display: flex; align-items: center; gap: 8px; }
-.result-main-title { font-size: 16px; font-weight: 700; color: var(--text); }
+.result-title-group { display: flex; align-items: center; gap: 6px; }
+.result-main-title { font-size: 14px; font-weight: 700; color: var(--text); }
 .result-stat-badge {
-  font-size: 13px; color: var(--text-dim); background: var(--bg-hover);
-  padding: 3px 10px; border-radius: var(--radius-sm); margin-left: 6px;
+  font-size: 11px; color: var(--text-dim); background: var(--bg-hover);
+  padding: 2px 6px; border-radius: var(--radius-sm); margin-left: 3px;
 }
 .result-stat-badge b { color: var(--accent); }
-.result-extra-info { font-size: 12px; color: var(--text-dim); }
+.result-extra-info { font-size: 11px; color: var(--text-dim); }
 
-.tabs-container { display: flex; gap: 8px; margin-bottom: 12px; flex-wrap: wrap; }
+.tabs-container { display: flex; gap: 5px; margin-bottom: 8px; flex-wrap: wrap; }
 .tab-btn {
-  padding: 6px 14px; border-radius: var(--radius-pill); border: 1px solid var(--border);
-  background: var(--bg-card); color: var(--text-dim); font-size: 13px; cursor: pointer;
-  display: inline-flex; align-items: center; gap: 6px; transition: all .15s;
+  padding: 3px 10px; border-radius: var(--radius-pill); border: 1px solid var(--border);
+  background: var(--bg-card); color: var(--text-dim); font-size: 11px; cursor: pointer;
+  display: inline-flex; align-items: center; gap: 4px; transition: all .15s;
 }
 .tab-btn:hover { color: var(--text); border-color: var(--accent); }
 .tab-btn.active {
   background: var(--accent); color: #fff; border-color: var(--accent); font-weight: 600;
 }
 .badge-num {
-  font-size: 11px; background: rgba(0, 0, 0, 0.15); padding: 1px 6px; border-radius: 10px;
+  font-size: 10px; background: rgba(0, 0, 0, 0.2); padding: 1px 4px; border-radius: 6px;
 }
 .tab-btn.active .badge-num { background: rgba(255, 255, 255, 0.25); color: #fff; }
 
 .sort-bar {
-  display: flex; align-items: center; gap: 8px; margin-bottom: 12px;
-  font-size: 12px; color: var(--text-dim);
+  display: flex; align-items: center; gap: 5px; margin-bottom: 8px;
+  font-size: 11px; color: var(--text-dim);
 }
 .sort-btn {
-  padding: 3px 10px; border-radius: 4px; border: 1px solid var(--border);
-  background: var(--kv-bg); color: var(--text-dim); cursor: pointer; font-size: 12px;
+  padding: 2px 7px; border-radius: 3px; border: 1px solid var(--border);
+  background: var(--kv-bg); color: var(--text-dim); cursor: pointer; font-size: 11px;
   transition: all .15s;
 }
 .sort-btn:hover { color: var(--text); border-color: var(--accent); }
@@ -869,20 +901,20 @@ onMounted(async () => {
 .data-table {
   width: 100%;
   border-collapse: collapse;
-  font-size: 13px;
+  font-size: 12px;
   table-layout: auto;
 }
 .data-table th {
   background: var(--bg-hover);
   color: var(--text-dim);
   font-weight: 500;
-  padding: 10px 12px;
+  padding: 7px 10px;
   border-bottom: 1px solid var(--border);
   text-align: left;
   white-space: nowrap;
 }
 .data-table td {
-  padding: 10px 12px;
+  padding: 7px 10px;
   border-bottom: 1px solid var(--border);
   vertical-align: middle;
 }
@@ -896,9 +928,9 @@ onMounted(async () => {
 .num-val { font-variant-numeric: tabular-nums; font-weight: 600; white-space: nowrap; }
 .num-val.dim { font-weight: normal; color: var(--text-dim); }
 
-.resonance-tags { display: flex; gap: 4px; flex-wrap: wrap; }
+.resonance-tags { display: flex; gap: 3px; flex-wrap: wrap; }
 .tag-resonance {
-  font-size: 11px; padding: 2px 6px; border-radius: 4px;
+  font-size: 10px; padding: 1px 4px; border-radius: 3px;
   background: var(--bg-hover); color: var(--text); border: 1px solid var(--border);
   white-space: nowrap;
 }
@@ -915,26 +947,26 @@ onMounted(async () => {
 .tag-engulfing { background: rgba(244, 63, 94, 0.12); color: #f43f5e; border-color: rgba(244, 63, 94, 0.3); }
 .tag-bounce { background: rgba(249, 115, 22, 0.12); color: #f97316; border-color: rgba(249, 115, 22, 0.25); }
 
-.signal-th { min-width: 260px; }
+.signal-th { min-width: 240px; }
 .signal-col {
-  font-size: 12px;
+  font-size: 11px;
   color: var(--text);
-  line-height: 1.5;
+  line-height: 1.4;
   white-space: normal;
   word-break: break-word;
 }
 
 .action-th, .action-td {
-  width: 75px;
-  min-width: 75px;
-  max-width: 75px;
+  width: 70px;
+  min-width: 70px;
+  max-width: 70px;
   text-align: center;
   white-space: nowrap;
 }
 
 .btn-view {
-  padding: 4px 12px;
-  font-size: 12px;
+  padding: 3px 9px;
+  font-size: 11px;
   border: 1px solid var(--border);
   border-radius: var(--radius-sm);
   background: var(--kv-bg);
@@ -951,34 +983,33 @@ onMounted(async () => {
 }
 
 .empty-box {
-  padding: 40px 0; text-align: center; color: var(--text-dim); font-size: 13px;
+  padding: 24px 0; text-align: center; color: var(--text-dim); font-size: 12px;
   display: flex; flex-direction: column; align-items: center;
 }
 
 /* 历史面板 */
 .history-summary {
-  cursor: pointer; user-select: none; font-size: 14px; font-weight: 600;
+  cursor: pointer; user-select: none; font-size: 12px; font-weight: 600;
   color: var(--text); display: flex; align-items: center; justify-content: space-between;
   padding: 2px 0;
 }
-.history-summary-right { display: flex; align-items: center; gap: 14px; margin-left: auto; }
+.history-summary-right { display: flex; align-items: center; gap: 10px; margin-left: auto; }
 .chevron-indicator {
-  display: inline-flex; align-items: center; gap: 4px; font-size: 12px;
+  display: inline-flex; align-items: center; gap: 4px; font-size: 11px;
   color: var(--text-dim); font-weight: normal;
 }
-.chevron-arrow { transition: transform .2s ease; display: inline-block; font-size: 11px; }
+.chevron-arrow { transition: transform .2s ease; display: inline-block; font-size: 10px; }
 details[open] .chevron-arrow { transform: rotate(180deg); }
 details[open] .chevron-text { color: var(--accent); }
 
 .btn-clear-history {
-  padding: 3px 10px; font-size: 12px; border-radius: 4px; border: 1px solid var(--border);
+  padding: 2px 7px; font-size: 11px; border-radius: 3px; border: 1px solid var(--border);
   background: var(--kv-bg); color: var(--text-dim); cursor: pointer; display: inline-flex;
-  align-items: center; gap: 4px; transition: all .15s;
+  align-items: center; gap: 3px; transition: all .15s;
 }
 .btn-clear-history:hover { color: var(--up); border-color: var(--up); background: var(--up-bg); }
 
-.history-table-wrap { margin-top: 12px; overflow-x: auto; }
-.badge-status { font-size: 11px; padding: 2px 6px; border-radius: 4px; background: var(--bg-hover); color: var(--text-dim); }
-.action-btn { color: var(--accent); font-size: 12px; cursor: pointer; }
+.history-table-wrap { margin-top: 6px; overflow-x: auto; }
+.action-btn { color: var(--accent); font-size: 11px; cursor: pointer; }
 .action-btn:hover { text-decoration: underline; }
 </style>

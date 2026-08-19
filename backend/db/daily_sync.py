@@ -5,7 +5,7 @@
 import threading
 import time
 from concurrent.futures import ThreadPoolExecutor, as_completed
-from datetime import datetime
+from datetime import datetime, timedelta
 from typing import Any, Callable, Dict, List, Optional
 
 from .. import config
@@ -209,8 +209,10 @@ def _fetch_kline_single(client, code: str, lookback: int) -> List[tuple]:
 def sync_historical_bars(lookback_days: int = 120, scope: str = "watchlist",
                          progress: Optional[Callable] = None) -> int:
     """
-    同步历史日 K 线（用于刚建库时补齐前 N 天均线多空数据）。
-    针对自选股（秒级完成）或全市场（多线程温和分批）。
+    同步历史日 K 线（用于补齐前 N 天均线多空数据）。
+    性能优化：
+    1. 智能增量跳过：已具备完整 120 天且达到最新收盘日的标的直接跳过，0 网络开销；
+    2. 并发数提升至 12~16，批量事务提交（500 条/批），极大减少 SQLite 锁竞争与 I/O 等待。
     """
     from .lhb_seats import ensure_tables
     ensure_tables()
@@ -227,20 +229,45 @@ def sync_historical_bars(lookback_days: int = 120, scope: str = "watchlist",
             progress(100, "无股票可同步", 0, 0)
         return 0
 
-    total = len(codes)
+    target_date = get_latest_completed_trade_date()
+
+    # 查本地现有数据状态 (code -> (max_date, count))
+    existing_stats = {}
+    stat_rows = conn.execute(
+        "SELECT code, MAX(trade_date) as max_d, COUNT(*) as cnt FROM daily_bars GROUP BY code"
+    ).fetchall()
+    for r in stat_rows:
+        existing_stats[r["code"]] = (r["max_d"] or "", r["cnt"] or 0)
+
+    # 过滤出真正需要补齐历史的股票
+    need_sync_codes = []
+    for c in codes:
+        max_d, cnt = existing_stats.get(c, ("", 0))
+        if cnt >= lookback_days and max_d >= target_date:
+            continue
+        need_sync_codes.append(c)
+
+    total_codes = len(codes)
+    need_total = len(need_sync_codes)
+
+    if need_total == 0:
+        if progress:
+            progress(100, f"所有 {total_codes} 只股票历史 K 线已是最新完整状态（已自动极速跳过）", total_codes, total_codes)
+        return 0
+
     if progress:
-        progress(2, f"准备同步 {total} 只股票历史 K 线…", 0, total)
+        progress(2, f"增量补齐 {need_total} 只股票历史 K 线（已智能跳过 {total_codes - need_total} 只完整标的）…", 0, need_total)
 
     from ..datasource import eastmoney
     client = eastmoney.get_client()
 
     written = 0
     done_count = 0
-    batch_size = 30
-    concurrency = 6 if scope == "watchlist" else 4
+    batch_size = 500
+    concurrency = 12 if scope == "watchlist" else 16
 
     with ThreadPoolExecutor(max_workers=concurrency) as executor:
-        futures = {executor.submit(_fetch_kline_single, client, code, lookback_days): code for code in codes}
+        futures = {executor.submit(_fetch_kline_single, client, code, lookback_days): code for code in need_sync_codes}
         pending_rows = []
         for fut in as_completed(futures):
             code = futures[fut]
@@ -252,7 +279,7 @@ def sync_historical_bars(lookback_days: int = 120, scope: str = "watchlist",
             except Exception:
                 pass
 
-            if len(pending_rows) >= batch_size or done_count == total:
+            if len(pending_rows) >= batch_size or done_count == need_total:
                 if pending_rows:
                     with store._lock:
                         conn2 = store.get_conn()
@@ -266,14 +293,14 @@ def sync_historical_bars(lookback_days: int = 120, scope: str = "watchlist",
                         written += len(pending_rows)
                         pending_rows = []
 
-            pct = max(3, min(99, int(done_count / total * 96) + 3))
-            if progress and (done_count % 10 == 0 or done_count == total):
-                progress(pct, f"已完成 {done_count}/{total} 只", done_count, total)
+            if progress and (done_count % 15 == 0 or done_count == need_total):
+                pct = max(3, min(99, int(done_count / need_total * 96) + 3))
+                progress(pct, f"已增量补齐 {done_count}/{need_total} 只历史 K 线…", done_count, need_total)
 
     if progress:
-        progress(100, f"历史 K 线同步完成，写入 {written} 条", total, total)
+        progress(100, f"历史 K 线增量同步完成，写入 {written} 条数据", total_codes, total_codes)
 
-    logger.info("历史K线同步完成: scope=%s, 总计 %d 只, 写入 %d 条", scope, total, written)
+    logger.info("历史K线同步完成: scope=%s, 扫描 %d 只, 增量更新 %d 只, 写入 %d 条", scope, total_codes, need_total, written)
     return written
 
 
