@@ -343,6 +343,7 @@ import { ref, reactive, computed, onMounted } from 'vue'
 import { api } from '../api.js'
 import { navigate } from '../router.js'
 import { showToast } from '../composables/useToast.js'
+import { showConfirm } from '../composables/useConfirm.js'
 import { fmtPrice, fmtPct, fmtNum, fmtAmount, pctClass } from '../utils.js'
 import UiButton from '../components/ui/UiButton.vue'
 import UiIcon from '../components/ui/UiIcon.vue'
@@ -524,7 +525,15 @@ async function loadRuns() {
 }
 
 async function clearHistory() {
-  if (!confirm('确认清空历史选股归档记录吗？')) return
+  const confirmed = await showConfirm({
+    title: '清空历史选股归档',
+    message: '确认清空所有历史选股任务归档记录吗？',
+    detail: '清空后历史扫描记录将全部移除，但不会影响本地日 K 数据库和当前选股策略。',
+    confirmText: '确认清空',
+    cancelText: '取消',
+    variant: 'danger',
+  })
+  if (!confirmed) return
   try {
     await api.screenerClearRuns()
     runs.value = []
