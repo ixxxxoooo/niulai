@@ -21,6 +21,7 @@ export function parseHash() {
   if (segs[0] === 'seats') return { name: 'seats' }
   if (segs[0] === 'settings') return { name: 'settings' }
   if (segs[0] === 'screener') return { name: 'screener' }
+  if (segs[0] === 'calendar') return { name: 'calendar' }
   return { name: 'overview' }
 }
 

@@ -24,6 +24,7 @@
         <a :class="{ active: route.name === 'alerts' }" @click="go('/alerts')">监控</a>
         <a :class="{ active: route.name === 'seats' }" @click="go('/seats')">游资</a>
         <a :class="{ active: route.name === 'screener' }" @click="go('/screener')">选股</a>
+        <a :class="{ active: route.name === 'calendar' }" @click="go('/calendar')">日历</a>
       </nav>
       <div class="topbar-right">
         <SearchSuggest placeholder="代码 / 名称 / 拼音" @select="onSearchSelect" />
@@ -91,6 +92,7 @@
         <a :class="{ active: route.name === 'alerts' }" @click="go('/alerts')">监控</a>
         <a :class="{ active: route.name === 'seats' }" @click="go('/seats')">游资</a>
         <a :class="{ active: route.name === 'screener' }" @click="go('/screener')">选股</a>
+        <a :class="{ active: route.name === 'calendar' }" @click="go('/calendar')">日历</a>
       </nav>
       <nav class="side-nav side-collapsed-nav" v-else>
         <a :class="{ active: route.name === 'overview' }" @click="go('/')" title="盘面总览">盘</a>
@@ -102,6 +104,7 @@
         <a :class="{ active: route.name === 'alerts' }" @click="go('/alerts')" title="监控">监</a>
         <a :class="{ active: route.name === 'seats' }" @click="go('/seats')" title="游资">游</a>
         <a :class="{ active: route.name === 'screener' }" @click="go('/screener')" title="选股">选</a>
+        <a :class="{ active: route.name === 'calendar' }" @click="go('/calendar')" title="日历">历</a>
       </nav>
 
       <!-- 侧边栏底部：设置 + 时间 -->
@@ -182,6 +185,7 @@ import Alerts from './views/Alerts.vue'
 import Seats from './views/Seats.vue'
 import Settings from './views/Settings.vue'
 import Screener from './views/Screener.vue'
+import Calendar from './views/Calendar.vue'
 import { startAlertWatcher, stopAlertWatcher } from './composables/useAlertNotify.js'
 
 const route = ref(parseHash())
@@ -198,7 +202,7 @@ const views = {
   index: IndexDetail,
   rank: Rank, ladder: Ladder, stock: Stock, watchlist: Watchlist,
   alerts: Alerts, settings: Settings, screener: Screener,
-  seats: Seats,
+  seats: Seats, calendar: Calendar,
 }
 const viewComp = shallowRef(views[route.value.name] || Overview)
 
