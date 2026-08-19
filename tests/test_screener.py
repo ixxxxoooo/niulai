@@ -107,7 +107,13 @@ def test_run_screen_local_engine_and_filters():
     assert "600999" in hit_codes2
     assert "688001" not in hit_codes2
 
-    # 3. 测试清空归档
+    # 3. 验证默认交集模式 (match_mode="and") vs 并集模式 (match_mode="or")
+    res_and = run_screen(["breakout", "volume_surge"], scope="all", filters={"match_mode": "and", "exclude_st": True, "exclude_kcb": False})
+    assert res_and["match_mode"] == "and"
+    for it in res_and["items"]:
+        assert len(it["hit_rules"]) >= 2
+
+    # 4. 测试清空归档
     clear_runs()
     runs_cnt = conn.execute("SELECT COUNT(*) FROM screener_runs").fetchone()[0]
     assert runs_cnt == 0

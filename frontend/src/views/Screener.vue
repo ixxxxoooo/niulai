@@ -104,6 +104,36 @@
         </div>
 
         <div class="filter-row">
+          <span class="filter-title">策略组合：</span>
+          <div class="filter-options">
+            <label
+              class="radio-pill"
+              :class="{ active: filters.match_mode === 'and' }"
+              @click="filters.match_mode = 'and'"
+              title="同时满足所有勾选的策略，百里挑一核心龙头"
+            >
+              <span class="radio-dot"></span> 🎯 严格交集 (必须同时满足所有策略 · 默认)
+            </label>
+            <label
+              class="radio-pill"
+              :class="{ active: filters.match_mode === 'resonance' }"
+              @click="filters.match_mode = 'resonance'"
+              title="命中策略越多越靠前排序"
+            >
+              <span class="radio-dot"></span> 🌟 共振优选 (命中越多越优先)
+            </label>
+            <label
+              class="radio-pill"
+              :class="{ active: filters.match_mode === 'or' }"
+              @click="filters.match_mode = 'or'"
+              title="满足任意一个策略即入选"
+            >
+              <span class="radio-dot"></span> 📋 广度并集 (满足任意策略即可)
+            </label>
+          </div>
+        </div>
+
+        <div class="filter-row">
           <span class="filter-title">排雷与排除：</span>
           <div class="filter-chips">
             <div
@@ -171,7 +201,7 @@
           @click="runScreen"
         >
           <UiIcon name="search" :size="18" />
-          <span>{{ running ? '量化引擎极速扫描中…' : '开始量化选股 (一键多策略共振扫描)' }}</span>
+          <span>{{ running ? '量化引擎极速扫描中…' : (filters.match_mode === 'and' ? '开始量化选股 (执行严格交集严选)' : '开始量化选股 (一键多策略共振扫描)') }}</span>
         </button>
       </div>
     </div>
@@ -198,7 +228,7 @@
           :class="{ active: activeTab === 'all_aggregated' }"
           @click="activeTab = 'all_aggregated'"
         >
-          🔥 全部共振优选榜
+          {{ filters.match_mode === 'and' ? '🎯 严格交集精选榜' : (filters.match_mode === 'resonance' ? '🌟 共振优选总榜' : '📋 广度并集总榜') }}
           <span class="badge-num">{{ result.items ? result.items.length : result.hit_count }}</span>
         </button>
         <button
@@ -389,8 +419,9 @@ function openStockModal(code, name = '') {
   modalOpen.value = true
 }
 
-// 排除项过滤器：默认排除 ST、破位、北交所、科创板、创业板
+// 策略组合与排除项过滤器：默认严格交集，默认排除 ST、破位、北交所、科创板、创业板
 const filters = reactive({
+  match_mode: 'and', // 'and' (严格交集 · 默认) | 'resonance' (共振排序) | 'or' (并集)
   exclude_st: true,
   exclude_broken: true,
   exclude_bjs: true,

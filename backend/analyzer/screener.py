@@ -515,12 +515,21 @@ def run_screen(rules: List[str], params: Optional[Dict[str, dict]] = None,
                 r_name = RULES.get(rule_id, {}).get("name", rule_id)
                 stock_hits_map[c]["signals"].append({"rule": rule_id, "name": r_name, "detail": detail_msg})
 
-    # 共振聚合排序
+    match_mode = filters.get("match_mode", "and")  # "and" (交集，默认) | "resonance" (共振) | "or" (并集)
+    required_rules_set = set(rules)
+
+    # 聚合与交集/共振筛选
     aggregated_items = []
     for s in stock_hits_map.values():
         s["match_count"] = len(s["hit_rules"])
         s["detail"] = " · ".join(f"[{item['name']}] {item['detail']}" for item in s["signals"])
-        aggregated_items.append(s)
+
+        # 默认交集模式：必须同时满足全部勾选策略
+        if match_mode == "and":
+            if set(s["hit_rules"]) >= required_rules_set:
+                aggregated_items.append(s)
+        else:
+            aggregated_items.append(s)
 
     # 优先按共振策略数量降序，再按涨跌幅降序
     aggregated_items.sort(key=lambda x: (x["match_count"], x.get("change_pct") or 0), reverse=True)
@@ -553,6 +562,7 @@ def run_screen(rules: List[str], params: Optional[Dict[str, dict]] = None,
         "run_id": run_id,
         "scanned": len(filtered_codes),
         "hit_count": total_hits,
+        "match_mode": match_mode,
         "elapsed_ms": elapsed_ms,
         "items": aggregated_items,
         "hits": hits_by_rule,
