@@ -901,13 +901,23 @@ async function load() {
   }
 }
 
+let lastRiskCodesKey = ''
+let lastRiskFetchTime = 0
+
 async function loadRiskTags(allCodes) {
   try {
     const stockOnly = allCodes.filter(c => !isEtf({ code: c }))
-    if (stockOnly.length) {
-      const res = await api.batchStockRisk(stockOnly)
-      riskMap.value = res || {}
+    if (!stockOnly.length) return
+    const key = [...stockOnly].sort().join(',')
+    const now = Date.now()
+    // 若自选代码未变且距上次请求小于 15 分钟，不重复发起请求（财务解禁属静态低频数据）
+    if (key === lastRiskCodesKey && now - lastRiskFetchTime < 15 * 60 * 1000) {
+      return
     }
+    lastRiskCodesKey = key
+    lastRiskFetchTime = now
+    const res = await api.batchStockRisk(stockOnly.slice(0, 100))
+    riskMap.value = { ...riskMap.value, ...(res || {}) }
   } catch (e) { /* ignore */ }
 }
 
