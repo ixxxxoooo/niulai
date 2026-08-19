@@ -199,6 +199,12 @@ def run_screen(rules: List[str], params: Optional[Dict[str, dict]] = None,
             continue
         scanned += 1
         last_bar = bars[-1]
+        prev_bar = bars[-2] if len(bars) >= 2 else None
+        close_val = last_bar.get("close")
+        change_pct = None
+        if prev_bar and (prev_bar.get("close") or 0) > 0 and close_val is not None:
+            change_pct = round((close_val - prev_bar["close"]) / prev_bar["close"] * 100, 2)
+
         for rule_id in rules:
             checker = _CHECKERS.get(rule_id)
             if not checker:
@@ -209,8 +215,8 @@ def run_screen(rules: List[str], params: Optional[Dict[str, dict]] = None,
                 hit = {
                     "code": code,
                     "name": name,
-                    "close": last_bar.get("close"),
-                    "change_pct": last_bar.get("change_pct"),
+                    "close": close_val,
+                    "change_pct": change_pct,
                     "detail": signal,
                 }
                 hits_by_rule[rule_id].append(hit)
@@ -219,8 +225,7 @@ def run_screen(rules: List[str], params: Optional[Dict[str, dict]] = None,
                     conn.execute(
                         "INSERT INTO screener_hits(run_id, rule_id, code, name, close, change_pct, detail) "
                         "VALUES (?, ?, ?, ?, ?, ?, ?)",
-                        (run_id, rule_id, code, name,
-                         last_bar.get("close"), last_bar.get("change_pct"), signal),
+                        (run_id, rule_id, code, name, close_val, change_pct, signal),
                     )
                 except Exception:
                     pass

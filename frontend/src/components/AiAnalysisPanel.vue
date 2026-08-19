@@ -30,10 +30,25 @@
           </div>
 
           <template v-else>
+            <div class="ai-presets">
+              <span class="ai-presets-label">快捷分析：</span>
+              <button
+                v-for="p in PRESET_PROMPTS"
+                :key="p.id"
+                class="ai-preset-pill"
+                :class="{ active: selectedPreset === p.id }"
+                :disabled="loading"
+                @click="runPreset(p.id)"
+              >
+                {{ p.label }}
+              </button>
+            </div>
+
             <div v-if="error" class="ai-error">
               <div>{{ error }}</div>
               <div v-if="debugInfo" class="ai-debug">{{ debugInfo }}</div>
             </div>
+
 
             <!-- 思考过程（Markdown 实时预览） -->
             <div v-if="thinkingMd || currentReasoning" class="ai-think">
@@ -127,6 +142,20 @@ const showResult = computed(() => {
   if (loading.value) return false
   return !!Object.keys(currentResult.value).filter(k => currentResult.value[k]).length
 })
+
+const PRESET_PROMPTS = [
+  { id: 'all', label: '⚡ 全面技术分析', focus: '' },
+  { id: 'flow', label: '📊 量价与主力资金', focus: '【重点聚焦】请结合近10日主力资金进出、分时均价线与量比，重点研判主力控盘动向与量价背离风险。' },
+  { id: 'trend', label: '📈 买卖点与关键位', focus: '【重点聚焦】请结合日K均线多空排列、MACD/KDJ/RSI与压力支撑位，重点给出明确买入区间、止损价与目标位。' },
+  { id: 'chip', label: '🎯 题材情绪与连板', focus: '【重点聚焦】请结合概念题材风口热度、连板情绪周期与筹码博弈，重点评估短线资金接力意愿与持续性。' },
+]
+
+const selectedPreset = ref('all')
+
+function runPreset(id) {
+  selectedPreset.value = id
+  runAnalysis()
+}
 
 const SECTION_META = [
   { key: 'summary', title: '综合判断' },
@@ -291,7 +320,10 @@ function buildPrompt(data) {
 
   const newsSummary = newsItems.slice(0, 5).map(n => `- ${n.title}`).join('\n') || '暂无近期新闻'
 
-  return `对「${props.name || props.code}(${props.code})」做系统化技术分析。
+  const presetObj = PRESET_PROMPTS.find(p => p.id === selectedPreset.value)
+  const focusTxt = presetObj?.focus ? `\n\n${presetObj.focus}` : ''
+
+  return `对「${props.name || props.code}(${props.code})」做系统化技术分析。${focusTxt}
 
 ## 盘面快照
 现价${safe(snap.price)} 涨跌${safe(snap.change_pct, '%')} 今开${safe(snap.open)} 昨收${safe(snap.prev_close)} 最高${safe(snap.high)} 最低${safe(snap.low)}
@@ -517,6 +549,24 @@ async function runAnalysis() {
   height: auto;
 }
 .ai-modal-body { padding: 16px 18px; overflow-y: auto; flex: 1; min-height: 120px; }
+.ai-presets {
+  display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
+  padding: 8px 12px; background: var(--kv-bg); border-radius: 8px; margin-bottom: 14px;
+}
+.ai-presets-label { font-size: 12px; color: var(--text-dim); font-weight: 500; }
+.ai-preset-pill {
+  padding: 4px 10px; border-radius: 14px; border: 1px solid var(--border);
+  background: var(--bg); color: var(--text); font-size: 12px; cursor: pointer;
+  transition: all .15s;
+}
+.ai-preset-pill:hover:not(:disabled) {
+  border-color: var(--accent); color: var(--accent); background: var(--bg-hover);
+}
+.ai-preset-pill.active {
+  background: var(--accent); color: #fff; border-color: var(--accent); font-weight: 500;
+}
+.ai-preset-pill:disabled { opacity: .5; cursor: not-allowed; }
+
 .modal-close {
   border: none; background: transparent; cursor: pointer;
   font-size: 15px; color: var(--text-dim); padding: 4px 8px; border-radius: 6px;
@@ -530,8 +580,8 @@ async function runAnalysis() {
 }
 .btn-shot:hover { opacity: 1; background: var(--bg-hover); }
 .btn-ai {
-  padding: 5px 14px; border-radius: 6px; border: none; cursor: pointer;
-  background: linear-gradient(135deg, #6366f1, #8b5cf6); color: #fff;
+  padding: 5px 14px; border-radius: var(--radius-sm); border: none; cursor: pointer;
+  background: var(--accent); color: #fff;
   font-size: 13px; font-weight: 500; transition: opacity .2s;
 }
 .btn-ai:hover:not(:disabled) { opacity: .85; }
@@ -539,7 +589,7 @@ async function runAnalysis() {
 .ai-elapsed { font-size: 12px; color: var(--text-dim); }
 .ai-tip { font-size: 13px; color: var(--text-dim); padding: 16px 0; }
 .ai-tip .link { color: var(--accent); text-decoration: underline; }
-.ai-error { font-size: 13px; color: var(--down); padding: 12px; background: var(--down-bg); border-radius: 8px; margin-bottom: 10px; }
+.ai-error { font-size: 13px; color: var(--up); padding: 12px; background: var(--up-bg); border-radius: var(--radius-md); margin-bottom: 10px; }
 .ai-debug { font-size: 11px; color: var(--text-dim); margin-top: 6px; word-break: break-all; }
 .ai-empty { font-size: 13px; color: var(--text-dim); padding: 20px 0; line-height: 1.7; }
 .ai-loading { display: flex; align-items: center; gap: 10px; padding: 12px 0; color: var(--text-dim); font-size: 13px; }
@@ -549,7 +599,7 @@ async function runAnalysis() {
 }
 @keyframes spin { to { transform: rotate(360deg); } }
 
-.ai-think { margin-bottom: 12px; border: 1px solid var(--border); border-radius: 10px; background: var(--kv-bg); overflow: hidden; }
+.ai-think { margin-bottom: 12px; border: 1px solid var(--border); border-radius: var(--radius-md); background: var(--kv-bg); overflow: hidden; }
 .ai-think-toggle {
   width: 100%; display: flex; align-items: center; gap: 8px;
   padding: 10px 12px; border: none; background: transparent;
@@ -566,15 +616,16 @@ async function runAnalysis() {
 .ai-section { margin-bottom: 16px; }
 .ai-section-title { font-size: 13px; font-weight: 600; color: var(--accent); margin-bottom: 6px; }
 .ai-text { font-size: 13px; line-height: 1.7; color: var(--text); }
-.ai-disclaimer { font-size: 11px; color: var(--text-dim); padding: 10px; background: var(--kv-bg); border-radius: 6px; margin-top: 12px; display: flex; align-items: center; gap: 5px; }
+.ai-disclaimer { font-size: 11px; color: var(--text-dim); padding: 10px; background: var(--kv-bg); border-radius: var(--radius-sm); margin-top: 12px; display: flex; align-items: center; gap: 5px; }
 
 /* AI 关键词着色（作用在 v-html 渲染的 Markdown 内） */
 .md :deep(.ai-num) { color: var(--accent); font-weight: 600; }
-.md :deep(.ai-price) { color: #f5a623; font-weight: 600; }
+.md :deep(.ai-price) { color: var(--yellow); font-weight: 600; }
 .md :deep(.ai-bull) { color: var(--up); font-weight: 600; }
 .md :deep(.ai-bear) { color: var(--down); font-weight: 600; }
 .md :deep(.ai-neutral) { color: var(--text-dim); font-weight: 600; }
-.md :deep(.ai-warn) { color: #f59e0b; font-weight: 600; }
+.md :deep(.ai-warn) { color: var(--yellow); font-weight: 600; }
+
 
 /* Markdown 通用样式 */
 .md h1, .md h2, .md h3, .md h4 { margin: 10px 0 6px; line-height: 1.4; }

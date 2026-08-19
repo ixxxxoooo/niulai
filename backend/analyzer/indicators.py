@@ -93,6 +93,12 @@ def _kdj(highs: List[float], lows: List[float], closes: List[float], n: int = 9)
     return {"k": k_list, "d": d_list, "j": j_list}
 
 
+def _rsi_calc(avg_gain: float, avg_loss: float) -> float:
+    if avg_loss == 0:
+        return 50.0 if avg_gain == 0 else 100.0
+    return 100.0 - 100.0 / (1.0 + avg_gain / avg_loss)
+
+
 def _rsi(closes: List[float], period: int = 14) -> List[Optional[float]]:
     """RSI。"""
     n = len(closes)
@@ -108,15 +114,16 @@ def _rsi(closes: List[float], period: int = 14) -> List[Optional[float]]:
             losses -= diff
     avg_gain = gains / period
     avg_loss = losses / period
-    result[period] = round(100.0 if avg_loss == 0 else 100 - 100 / (1 + avg_gain / avg_loss), 4)
+    result[period] = round(_rsi_calc(avg_gain, avg_loss), 4)
     for i in range(period + 1, n):
         diff = closes[i] - closes[i - 1]
         gain = diff if diff > 0 else 0.0
         loss = -diff if diff < 0 else 0.0
         avg_gain = (avg_gain * (period - 1) + gain) / period
         avg_loss = (avg_loss * (period - 1) + loss) / period
-        result[i] = round(100.0 if avg_loss == 0 else 100 - 100 / (1 + avg_gain / avg_loss), 4)
+        result[i] = round(_rsi_calc(avg_gain, avg_loss), 4)
     return result
+
 
 
 def _boll(closes: List[float], period: int = 20, k: float = 2.0) -> dict:

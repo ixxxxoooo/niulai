@@ -79,16 +79,16 @@ function goSeat(nickname) {
 .yz-tag {
   display: inline-flex; align-items: center; justify-content: center;
   font-size: 11px; font-weight: 700; line-height: 1;
-  min-width: 16px; height: 16px; padding: 0 4px; border-radius: 4px;
-  background: #fff3cd; color: #b45309; border: 1px solid #fde68a;
+  min-width: 16px; height: 16px; padding: 0 4px; border-radius: var(--radius-sm);
+  background: var(--yellow-bg); color: var(--yellow); border: 1px solid var(--yellow);
   cursor: pointer; user-select: none; transition: transform .12s;
 }
 .yz-tag:hover { transform: scale(1.12); }
-.yz-tag.lhasa { background: #dc2626; color: #fff; border-color: #b91c1c; }
+.yz-tag.lhasa { background: var(--up); color: #fff; border-color: var(--up); }
 .yz-pop {
   position: fixed; z-index: 400;
   width: 260px; background: var(--bg-card); border: 1px solid var(--border);
-  border-radius: 8px; box-shadow: 0 10px 28px rgba(0, 0, 0, 0.35);
+  border-radius: var(--radius-md); box-shadow: var(--shadow-lg);
   padding: 8px; pointer-events: auto;
 }
 .yz-hd { font-size: 12px; font-weight: 600; color: var(--text-dim); padding: 0 2px 6px; }

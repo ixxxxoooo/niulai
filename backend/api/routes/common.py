@@ -324,25 +324,28 @@ def _merge_stock_detail(code: str, market: Optional[int] = None) -> StockDetail:
     ob = tq.get("orderbook") or {}
     detail = snap.model_copy(deep=True)
     if tq:
-        detail.name = tq.get("name") or detail.name
-        detail.price = tq.get("price") or detail.price
-        detail.prev_close = tq.get("prev_close") or detail.prev_close
-        detail.open = tq.get("open") or detail.open
-        detail.high = tq.get("high") or detail.high
-        detail.low = tq.get("low") or detail.low
-        detail.change = tq.get("change") or detail.change
-        detail.change_pct = tq.get("change_pct") or detail.change_pct
-        detail.amplitude = tq.get("amplitude") or detail.amplitude
-        detail.turnover = tq.get("turnover") or detail.turnover
-        detail.volume_ratio = tq.get("volume_ratio") or detail.volume_ratio
-        detail.pe = tq.get("pe") or detail.pe
-        detail.pb = tq.get("pb") or detail.pb
-        detail.volume = tq.get("volume") or detail.volume
-        detail.amount = (tq.get("amount_wan") or 0) * 1e4 or detail.amount
-        detail.total_mv = (tq.get("total_mv_yi") or 0) * 1e8 or detail.total_mv
-        detail.float_mv = (tq.get("float_mv_yi") or 0) * 1e8 or detail.float_mv
-        detail.limit_up = tq.get("limit_up") or detail.limit_up
-        detail.limit_down = tq.get("limit_down") or detail.limit_down
+        detail.name = tq.get("name") if tq.get("name") is not None else detail.name
+        detail.price = tq.get("price") if tq.get("price") is not None else detail.price
+        detail.prev_close = tq.get("prev_close") if tq.get("prev_close") is not None else detail.prev_close
+        detail.open = tq.get("open") if tq.get("open") is not None else detail.open
+        detail.high = tq.get("high") if tq.get("high") is not None else detail.high
+        detail.low = tq.get("low") if tq.get("low") is not None else detail.low
+        detail.change = tq.get("change") if tq.get("change") is not None else detail.change
+        detail.change_pct = tq.get("change_pct") if tq.get("change_pct") is not None else detail.change_pct
+        detail.amplitude = tq.get("amplitude") if tq.get("amplitude") is not None else detail.amplitude
+        detail.turnover = tq.get("turnover") if tq.get("turnover") is not None else detail.turnover
+        detail.volume_ratio = tq.get("volume_ratio") if tq.get("volume_ratio") is not None else detail.volume_ratio
+        detail.pe = tq.get("pe") if tq.get("pe") is not None else detail.pe
+        detail.pb = tq.get("pb") if tq.get("pb") is not None else detail.pb
+        detail.volume = tq.get("volume") if tq.get("volume") is not None else detail.volume
+        if tq.get("amount_wan") is not None:
+            detail.amount = float(tq["amount_wan"]) * 1e4
+        if tq.get("total_mv_yi") is not None:
+            detail.total_mv = float(tq["total_mv_yi"]) * 1e8
+        if tq.get("float_mv_yi") is not None:
+            detail.float_mv = float(tq["float_mv_yi"]) * 1e8
+        detail.limit_up = tq.get("limit_up") if tq.get("limit_up") is not None else detail.limit_up
+        detail.limit_down = tq.get("limit_down") if tq.get("limit_down") is not None else detail.limit_down
         detail.outer = tq.get("outer")
         detail.inner = tq.get("inner")
         detail.weicha = tq.get("weicha")

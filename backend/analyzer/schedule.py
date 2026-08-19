@@ -15,11 +15,28 @@ _SESSIONS: Tuple[Tuple[datetime.time, datetime.time], ...] = tuple(
 )
 
 
+def _custom_holidays() -> set:
+    try:
+        from ..db import store as db
+        v = db.get_setting("custom_holidays")
+        if v:
+            return {s.strip() for s in v.replace("\n", ",").split(",") if s.strip()}
+    except Exception:
+        pass
+    return set()
+
+
 def is_trading_day(d: datetime.date) -> bool:
-    """是否交易日（周末 + 节假日表）"""
+    """是否交易日（周末 + 静态节假日表 + 动态自定义节假日）"""
     if d.weekday() >= 5:
         return False
-    return d.isoformat() not in config.TRADING_HOLIDAYS
+    iso = d.isoformat()
+    if iso in config.TRADING_HOLIDAYS:
+        return False
+    if iso in _custom_holidays():
+        return False
+    return True
+
 
 
 def is_trading_time(now: datetime.datetime | None = None) -> bool:

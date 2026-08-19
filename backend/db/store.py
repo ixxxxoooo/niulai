@@ -903,18 +903,75 @@ def import_user_backup(payload: Dict[str, Any]) -> Dict[str, int]:
     result: Dict[str, int] = {}
     with _lock:
         for table in USER_BACKUP_TABLES:
-            rows = tables.get(table) or []
-            if not rows:
+            if table not in tables:
                 continue
+            rows = tables.get(table) or []
             # 清空旧数据后整体写入（id 自增主键：保留原 id 以维持流水/快照/选股外键一致）
             conn.execute(f'DELETE FROM "{table}"')
-            cols = list(rows[0].keys())
-            placeholders = ", ".join(["?"] * len(cols))
-            col_sql = ", ".join(f'"{c}"' for c in cols)
-            conn.executemany(
-                f'INSERT INTO "{table}"({col_sql}) VALUES ({placeholders})',
-                [tuple(r.get(c) for c in cols) for r in rows],
-            )
+            if rows:
+                cols = list(rows[0].keys())
+                placeholders = ", ".join(["?"] * len(cols))
+                col_sql = ", ".join(f'"{c}"' for c in cols)
+                conn.executemany(
+                    f'INSERT INTO "{table}"({col_sql}) VALUES ({placeholders})',
+                    [tuple(r.get(c) for c in cols) for r in rows],
+                )
             result[table] = len(rows)
         conn.commit()
     return result
+
+
+# ------------------------------------------------------------------ AI 分析历史
+def save_ai_history(code: str, reasoning: str, content: str,
+                    result: Optional[Dict[str, Any]] = None) -> None:
+    """保存一条 AI 分析历史，仅保留该股票最近 5 条（倒序）。线程安全。"""
+    import json
+    code = (code or "").strip()
+    if not code:
+        return
+    conn = get_conn()
+    with _lock:
+        conn.execute(
+            "INSERT INTO ai_history (code, reasoning, content, result, created_at) VALUES (?,?,?,?,?)",
+            (code, reasoning or "", content or "",
+             json.dumps(result, ensure_ascii=False) if result else None,
+             _now()),
+        )
+        conn.execute(
+            "DELETE FROM ai_history WHERE code=? AND id NOT IN "
+            "(SELECT id FROM ai_history WHERE code=? ORDER BY id DESC LIMIT 5)",
+            (code, code),
+        )
+        conn.commit()
+
+
+def get_ai_history(code: str, limit: int = 5) -> List[Dict[str, Any]]:
+    """读取某股票 AI 分析历史（倒序，最多 limit 条）。"""
+    import json
+    code = (code or "").strip()
+    if not code:
+        return []
+    conn = get_conn()
+    rows = conn.execute(
+        "SELECT id, code, reasoning, content, result, created_at "
+        "FROM ai_history WHERE code=? ORDER BY id DESC LIMIT ?",
+        (code, limit),
+    ).fetchall()
+    items = []
+    for r in rows:
+        res = {}
+        if r["result"]:
+            try:
+                res = json.loads(r["result"])
+            except Exception:
+                res = {}
+        items.append({
+            "id": r["id"],
+            "code": r["code"],
+            "reasoning": r["reasoning"] or "",
+            "content": r["content"] or "",
+            "result": res,
+            "created_at": r["created_at"] or "",
+        })
+    return items
+

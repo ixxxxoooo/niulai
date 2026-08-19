@@ -101,19 +101,12 @@ def ai_save(body: AiHistoryBody):
     保存一条 AI 分析历史，仅保留该股票最近 5 条（倒序）。
     @author ygw
     """
-    conn = db.get_conn()
-    conn.execute(
-        "INSERT INTO ai_history (code, reasoning, content, result, created_at) VALUES (?,?,?,?,?)",
-        (body.code, body.reasoning, body.content,
-         json.dumps(body.result, ensure_ascii=False) if body.result else None,
-         db._now()),
+    db.save_ai_history(
+        code=body.code,
+        reasoning=body.reasoning,
+        content=body.content,
+        result=body.result,
     )
-    conn.execute(
-        "DELETE FROM ai_history WHERE code=? AND id NOT IN "
-        "(SELECT id FROM ai_history WHERE code=? ORDER BY id DESC LIMIT 5)",
-        (body.code, body.code),
-    )
-    conn.commit()
     return {"ok": True}
 
 
@@ -123,26 +116,5 @@ def ai_history(code: str):
     读取某股票 AI 分析历史（倒序，最多 5 条）。
     @author ygw
     """
-    conn = db.get_conn()
-    rows = conn.execute(
-        "SELECT id, code, reasoning, content, result, created_at "
-        "FROM ai_history WHERE code=? ORDER BY id DESC LIMIT 5",
-        (code,),
-    ).fetchall()
-    items = []
-    for r in rows:
-        result = {}
-        if r["result"]:
-            try:
-                result = json.loads(r["result"])
-            except Exception:
-                result = {}
-        items.append({
-            "id": r["id"],
-            "code": r["code"],
-            "reasoning": r["reasoning"] or "",
-            "content": r["content"] or "",
-            "result": result,
-            "created_at": r["created_at"] or "",
-        })
-    return {"items": items}
+    return {"items": db.get_ai_history(code, limit=5)}
+

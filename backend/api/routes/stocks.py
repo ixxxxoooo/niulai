@@ -43,8 +43,9 @@ def search(
 @router.get("/stocks/batch")
 @ttl_cache()
 def stocks_batch(codes: str = Query(..., description="逗号分隔的股票代码")):
-    """批量快照（自选股用）：一次 ulist 拉涨速/主力净流入，避免 stock/get 字段错位。"""
-    code_list = [c.strip() for c in codes.split(",") if c.strip()][:50]
+    """批量快照（自选股用）：分批并发 ulist 拉涨速/主力净流入，支持最多 200 只自选。"""
+    from concurrent.futures import ThreadPoolExecutor
+    code_list = [c.strip() for c in codes.split(",") if c.strip()][:200]
     if not code_list:
         return []
     metas = db.get_stocks_map(code_list)
@@ -55,11 +56,25 @@ def stocks_batch(codes: str = Query(..., description="逗号分隔的股票代�
                 markets[c] = int(m["market"])
             except (TypeError, ValueError):
                 pass
+
+    batch_size = 50
+    batches = [code_list[i:i + batch_size] for i in range(0, len(code_list), batch_size)]
+    client = eastmoney.get_client()
+
+    def _fetch_batch(b):
+        try:
+            return client.ulist_briefs(b, markets)
+        except Exception:
+            return []
+
     briefs = []
-    try:
-        briefs = eastmoney.get_client().ulist_briefs(code_list, markets)
-    except Exception:
-        briefs = []
+    if len(batches) == 1:
+        briefs = _fetch_batch(batches[0])
+    else:
+        with ThreadPoolExecutor(max_workers=min(len(batches), 4)) as ex:
+            for res in ex.map(_fetch_batch, batches):
+                briefs.extend(res)
+
     by_code = {b.code: b for b in briefs}
     out = []
     for c in code_list:
@@ -73,6 +88,7 @@ def stocks_batch(codes: str = Query(..., description="逗号分隔的股票代�
         else:
             d = b.model_dump()
         d["classify"] = meta.get("classify") or d.get("classify") or (
+
             "Fund" if "ETF" in str(d.get("name") or "").upper() else "AStock"
         )
         d["board"] = meta.get("board") or d.get("board")

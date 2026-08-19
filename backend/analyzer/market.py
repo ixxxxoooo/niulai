@@ -18,61 +18,6 @@ from . import schedule
 # 两市代表指数：上证指数=沪市全部，深证成指=深市全部
 _TOTAL_AMOUNT_INDICES = {"000001", "399001"}
 
-# 北交所全部 A 股板块（东财 fs）
-_FS_BJ = "m:0+t:81+s:2048"
-
-
-def _num(x) -> Optional[float]:
-    """clist 涨跌幅字段转 float，'-'/None 视为停牌或不可用。"""
-    try:
-        return float(x)
-    except (TypeError, ValueError):
-        return None
-
-
-def _market_updown_stats(client) -> dict:
-    """统计沪深京三市涨跌家数与涨停/跌停家数（对齐通达信口径）。
-
-    用 clist 全市场分页拉取（并发），剔除停牌股（涨跌幅缺失）；涨停/跌停按板块
-    阈值判定：主板 ±9.8%、创业板/科创板 ±19.5%。返回 {up, down, flat, limit_up, limit_down}。
-    """
-    fields = "f3,f12"
-    items = client._clist_all_pages(config.FS_ALL_A, fields, max_pages=80)
-    try:
-        items += client._clist_all_pages(_FS_BJ, fields, max_pages=10)
-    except Exception:  # noqa: BLE001 - 北交所失败不拖累整体
-        pass
-
-    up = down = flat = 0
-    limit_up = limit_down = 0
-    for it in items:
-        code = str(it.get("f12") or "")
-        pct = _num(it.get("f3"))
-        if pct is None:  # 停牌/无涨跌幅
-            continue
-        if code.startswith(("30", "68")):  # 创业板/科创板 20cm
-            up_th, down_th = 19.5, -19.5
-        elif code.startswith(("4", "8", "92")):  # 北交所 30cm
-            up_th, down_th = 29.5, -29.5
-        else:  # 主板 10cm
-            up_th, down_th = 9.8, -9.8
-        if pct > 0:
-            up += 1
-        elif pct < 0:
-            down += 1
-        else:
-            flat += 1
-        # 涨停/跌停：涨幅需在涨停价附近（新股首日无涨跌幅限制，涨幅远超涨停价不计入）
-        if up_th <= pct <= up_th + 10:
-            limit_up += 1
-        elif pct <= down_th:
-            limit_down += 1
-
-    return {
-        "up": up, "down": down, "flat": flat,
-        "limit_up": limit_up or None, "limit_down": limit_down or None,
-    }
-
 
 def _safe(fn, default=None):
     try:
@@ -82,35 +27,41 @@ def _safe(fn, default=None):
 
 
 def market_overview() -> MarketOverview:
-    """聚合大盘概况：指数、沪深京三市成交额、涨跌家数、涨停/跌停家数（不含量能，量能走独立接口）
+    """聚合大盘概况：指数、两市总成交额、涨跌平家数、涨停/跌停家数（毫秒级轻量接口）
 
-    涨跌家数与通达信口径一致：沪深京全部 A 股，剔除停牌股（涨跌幅字段缺失即停牌）。
-    涨停/跌停按板块阈值：主板 ±9.8%、创业板/科创板 ±19.5%（ST 5% 涨停不计入，同通达信）。
+    - 涨跌平家数：直接从东财指数行情（上证指数 + 深证成指）自带的 f104/f105/f106 字段求和获取，无需拉取全市场
+    - 涨停/跌停数：复用涨停池/跌停池现成接口数量
     """
     client = eastmoney.get_client()
 
-    # 并发拉取页面直接展示的数据源
+    # 并发拉取指数、腾讯快照时间、涨跌停池条数
     with ThreadPoolExecutor(max_workers=4) as ex:
         f_indices = ex.submit(client.index_quotes)
         f_tq = ex.submit(lambda: tencent.get_client().fetch_quotes(["000001"]))
-        # 全市场涨跌家数：沪深（剔除停牌）+ 北交所
-        f_count = ex.submit(lambda: _market_updown_stats(client))
-        # 涨停池：涨停/跌停家数（涨停池东财不含北交所，配合 clist 板块阈值统计）
+        f_zt = ex.submit(lambda: len(client.limit_up_pool(300)))
+        f_dt = ex.submit(lambda: len(client.limit_down_list(300)))
 
         indices = _safe(lambda: f_indices.result(), [])
         tq = _safe(lambda: f_tq.result(), {})
-        stats = _safe(lambda: f_count.result(), None)
+        limit_up_count = _safe(lambda: f_zt.result(), None)
+        limit_down_count = _safe(lambda: f_dt.result(), None)
 
     total_amount: Optional[float] = None
+    up_count = 0
+    down_count = 0
+    flat_count = 0
+    has_stats = False
+
     for q in indices:
         if q.code in _TOTAL_AMOUNT_INDICES:
             total_amount = (total_amount or 0) + (q.amount or 0)
-
-    up = (stats or {}).get("up", 0)
-    down = (stats or {}).get("down", 0)
-    flat = (stats or {}).get("flat", 0)
-    limit_up_count = (stats or {}).get("limit_up")
-    limit_down_count = (stats or {}).get("limit_down")
+            if q.up_count is not None:
+                up_count += int(q.up_count)
+                has_stats = True
+            if q.down_count is not None:
+                down_count += int(q.down_count)
+            if q.flat_count is not None:
+                flat_count += int(q.flat_count)
 
     # 数据时间：优先用腾讯行情的更新时间
     quote_time = None
@@ -122,9 +73,9 @@ def market_overview() -> MarketOverview:
     return MarketOverview(
         indices=indices,
         total_amount=total_amount,
-        up_count=up,
-        down_count=down,
-        flat_count=flat,
+        up_count=up_count if has_stats else None,
+        down_count=down_count if has_stats else None,
+        flat_count=flat_count if has_stats else None,
         limit_up_count=limit_up_count,
         limit_down_count=limit_down_count,
         index_volume=None,
@@ -133,28 +84,30 @@ def market_overview() -> MarketOverview:
     )
 
 
+
 def _fetch_amount_history(symbols: list) -> Optional[dict]:
     """从腾讯 newfqkline 拉指数日K成交额（万元）。
 
-    返回 {symbol: [(date, amount_wan), ...]}，amount_wan 为当日成交额（万元）。
+    返回 {symbol: {date: amount_wan}}，amount_wan 为当日成交额（万元）。
     注意：该接口字段为 [日期,开,收,高,低,量,{},涨跌幅,成交额(万),0,0]，
     成交额在索引 8。失败返回 None。
     """
-    import urllib.request
+    import httpx
 
     out = {}
+    headers = {"User-Agent": config.USER_AGENT, "Referer": config.TENCENT_REFERER}
     for sym in symbols:
         url = (f"https://web.ifzq.gtimg.cn/appstock/app/newfqkline/get"
                f"?param={sym},day,,,6,qfq")
-        req = urllib.request.Request(url, headers={"User-Agent": "Mozilla/5.0"})
         try:
-            with urllib.request.urlopen(req, timeout=6) as resp:
-                d = json.loads(resp.read().decode("utf-8", "ignore"))
+            resp = httpx.get(url, headers=headers, timeout=config.REQUEST_TIMEOUT)
+            resp.raise_for_status()
+            d = resp.json()
         except Exception:
             continue
         node = (((d or {}).get("data") or {}).get(sym)) or {}
         rows = node.get("day") or node.get("qfqday") or []
-        seq = []
+        seq = {}
         for r in rows:
             if not isinstance(r, list) or len(r) < 9:
                 continue
@@ -162,7 +115,8 @@ def _fetch_amount_history(symbols: list) -> Optional[dict]:
                 amt = float(r[8]) if r[8] else None  # 成交额（万元）
             except (TypeError, ValueError):
                 amt = None
-            seq.append((str(r[0]), amt))
+            if amt is not None:
+                seq[str(r[0])] = amt
         if seq:
             out[sym] = seq
     return out or None
@@ -173,22 +127,22 @@ def market_volume() -> Optional[dict]:
 
     数据源：腾讯 newfqkline（含历史成交额，万）。东财指数 K 线被服务端断连，
     且成交量(手)在高低价股切换时会失真（8/17 成交额放量但手数缩量），故用成交额判断。
-    返回 None 表示暂不可用。
+    按共有交易日严格对齐沪深两市数据，返回 None 表示暂不可用。
     """
     # 两市代表：上证指数(沪市全部) + 深证成指(深市全部，与深证综指同量值)
     hist = _fetch_amount_history(["sh000001", "sz399001"])
-    if not hist or len(hist.get("sh000001", [])) < 2 or len(hist.get("sz399001", [])) < 2:
+    if not hist:
+        return None
+    sh_map = hist.get("sh000001") or {}
+    sz_map = hist.get("sz399001") or {}
+    common_dates = sorted(set(sh_map.keys()) & set(sz_map.keys()))
+    if len(common_dates) < 2:
         return None
 
-    def _sum_at(idx):
-        sh = hist["sh000001"][idx][1]
-        sz = hist["sz399001"][idx][1]
-        if sh is None or sz is None:
-            return None
-        return sh + sz  # 万元
-
-    today_wan = _sum_at(-1)
-    prev_wan = _sum_at(-2)
+    today_date = common_dates[-1]
+    prev_date = common_dates[-2]
+    today_wan = sh_map[today_date] + sz_map[today_date]
+    prev_wan = sh_map[prev_date] + sz_map[prev_date]
     if not today_wan or not prev_wan:
         return None
 
@@ -211,3 +165,4 @@ def market_volume() -> Optional[dict]:
         "today_amount": round(today_amount),
         "prev_amount": round(prev_amount),
     }
+

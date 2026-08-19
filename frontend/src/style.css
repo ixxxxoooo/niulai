@@ -12,9 +12,21 @@
   --accent: #4c9aff;
   --accent-bg: rgba(76, 154, 255, 0.12);
   --yellow: #e3b341;
+  --yellow-bg: rgba(227, 179, 65, 0.12);
   --kv-bg: rgba(255, 255, 255, 0.03);
   --topbar-bg: rgba(11, 12, 15, 0.9);
   --scrollbar: #2a2d34;
+
+  /* 统一圆角 */
+  --radius-sm: 4px;
+  --radius-md: 8px;
+  --radius-lg: 12px;
+  --radius-pill: 9999px;
+
+  /* 统一阴影 */
+  --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.2);
+  --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.3);
+  --shadow-lg: 0 8px 24px rgba(0, 0, 0, 0.4);
 }
 
 body.light {
@@ -31,10 +43,17 @@ body.light {
   --accent: #2563eb;
   --accent-bg: rgba(37, 99, 235, 0.08);
   --yellow: #a9741a;
+  --yellow-bg: rgba(169, 116, 26, 0.08);
   --kv-bg: rgba(0, 0, 0, 0.03);
   --topbar-bg: rgba(255, 255, 255, 0.9);
   --scrollbar: #c9ced6;
+
+  /* 统一阴影 */
+  --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.05);
+  --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.08);
+  --shadow-lg: 0 8px 24px rgba(0, 0, 0, 0.12);
 }
+
 
 * { margin: 0; padding: 0; box-sizing: border-box; }
 
@@ -639,10 +658,74 @@ table.data-table { width: 100%; border-collapse: collapse; font-size: 13px; }
 
 /* 指数信息栏 */
 .index-info-bar {
-  display: flex; align-items: baseline; gap: 16px; flex-wrap: wrap;
-  padding: 4px 0;
+  display: flex; gap: 16px; align-items: baseline; flex-wrap: wrap; margin-bottom: 12px;
 }
+
+/* ============================================================
+   统一页面骨架、徽章与工具栏标准设计类 (Design System Core)
+   ============================================================ */
+
+.page-title-row {
+  display: flex; align-items: center; justify-content: space-between;
+  flex-wrap: wrap; gap: 12px; margin-bottom: 14px;
+}
+.page-subtitle {
+  font-size: 13px; color: var(--text-dim); margin-top: 3px;
+}
+.page-actions {
+  display: flex; align-items: center; gap: 8px;
+}
+
+/* 工具按钮与操作按钮 */
+.btn-tool {
+  display: inline-flex; align-items: center; gap: 5px;
+  padding: 6px 12px; border-radius: var(--radius-md);
+  border: 1px solid var(--border); background: var(--bg-card);
+  color: var(--text); font-size: 12px; cursor: pointer;
+  transition: all 0.15s; white-space: nowrap; user-select: none;
+}
+.btn-tool:hover:not(:disabled) {
+  background: var(--bg-hover); border-color: var(--accent); color: var(--accent);
+}
+.btn-tool:disabled { opacity: 0.5; cursor: not-allowed; }
+
+/* 统一彩色徽章系统 */
+.badge-danger { background: var(--up-bg); color: var(--up); font-weight: 600; padding: 2px 7px; border-radius: var(--radius-sm); font-size: 11px; }
+.badge-warning { background: var(--yellow-bg); color: var(--yellow); font-weight: 600; padding: 2px 7px; border-radius: var(--radius-sm); font-size: 11px; }
+.badge-primary { background: var(--accent-bg); color: var(--accent); font-weight: 600; padding: 2px 7px; border-radius: var(--radius-sm); font-size: 11px; }
+.badge-success { background: var(--down-bg); color: var(--down); font-weight: 600; padding: 2px 7px; border-radius: var(--radius-sm); font-size: 11px; }
+.badge-neutral { background: var(--kv-bg); color: var(--text-dim); font-weight: 500; padding: 2px 7px; border-radius: var(--radius-sm); font-size: 11px; }
+
+/* 统一过滤药丸栏 */
+.filter-pills { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+.filter-pill {
+  padding: 5px 12px; border-radius: var(--radius-pill);
+  border: 1px solid var(--border); background: var(--bg);
+  color: var(--text); font-size: 12px; cursor: pointer;
+  transition: all 0.15s; display: inline-flex; align-items: center; gap: 5px;
+  user-select: none;
+}
+.filter-pill:hover { background: var(--bg-hover); border-color: var(--accent); color: var(--accent); }
+.filter-pill.active { background: var(--accent); color: #fff; border-color: var(--accent); font-weight: 600; }
+.filter-pill .pill-count {
+  font-size: 10px; padding: 1px 5px; border-radius: 10px;
+  background: rgba(0, 0, 0, 0.15);
+}
+.filter-pill.active .pill-count { background: rgba(255, 255, 255, 0.25); }
+
+/* 统一栅格 */
+.stat-grid {
+  display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 12px;
+}
+.stat-card {
+  background: var(--bg-card); border: 1px solid var(--border); border-radius: var(--radius-md);
+  padding: 12px 16px; display: flex; flex-direction: column; gap: 4px;
+}
+.stat-label { font-size: 12px; color: var(--text-dim); }
+.stat-value { font-size: 20px; font-weight: 700; font-variant-numeric: tabular-nums; }
 .index-info-price { font-size: 28px; font-weight: 700; }
 .index-info-pct { font-size: 18px; font-weight: 600; }
 .index-info-item { font-size: 13px; color: var(--text-dim); }
 .index-info-item b { color: var(--text); font-weight: 500; }
+
+
