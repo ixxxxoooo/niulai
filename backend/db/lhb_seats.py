@@ -51,6 +51,7 @@ CREATE TABLE IF NOT EXISTS screener_hits (
     name TEXT DEFAULT '',
     close REAL,
     change_pct REAL,
+    amount REAL DEFAULT 0,
     detail TEXT DEFAULT '',
     FOREIGN KEY(run_id) REFERENCES screener_runs(id)
 );
@@ -324,6 +325,13 @@ def ensure_tables() -> None:
                 conn.execute(f"ALTER TABLE daily_bars ADD COLUMN {col_name} {col_type}")
             except Exception:
                 pass
+
+    hit_cols = {r[1] for r in conn.execute("PRAGMA table_info(screener_hits)").fetchall()}
+    if "amount" not in hit_cols:
+        try:
+            conn.execute("ALTER TABLE screener_hits ADD COLUMN amount REAL DEFAULT 0")
+        except Exception:
+            pass
     conn.commit()
 
 

@@ -109,7 +109,7 @@ RULES = {
 }
 
 
-def _load_bars(code: str, min_count: int = 5) -> Optional[List[dict]]:
+def _load_bars(code: str, min_count: int = 1) -> Optional[List[dict]]:
     """从 daily_bars 读取指定股票的日 K 数据（按日期升序）。"""
     conn = store.get_conn()
     rows = conn.execute(
@@ -422,17 +422,17 @@ def run_screen(rules: List[str], params: Optional[Dict[str, dict]] = None,
         rows = conn.execute(
             "SELECT s.code, s.name, s.industry FROM watchlist w JOIN stocks s ON w.code = s.code"
         ).fetchall()
+        for r in rows:
+            stocks_meta[r[0]] = {"name": r[1] or "", "industry": r[2] or ""}
+        candidate_codes = list(stocks_meta.keys())
     else:
+        # 全市场扫描：以 daily_bars 中所有有日 K 的股票为基准池
         rows = conn.execute("SELECT code, name, industry FROM stocks").fetchall()
-    for r in rows:
-        stocks_meta[r[0]] = {"name": r[1] or "", "industry": r[2] or ""}
-
-    # 获取参与扫描的代码列表
-    candidate_codes = set(stocks_meta.keys())
-    if not candidate_codes:
-        distinct_codes = [r[0] for r in conn.execute("SELECT DISTINCT code FROM daily_bars").fetchall()]
-        for c in distinct_codes:
-            candidate_codes.add(c)
+        for r in rows:
+            stocks_meta[r[0]] = {"name": r[1] or "", "industry": r[2] or ""}
+        db_codes = [r[0] for r in conn.execute("SELECT DISTINCT code FROM daily_bars").fetchall()]
+        candidate_codes = db_codes
+        for c in db_codes:
             if c not in stocks_meta:
                 stocks_meta[c] = {"name": c, "industry": ""}
 
@@ -461,15 +461,23 @@ def run_screen(rules: List[str], params: Optional[Dict[str, dict]] = None,
     stock_hits_map: Dict[str, dict] = {}
 
     for c in filtered_codes:
-        bars = _load_bars(c, min_count=2)
+        bars = _load_bars(c, min_count=1)
         if not bars:
             continue
 
         today = bars[-1]
-        today_close = today.get("close") or 0
-        today_amount = today.get("amount") or 0
+        today_close = today.get("close") or 0.0
+        today_amount = today.get("amount")
+        if today_amount is None or today_amount == 0:
+            vol = today.get("volume") or 0.0
+            today_amount = vol * today_close * 100 if vol > 0 else 0.0
+
         prev_close = bars[-2].get("close") if len(bars) >= 2 else today_close
-        change_pct = ((today_close - prev_close) / prev_close * 100) if prev_close else 0
+        today_pct = today.get("change_pct")
+        if today_pct is not None:
+            change_pct = float(today_pct)
+        else:
+            change_pct = ((today_close - prev_close) / prev_close * 100) if prev_close else 0.0
 
         # 破位排雷：排除今日大幅下跌 (<-3%) 的弱势破位标的
         if exclude_broken and change_pct < -3.0:
@@ -554,11 +562,11 @@ def run_screen(rules: List[str], params: Optional[Dict[str, dict]] = None,
         hit_rows = []
         for r_id, items in hits_by_rule.items():
             for it in items:
-                hit_rows.append((run_id, r_id, it["code"], it["name"], it["close"], it["change_pct"], it["detail"]))
+                hit_rows.append((run_id, r_id, it["code"], it["name"], it["close"], it["change_pct"], it.get("amount") or 0.0, it["detail"]))
         if hit_rows:
             conn.executemany(
-                "INSERT INTO screener_hits(run_id, rule_id, code, name, close, change_pct, detail) "
-                "VALUES (?, ?, ?, ?, ?, ?, ?)",
+                "INSERT INTO screener_hits(run_id, rule_id, code, name, close, change_pct, amount, detail) "
+                "VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
                 hit_rows,
             )
         conn.commit()
@@ -639,7 +647,8 @@ def get_run_hits(run_id: int) -> Dict[str, Any]:
                 "code": c,
                 "name": d["name"],
                 "close": d["close"],
-                "change_pct": d["change_pct"],
+                "change_pct": d.get("change_pct"),
+                "amount": d.get("amount") or 0.0,
                 "hit_rules": [],
                 "signals": [],
                 "detail": "",

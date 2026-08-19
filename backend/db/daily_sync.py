@@ -173,6 +173,15 @@ def sync_today_bars_bulk(trade_date: Optional[str] = None,
                 "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
                 rows_data,
             )
+            stocks_tuples = [
+                (str(it.get("f12")).strip(), str(it.get("f14")).strip())
+                for it in diff_list if it.get("f12") and it.get("f14")
+            ]
+            if stocks_tuples:
+                conn.executemany(
+                    "INSERT OR IGNORE INTO stocks (code, name) VALUES (?, ?)",
+                    stocks_tuples,
+                )
             conn.commit()
             written = len(rows_data)
 
