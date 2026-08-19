@@ -53,9 +53,10 @@ export function useTableSort(rowsRef, storageKey = '') {
   }
 
   const sorted = computed(() => {
-    if (!sortKey.value) return rowsRef.value
+    const list = rowsRef?.value || []
+    if (!sortKey.value) return list
     const k = sortKey.value
-    return [...rowsRef.value].sort((a, b) => {
+    return [...list].sort((a, b) => {
       const va = a[k]
       const vb = b[k]
       if (va == null && vb == null) return 0

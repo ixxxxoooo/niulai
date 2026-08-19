@@ -758,6 +758,8 @@ function withPos(rows) {
   })
 }
 
+const filtered = computed(() => withPos(list.value))
+
 // 仅看持仓快捷筛选
 const onlyHolding = ref(false)
 
