@@ -1,0 +1,31 @@
+# 牛来 (niulai) - AI 编程助手与 OpenCode 行为守则
+
+你正在协助开发「牛来 (niulai)」—— 基于 FastAPI (Python 3.12) + Vue 3 / Vite 的 A 股行情分析与监控系统。
+
+## 1. 核心架构与哲学
+- 遵循 KISS 原则（Keep It Simple, Stupid）：崇尚极简与高内聚，避免过度设计。
+- 事实为本：优先调用现成高效数据接口（如指数自带统计或批量 ulist），严禁单接口循环发起数十次 HTTP 请求造成穿透轰炸。
+- 多源容错：外部数据源（东财/腾讯/开盘啦/同花顺）采用 FailoverClient 优雅降级。
+
+## 2. 后端开发准则 (Python / FastAPI)
+- 严禁对股票价格/涨跌幅使用 `or` 隐式布尔判定（如 `val or 0` 会吞掉 0.0 平盘），必须使用 `if val is not None`。
+- 高频行情接口必须使用 `@ttl_cache(ttl=...)` 装饰器控制缓存。
+- SQLite 操作必须遵循全局锁 `_lock` 与单线程独立连接。
+- 日志存储必须遵循 8000 条上限淘汰规则，防止数据库膨胀。
+
+## 3. 前端开发准则 (Vue 3 / Vite)
+- 组件必须采用 Vue 3 `<script setup>` 组合式 API。
+- 业务逻辑优先提取为 `composables/`（如 `usePolling`、`useTableSort`、`usePageTab`）。
+- 任何 `setInterval`、`addEventListener`、ECharts 实例必须在 `onUnmounted` 中销毁清理。
+- 多 Tab 页面统一接入 `usePageTab` 保证“同页刷新保持，切换离开再返回时回到默认 Tab”。
+- 数据表格统一接入 `useTableSort` 跨刷新记忆排序列与升降序。
+- 轮询必须接入 `usePolling` 保证后台标签页休眠。
+
+## 4. UI / UX 视觉规范 (Design System)
+- 必须使用 CSS 变量（`var(--up)` 红涨、`var(--down)` 绿跌、`var(--accent)` 蓝主色、`var(--text-dim)` 平盘灰、`var(--bg-card)`、`var(--border)`），严禁硬编码 Hex 颜色。
+- 价格与百分比必须使用 `utils.js` 中的 `fmtPrice`、`fmtPct`、`fmtAmount` 格式化，并加 `font-variant-numeric: tabular-nums` 对齐。
+
+## 5. 修改验证与发布工作流 (必须严格遵守)
+- 改前端：`(cd frontend && npm run build)` -> `docker compose up -d --build` -> `curl -s -o /dev/null -w "%{http_code}\n" http://127.0.0.1:8088/` 验证 200。
+- 改后端：`pytest tests/` -> `docker compose up -d --build` -> `curl http://127.0.0.1:8088/` 验证 200。
+- Git 提交：必须逐个精确 `git add <file>`，严禁 `git add -A` 或 `git add .`；禁止提交密钥与 `.env`。
