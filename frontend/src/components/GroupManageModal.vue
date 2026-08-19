@@ -316,13 +316,16 @@ function close() {
   background: var(--bg-card);
   border: 1px solid var(--border);
   border-radius: var(--radius-md);
-  box-shadow: 0 12px 36px rgba(0, 0, 0, .35);
+  box-shadow: 0 16px 40px rgba(0, 0, 0, .4);
+  padding: 0 !important; /* 覆盖全局 modal-card 默认 padding，使顶栏与边框完美贴合 */
+  overflow: hidden;
 }
 .modal-hd {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 14px 20px;
+  padding: 16px 20px;
+  background: var(--bg-card);
   border-bottom: 1px solid var(--border);
 }
 .modal-hd-title { display: flex; align-items: baseline; gap: 10px; }
@@ -335,8 +338,8 @@ function close() {
   color: var(--text-dim);
   font-size: 16px;
   line-height: 1;
-  width: 30px;
-  height: 30px;
+  width: 28px;
+  height: 28px;
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -349,12 +352,16 @@ function close() {
   color: var(--text);
 }
 
+.modal-bd {
+  padding: 18px 20px 20px;
+}
+
 .new-group-box { display: flex; gap: 10px; align-items: center; }
 .new-group-box .ui-input { flex: 1; }
 
 .group-table-wrap {
   border: 1px solid var(--border); border-radius: var(--radius-sm);
-  max-height: 440px; overflow-y: auto; background: var(--bg-card);
+  max-height: 420px; overflow-y: auto; background: var(--bg-card);
 }
 .group-table { width: 100%; border-collapse: collapse; font-size: 13px; }
 .group-table th {
@@ -363,7 +370,10 @@ function close() {
   border-bottom: 1px solid var(--border);
 }
 .group-table td {
-  padding: 10px 14px; border-top: 1px solid var(--border); vertical-align: middle;
+  padding: 10px 14px; border-bottom: 1px solid var(--border); vertical-align: middle;
+}
+.group-table tbody tr:last-child td {
+  border-bottom: none;
 }
 .group-table tbody tr {
   transition: background .15s ease, opacity .15s ease;
@@ -404,6 +414,7 @@ function close() {
 
 .modal-footer-box {
   display: flex; justify-content: space-between; align-items: center;
+  padding-top: 14px; border-top: 1px solid var(--border);
 }
 .success-banner {
   background: var(--down-bg); color: var(--down); padding: 8px 14px;
