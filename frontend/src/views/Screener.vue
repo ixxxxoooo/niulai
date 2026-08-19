@@ -274,14 +274,14 @@
         <table class="data-table">
           <thead>
             <tr>
-              <th style="width:90px">代码</th>
-              <th style="width:110px">名称</th>
-              <th style="width:90px" class="tar">最新收盘</th>
-              <th style="width:90px" class="tar">涨跌幅</th>
-              <th style="width:100px" class="tar">成交额</th>
-              <th style="width:180px">命中策略共振</th>
-              <th>技术形态与信号明细</th>
-              <th style="width:80px" class="tac">操作</th>
+              <th style="width:85px">代码</th>
+              <th style="width:105px">名称</th>
+              <th style="width:85px" class="tar">最新收盘</th>
+              <th style="width:80px" class="tar">涨跌幅</th>
+              <th style="width:95px" class="tar">成交额</th>
+              <th style="width:190px">命中策略共振</th>
+              <th class="signal-th">技术形态与信号明细</th>
+              <th style="width:75px" class="tac action-th">操作</th>
             </tr>
           </thead>
           <tbody>
@@ -313,7 +313,7 @@
                 </div>
               </td>
               <td class="signal-col">{{ (item.signals && item.signals.length > 1) ? item.signals.map(s => `[${s.name}] ${s.detail}`).join(' · ') : item.detail }}</td>
-              <td class="tac">
+              <td class="tac action-td">
                 <button class="btn-view" @click.stop="openStockModal(item.code, item.name)">速览</button>
               </td>
             </tr>
@@ -860,27 +860,47 @@ onMounted(async () => {
   background: var(--accent-bg); color: var(--accent); border-color: var(--accent); font-weight: 600;
 }
 
-.table-box { overflow-x: auto; border: 1px solid var(--border); border-radius: var(--radius-md); }
-.data-table { width: 100%; border-collapse: collapse; font-size: 13px; }
-.data-table th {
-  background: var(--bg-hover); color: var(--text-dim); font-weight: 500;
-  padding: 9px 10px; border-bottom: 1px solid var(--border); text-align: left;
+.table-box {
+  overflow-x: auto;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--bg-card);
 }
-.data-table td { padding: 9px 10px; border-bottom: 1px solid var(--border); }
+.data-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+  table-layout: auto;
+}
+.data-table th {
+  background: var(--bg-hover);
+  color: var(--text-dim);
+  font-weight: 500;
+  padding: 10px 12px;
+  border-bottom: 1px solid var(--border);
+  text-align: left;
+  white-space: nowrap;
+}
+.data-table td {
+  padding: 10px 12px;
+  border-bottom: 1px solid var(--border);
+  vertical-align: middle;
+}
 .clickable-row { cursor: pointer; transition: background .12s; }
 .clickable-row:hover { background: var(--bg-hover); }
 .clickable-row:last-child td { border-bottom: none; }
 
-.code-col { font-weight: 600; color: var(--text); font-variant-numeric: tabular-nums; }
-.name-col a { color: var(--accent); font-weight: 600; cursor: pointer; }
+.code-col { font-weight: 600; color: var(--text); font-variant-numeric: tabular-nums; white-space: nowrap; }
+.name-col a { color: var(--accent); font-weight: 600; cursor: pointer; white-space: nowrap; }
 .name-col a:hover { text-decoration: underline; }
-.num-val { font-variant-numeric: tabular-nums; font-weight: 600; }
+.num-val { font-variant-numeric: tabular-nums; font-weight: 600; white-space: nowrap; }
 .num-val.dim { font-weight: normal; color: var(--text-dim); }
 
 .resonance-tags { display: flex; gap: 4px; flex-wrap: wrap; }
 .tag-resonance {
   font-size: 11px; padding: 2px 6px; border-radius: 4px;
   background: var(--bg-hover); color: var(--text); border: 1px solid var(--border);
+  white-space: nowrap;
 }
 .tag-breakout { background: rgba(240, 68, 68, 0.1); color: var(--up); border-color: rgba(240, 68, 68, 0.25); }
 .tag-gold { background: rgba(234, 179, 8, 0.12); color: #eab308; border-color: rgba(234, 179, 8, 0.25); }
@@ -895,13 +915,40 @@ onMounted(async () => {
 .tag-engulfing { background: rgba(244, 63, 94, 0.12); color: #f43f5e; border-color: rgba(244, 63, 94, 0.3); }
 .tag-bounce { background: rgba(249, 115, 22, 0.12); color: #f97316; border-color: rgba(249, 115, 22, 0.25); }
 
-.signal-col { font-size: 12px; color: var(--text); line-height: 1.4; }
-.btn-view {
-  padding: 3px 10px; font-size: 12px; border: 1px solid var(--border);
-  border-radius: var(--radius-sm); background: var(--bg-hover); color: var(--accent);
-  cursor: pointer; transition: all .15s; font-weight: 500;
+.signal-th { min-width: 260px; }
+.signal-col {
+  font-size: 12px;
+  color: var(--text);
+  line-height: 1.5;
+  white-space: normal;
+  word-break: break-word;
 }
-.btn-view:hover { background: var(--accent); color: #fff; border-color: var(--accent); }
+
+.action-th, .action-td {
+  width: 75px;
+  min-width: 75px;
+  max-width: 75px;
+  text-align: center;
+  white-space: nowrap;
+}
+
+.btn-view {
+  padding: 4px 12px;
+  font-size: 12px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--kv-bg);
+  color: var(--accent);
+  cursor: pointer;
+  transition: all .15s;
+  font-weight: 600;
+  white-space: nowrap;
+}
+.btn-view:hover {
+  background: var(--accent);
+  color: #fff;
+  border-color: var(--accent);
+}
 
 .empty-box {
   padding: 40px 0; text-align: center; color: var(--text-dim); font-size: 13px;
