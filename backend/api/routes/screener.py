@@ -11,7 +11,7 @@ router = APIRouter()
 
 class SyncBarsBody(BaseModel):
     """日 K 同步参数"""
-    lookback_days: int = Field(default=120, ge=30, le=500)
+    lookback_days: int = Field(default=120, ge=1, le=500)
     scope: str = Field(default="all", pattern="^(all|watchlist)$")
     mode: str = Field(default="today_bulk", pattern="^(today_bulk|history)$")
 
