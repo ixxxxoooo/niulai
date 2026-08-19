@@ -434,5 +434,59 @@ def test_stock_risk_diagnosis_api(client):
         assert len(data["risk_tags"]) >= 2
 
 
+def test_watchlist_groups_and_presets(client):
+    """验证自选股分组 CRUD、预设热门赛道与股票归属"""
+    # 1. 验证获取分组列表及初始化预设
+    r = client.get("/api/watchlist/groups")
+    assert r.status_code == 200
+    groups = r.json().get("groups") or []
+    assert len(groups) >= 1
+    assert any(g["name"] in ("默认自选", "光通信", "PCB", "先进封装", "存储芯片") for g in groups)
+
+    # 2. 重新初始化预设
+    r_pre = client.post("/api/watchlist/init-presets")
+    assert r_pre.status_code == 200
+    assert any(g["name"] == "光通信" for g in r_pre.json()["groups"])
+
+    # 3. 创建自定义分组
+    test_group_name = "测试芯片"
+    r_create = client.post("/api/watchlist/groups", json={"name": test_group_name})
+    assert r_create.status_code == 200
+    grp = r_create.json()["group"]
+    gid = grp["id"]
+    assert grp["name"] == test_group_name
+
+    # 4. 添加股票到新分组
+    r_add = client.post("/api/watchlist", json={"code": "688008", "group_id": gid})
+    assert r_add.status_code == 200
+    assert "688008" in r_add.json()["codes"]
+
+    # 5. 查询该分组的自选股票
+    r_get = client.get(f"/api/watchlist?group_id={gid}")
+    assert r_get.status_code == 200
+    assert "688008" in r_get.json()["codes"]
+
+    # 6. 查询股票所属分组
+    r_sg = client.get("/api/watchlist/stock-groups/688008")
+    assert r_sg.status_code == 200
+    assert gid in r_sg.json()["group_ids"]
+
+    # 7. 修改分组名称
+    r_upd = client.put(f"/api/watchlist/groups/{gid}", json={"name": "测试芯片2"})
+    assert r_upd.status_code == 200
+    assert any(g["id"] == gid and g["name"] == "测试芯片2" for g in r_upd.json()["groups"])
+
+    # 8. 从指定分组移出股票
+    r_del_stock = client.delete(f"/api/watchlist/688008?group_id={gid}")
+    assert r_del_stock.status_code == 200
+    assert "688008" not in r_del_stock.json()["codes"]
+
+    # 9. 删除该自定义分组
+    r_del_grp = client.delete(f"/api/watchlist/groups/{gid}")
+    assert r_del_grp.status_code == 200
+    assert not any(g["id"] == gid for g in r_del_grp.json()["groups"])
+
+
+
 
 

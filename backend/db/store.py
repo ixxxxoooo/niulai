@@ -43,9 +43,18 @@ CREATE INDEX IF NOT EXISTS idx_stocks_name ON stocks(name);
 CREATE INDEX IF NOT EXISTS idx_stocks_pinyin ON stocks(pinyin);
 CREATE INDEX IF NOT EXISTS idx_stocks_classify ON stocks(classify);
 
+CREATE TABLE IF NOT EXISTS watchlist_groups (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    name TEXT UNIQUE NOT NULL,
+    sort_order INTEGER DEFAULT 0,
+    created_at TEXT
+);
+
 CREATE TABLE IF NOT EXISTS watchlist (
-    code TEXT PRIMARY KEY,
-    added_at TEXT
+    code TEXT NOT NULL,
+    group_id INTEGER NOT NULL DEFAULT 1,
+    added_at TEXT,
+    PRIMARY KEY (code, group_id)
 );
 
 CREATE TABLE IF NOT EXISTS settings (
@@ -209,6 +218,45 @@ def _migrate_stock_columns(conn: sqlite3.Connection) -> None:
     conn.execute("CREATE INDEX IF NOT EXISTS idx_stocks_pinyin_full ON stocks(pinyin_full)")
 
 
+def _migrate_watchlist_schema(conn: sqlite3.Connection) -> None:
+    """自选股多分组迁移与初始默认分组。"""
+    conn.execute("""
+    CREATE TABLE IF NOT EXISTS watchlist_groups (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        name TEXT UNIQUE NOT NULL,
+        sort_order INTEGER DEFAULT 0,
+        created_at TEXT
+    )
+    """)
+    # 确保默认自选分组存在
+    row = conn.execute("SELECT id FROM watchlist_groups WHERE id=1").fetchone()
+    if not row:
+        conn.execute(
+            "INSERT OR IGNORE INTO watchlist_groups(id, name, sort_order, created_at) VALUES (1, '默认自选', 0, ?)",
+            (_now(),),
+        )
+
+    # 检查 watchlist 是否已有 group_id 列
+    cols = {r[1] for r in conn.execute("PRAGMA table_info(watchlist)").fetchall()}
+    if "group_id" not in cols:
+        conn.execute("""
+        CREATE TABLE IF NOT EXISTS watchlist_new (
+            code TEXT NOT NULL,
+            group_id INTEGER NOT NULL DEFAULT 1,
+            added_at TEXT,
+            PRIMARY KEY (code, group_id)
+        )
+        """)
+        conn.execute("""
+        INSERT OR IGNORE INTO watchlist_new(code, group_id, added_at)
+        SELECT code, 1, added_at FROM watchlist
+        """)
+        conn.execute("DROP TABLE watchlist")
+        conn.execute("ALTER TABLE watchlist_new RENAME TO watchlist")
+    conn.execute("CREATE INDEX IF NOT EXISTS idx_watchlist_group ON watchlist(group_id)")
+    conn.execute("CREATE INDEX IF NOT EXISTS idx_watchlist_code ON watchlist(code)")
+
+
 def init_db() -> None:
     """建表并启动异步日志写入线程。"""
     global _writer_started
@@ -217,6 +265,8 @@ def init_db() -> None:
         # 先建表；全拼索引放在迁移里，避免旧库尚无 pinyin_full 列时 CREATE INDEX 失败
         conn.executescript(_SCHEMA)
         _migrate_stock_columns(conn)
+        _migrate_watchlist_schema(conn)
+        _init_preset_groups_if_needed(conn)
         conn.execute("CREATE INDEX IF NOT EXISTS idx_stocks_board ON stocks(board)")
         conn.commit()
         conn.execute("PRAGMA wal_checkpoint(TRUNCATE)")
@@ -468,56 +518,362 @@ def search_stocks_local(keyword: str, limit: int = 10) -> List[Dict[str, Any]]:
     return out
 
 
-# ------------------------------------------------------------------ 自选
-def watchlist_codes() -> List[str]:
+# ------------------------------------------------------------------ 热门预设分组定义
+PRESET_POPULAR_GROUPS = [
+    {
+        "name": "光通信",
+        "stocks": [
+            ("300308", "中际旭创"),
+            ("300502", "新易盛"),
+            ("300394", "天孚通信"),
+            ("688498", "源杰科技"),
+            ("300570", "太辰光"),
+            ("002281", "光迅科技"),
+            ("603083", "剑桥科技"),
+            ("000988", "华工科技"),
+            ("301205", "联特科技"),
+        ],
+    },
+    {
+        "name": "PCB",
+        "stocks": [
+            ("002463", "沪电股份"),
+            ("300476", "胜宏科技"),
+            ("688183", "生益电子"),
+            ("600183", "生益科技"),
+            ("002916", "深南电路"),
+            ("603228", "景旺电子"),
+            ("001389", "广合科技"),
+            ("002938", "鹏鼎控股"),
+        ],
+    },
+    {
+        "name": "先进封装",
+        "stocks": [
+            ("002156", "通富微电"),
+            ("600584", "长电科技"),
+            ("002185", "华天科技"),
+            ("688362", "甬矽电子"),
+            ("603005", "晶方科技"),
+            ("600520", "文一科技"),
+            ("301348", "蓝箭电子"),
+            ("300398", "飞凯材料"),
+        ],
+    },
+    {
+        "name": "存储芯片",
+        "stocks": [
+            ("688008", "澜起科技"),
+            ("603986", "兆易创新"),
+            ("301308", "江波龙"),
+            ("001309", "德明利"),
+            ("688525", "佰维存储"),
+            ("688766", "普冉股份"),
+            ("688123", "聚辰股份"),
+            ("300223", "北京君正"),
+            ("688110", "东芯股份"),
+        ],
+    },
+    {
+        "name": "人形机器人",
+        "stocks": [
+            ("603728", "鸣志电器"),
+            ("002050", "三花智控"),
+            ("601689", "拓普集团"),
+            ("688017", "绿的谐波"),
+            ("002472", "双环传动"),
+            ("603009", "北特科技"),
+            ("300580", "贝斯特"),
+            ("603662", "柯力传感"),
+        ],
+    },
+    {
+        "name": "低空经济",
+        "stocks": [
+            ("002085", "万丰奥威"),
+            ("000099", "中信海直"),
+            ("001696", "宗申动力"),
+            ("688631", "莱斯信息"),
+            ("600990", "四创电子"),
+            ("600580", "卧龙电驱"),
+            ("002389", "航天彩虹"),
+        ],
+    },
+    {
+        "name": "半导体自主可控",
+        "stocks": [
+            ("002371", "北方华创"),
+            ("688012", "中微公司"),
+            ("688041", "海光信息"),
+            ("688256", "寒武纪"),
+            ("688072", "拓荆科技"),
+            ("688120", "华海清科"),
+            ("688981", "中芯国际"),
+        ],
+    },
+    {
+        "name": "AI硬件基础设施",
+        "stocks": [
+            ("601138", "工业富联"),
+            ("000977", "浪潮信息"),
+            ("603019", "中科曙光"),
+            ("002837", "英维克"),
+            ("002130", "沃尔核材"),
+            ("300563", "神宇股份"),
+            ("300870", "欧陆通"),
+        ],
+    },
+]
+
+
+def _init_preset_groups_if_needed(conn: sqlite3.Connection) -> None:
+    """如果当前仅有默认自选分组，自动初始化热门预设分组及成分股。"""
+    try:
+        row = conn.execute("SELECT COUNT(*) AS c FROM watchlist_groups").fetchone()
+        count = row["c"] if row else 0
+        if count <= 1:
+            _populate_presets(conn)
+    except Exception:
+        pass
+
+
+def _populate_presets(conn: sqlite3.Connection) -> None:
+    """初始化写入预设热门分组及成分股。"""
+    now = _now()
+    stock_payload = []
+    watch_payload = []
+    for idx, g in enumerate(PRESET_POPULAR_GROUPS):
+        gname = g["name"]
+        sort_order = (idx + 1) * 10
+        conn.execute(
+            "INSERT OR IGNORE INTO watchlist_groups(name, sort_order, created_at) VALUES (?, ?, ?)",
+            (gname, sort_order, now),
+        )
+        grow = conn.execute("SELECT id FROM watchlist_groups WHERE name = ?", (gname,)).fetchone()
+        if not grow:
+            continue
+        gid = grow["id"]
+        for code, name in g["stocks"]:
+            watch_payload.append((code, gid, now))
+            classify = "Fund" if code.startswith(("15", "16", "51", "56", "58")) else "AStock"
+            board, is_st = infer_board(code, name, classify)
+            stock_payload.append((
+                code, name, 1 if code.startswith(("6", "5", "9")) else 0,
+                pinyin_initials(name), pinyin_full(name), classify, board, is_st,
+                gname, gname, now,
+            ))
+
+    if stock_payload:
+        conn.executemany(
+            "INSERT INTO stocks(code,name,market,pinyin,pinyin_full,classify,board,is_st,industry,concepts,updated_at) "
+            "VALUES (?,?,?,?,?,?,?,?,?,?,?) "
+            "ON CONFLICT(code) DO UPDATE SET name=CASE WHEN stocks.name='' THEN excluded.name ELSE stocks.name END, "
+            "industry=COALESCE(NULLIF(stocks.industry,''), excluded.industry), "
+            "concepts=COALESCE(NULLIF(stocks.concepts,''), excluded.concepts)",
+            stock_payload,
+        )
+    if watch_payload:
+        conn.executemany(
+            "INSERT OR IGNORE INTO watchlist(code, group_id, added_at) VALUES (?, ?, ?)",
+            watch_payload,
+        )
+
+
+def init_preset_groups(presets: Optional[List[Dict[str, Any]]] = None) -> Dict[str, Any]:
+    """手动重新初始化/补全热门预设分组。"""
     conn = get_conn()
-    rows = conn.execute("SELECT code FROM watchlist ORDER BY added_at").fetchall()
-    return [r["code"] for r in rows]
+    with _lock:
+        _populate_presets(conn)
+        conn.commit()
+    return {"ok": True, "groups": list_watchlist_groups()}
 
 
-def watchlist_add(code: str) -> bool:
-    code = (code or "").strip()
-    if not code:
+# ------------------------------------------------------------------ 自选分组管理
+def list_watchlist_groups() -> List[Dict[str, Any]]:
+    """获取所有自选分组及各自分组股票数量。"""
+    conn = get_conn()
+    rows = conn.execute("""
+        SELECT g.id, g.name, g.sort_order, g.created_at,
+               COUNT(w.code) AS count
+        FROM watchlist_groups g
+        LEFT JOIN watchlist w ON g.id = w.group_id
+        GROUP BY g.id, g.name, g.sort_order, g.created_at
+        ORDER BY g.sort_order ASC, g.id ASC
+    """).fetchall()
+    return [dict(r) for r in rows]
+
+
+def create_watchlist_group(name: str) -> Dict[str, Any]:
+    """创建新自选分组。"""
+    name = (name or "").strip()
+    if not name:
+        raise ValueError("分组名称不能为空")
+    conn = get_conn()
+    with _lock:
+        existing = conn.execute("SELECT id FROM watchlist_groups WHERE name = ?", (name,)).fetchone()
+        if existing:
+            raise ValueError(f"分组「{name}」已存在")
+        r = conn.execute("SELECT COALESCE(MAX(sort_order), 0) AS max_s FROM watchlist_groups").fetchone()
+        next_sort = (r["max_s"] if r else 0) + 10
+        now = _now()
+        cur = conn.execute(
+            "INSERT INTO watchlist_groups(name, sort_order, created_at) VALUES (?, ?, ?)",
+            (name, next_sort, now),
+        )
+        conn.commit()
+        gid = cur.lastrowid
+    return {"id": gid, "name": name, "sort_order": next_sort, "count": 0, "created_at": now}
+
+
+def update_watchlist_group(group_id: int, name: Optional[str] = None, sort_order: Optional[int] = None) -> bool:
+    """重命名分组或更新排序。"""
+    conn = get_conn()
+    updates = []
+    params = []
+    if name is not None:
+        name = name.strip()
+        if not name:
+            raise ValueError("分组名称不能为空")
+        updates.append("name = ?")
+        params.append(name)
+    if sort_order is not None:
+        updates.append("sort_order = ?")
+        params.append(int(sort_order))
+    if not updates:
+        return False
+    params.append(group_id)
+    with _lock:
+        conn.execute(f"UPDATE watchlist_groups SET {', '.join(updates)} WHERE id = ?", params)
+        conn.commit()
+    return True
+
+
+def delete_watchlist_group(group_id: int) -> bool:
+    """删除自选分组（不影响其他分组内的股票）。默认分组不可删除。"""
+    if group_id == 1:
+        raise ValueError("默认自选分组不可删除")
+    conn = get_conn()
+    with _lock:
+        conn.execute("DELETE FROM watchlist WHERE group_id = ?", (group_id,))
+        conn.execute("DELETE FROM watchlist_groups WHERE id = ?", (group_id,))
+        conn.commit()
+    return True
+
+
+def reorder_watchlist_groups(group_ids: List[int]) -> bool:
+    """批量调整分组排序。"""
+    if not group_ids:
         return False
     conn = get_conn()
     with _lock:
+        for idx, gid in enumerate(group_ids):
+            conn.execute("UPDATE watchlist_groups SET sort_order = ? WHERE id = ?", (idx * 10, gid))
+        conn.commit()
+    return True
+
+
+# ------------------------------------------------------------------ 自选股
+def watchlist_codes(group_id: Optional[int] = None) -> List[str]:
+    """查询自选股代码列表。若 group_id 为空则返回全量去重列表。"""
+    conn = get_conn()
+    if group_id is not None:
+        rows = conn.execute(
+            "SELECT code FROM watchlist WHERE group_id = ? ORDER BY added_at ASC, code ASC",
+            (group_id,),
+        ).fetchall()
+        return [r["code"] for r in rows]
+    # 全量去重自选（按最早添加时间排序）
+    rows = conn.execute(
+        "SELECT code, MIN(added_at) as min_added FROM watchlist GROUP BY code ORDER BY min_added ASC, code ASC"
+    ).fetchall()
+    return [r["code"] for r in rows]
+
+
+def watchlist_add(code: str, group_id: Optional[int] = None) -> bool:
+    """添加股票到指定分组（默认 group_id=1）。"""
+    code = (code or "").strip()
+    if not code:
+        return False
+    gid = group_id if group_id is not None else 1
+    conn = get_conn()
+    with _lock:
         conn.execute(
-            "INSERT OR IGNORE INTO watchlist(code, added_at) VALUES (?, ?)",
-            (code, _now()),
+            "INSERT OR IGNORE INTO watchlist(code, group_id, added_at) VALUES (?, ?, ?)",
+            (code, gid, _now()),
         )
         conn.commit()
     return True
 
 
-def watchlist_remove(code: str) -> None:
+def watchlist_remove(code: str, group_id: Optional[int] = None) -> None:
+    """从指定分组移出股票；若未指定 group_id，则从所有自选分组与持仓中彻底移除。"""
+    code = (code or "").strip()
+    if not code:
+        return
     conn = get_conn()
     with _lock:
-        conn.execute("DELETE FROM watchlist WHERE code = ?", (code,))
-        conn.execute("DELETE FROM positions WHERE code = ?", (code,))
+        if group_id is not None:
+            conn.execute("DELETE FROM watchlist WHERE code = ? AND group_id = ?", (code, group_id))
+        else:
+            conn.execute("DELETE FROM watchlist WHERE code = ?", (code,))
+            conn.execute("DELETE FROM positions WHERE code = ?", (code,))
         conn.commit()
 
 
-def watchlist_clear() -> None:
+def watchlist_clear(group_id: Optional[int] = None) -> None:
+    """清空指定分组或全部自选股。"""
     conn = get_conn()
     with _lock:
-        conn.execute("DELETE FROM watchlist")
-        conn.execute("DELETE FROM positions")
+        if group_id is not None:
+            conn.execute("DELETE FROM watchlist WHERE group_id = ?", (group_id,))
+        else:
+            conn.execute("DELETE FROM watchlist")
+            conn.execute("DELETE FROM positions")
         conn.commit()
 
 
-def watchlist_import(codes: Sequence[str]) -> int:
-    """批量导入自选（去重）。返回导入后总数。"""
+def watchlist_import(codes: Sequence[str], group_id: Optional[int] = None) -> int:
+    """批量导入自选股到指定分组。"""
     now = _now()
-    payload = [(c.strip(), now) for c in codes if c and str(c).strip()]
+    gid = group_id if group_id is not None else 1
+    payload = [(c.strip(), gid, now) for c in codes if c and str(c).strip()]
     if payload:
         conn = get_conn()
         with _lock:
             conn.executemany(
-                "INSERT OR IGNORE INTO watchlist(code, added_at) VALUES (?, ?)",
+                "INSERT OR IGNORE INTO watchlist(code, group_id, added_at) VALUES (?, ?, ?)",
                 payload,
             )
             conn.commit()
-    return len(watchlist_codes())
+    return len(watchlist_codes(group_id))
+
+
+def get_stock_group_ids(code: str) -> List[int]:
+    """获取某只股票所属的所有分组 ID。"""
+    code = (code or "").strip()
+    if not code:
+        return []
+    conn = get_conn()
+    rows = conn.execute("SELECT group_id FROM watchlist WHERE code = ?", (code,)).fetchall()
+    return [r["group_id"] for r in rows]
+
+
+def set_stock_groups(code: str, group_ids: List[int]) -> None:
+    """设置某只股票所属的分组列表（覆盖更新）。"""
+    code = (code or "").strip()
+    if not code:
+        return
+    now = _now()
+    conn = get_conn()
+    with _lock:
+        conn.execute("DELETE FROM watchlist WHERE code = ?", (code,))
+        if group_ids:
+            payload = [(code, int(gid), now) for gid in group_ids if gid is not None]
+            conn.executemany(
+                "INSERT OR IGNORE INTO watchlist(code, group_id, added_at) VALUES (?, ?, ?)",
+                payload,
+            )
+        conn.commit()
 
 
 # ------------------------------------------------------------------ 设置
@@ -863,7 +1219,7 @@ def mark_alert_triggered(alert_id: int) -> None:
 # 仅含用户产生/关心的数据表；stocks / daily_bars / lhb_records（可从接口重建）/
 # 日志等可重建数据不导出。
 USER_BACKUP_TABLES = [
-    "watchlist", "settings", "positions", "position_ledger", "pnl_snapshots",
+    "watchlist_groups", "watchlist", "settings", "positions", "position_ledger", "pnl_snapshots",
     "price_alerts", "lhb_seats", "lhb_dates",
     "screener_runs", "screener_hits", "ai_history",
 ]

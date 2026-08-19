@@ -22,11 +22,35 @@ from ...db import store as db
 class WatchBody(BaseModel):
     """自选股写入参数"""
     code: str = Field(..., min_length=6, max_length=6)
+    group_id: Optional[int] = None
 
 
 class WatchImportBody(BaseModel):
     """自选股批量导入"""
     codes: list = Field(default_factory=list)
+    group_id: Optional[int] = None
+
+
+class WatchGroupCreateBody(BaseModel):
+    """自选分组创建参数"""
+    name: str = Field(..., min_length=1, max_length=30)
+
+
+class WatchGroupUpdateBody(BaseModel):
+    """自选分组更新参数"""
+    name: Optional[str] = Field(None, min_length=1, max_length=30)
+    sort_order: Optional[int] = None
+
+
+class WatchGroupReorderBody(BaseModel):
+    """自选分组重排序参数"""
+    group_ids: list[int] = Field(default_factory=list)
+
+
+class WatchStockGroupsBody(BaseModel):
+    """单只股票分组分配参数"""
+    code: str = Field(..., min_length=6, max_length=6)
+    group_ids: list[int] = Field(default_factory=list)
 
 
 class SettingBody(BaseModel):

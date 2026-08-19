@@ -1,50 +1,121 @@
-"""自选与持仓路由
-@author ygw
-"""
+from typing import Optional
 from fastapi import APIRouter, HTTPException, Query
 
 from ...db import store as db
 
-from .common import ttl_cache, WatchBody, WatchImportBody, PositionBody
+from .common import (
+    ttl_cache, WatchBody, WatchImportBody, PositionBody,
+    WatchGroupCreateBody, WatchGroupUpdateBody, WatchGroupReorderBody, WatchStockGroupsBody,
+)
 
 router = APIRouter()
 
 @router.get("/watchlist")
-def watchlist_get():
-    """自选股代码列表（SQLite）"""
-    return {"codes": db.watchlist_codes()}
+def watchlist_get(group_id: Optional[int] = Query(None)):
+    """自选股代码列表（支持按分组过滤，并返回分组元数据）"""
+    return {
+        "codes": db.watchlist_codes(group_id),
+        "groups": db.list_watchlist_groups(),
+        "current_group_id": group_id,
+    }
+
+
+@router.get("/watchlist/groups")
+def watchlist_groups_get():
+    """自选分组列表及各组股票数量"""
+    return {"groups": db.list_watchlist_groups()}
+
+
+@router.post("/watchlist/groups")
+def watchlist_group_create(body: WatchGroupCreateBody):
+    """新建自选分组"""
+    try:
+        grp = db.create_watchlist_group(body.name)
+        return {"ok": True, "group": grp, "groups": db.list_watchlist_groups()}
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+
+@router.put("/watchlist/groups/{group_id}")
+def watchlist_group_update(group_id: int, body: WatchGroupUpdateBody):
+    """重命名自选分组或修改排序"""
+    try:
+        db.update_watchlist_group(group_id, name=body.name, sort_order=body.sort_order)
+        return {"ok": True, "groups": db.list_watchlist_groups()}
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+
+@router.delete("/watchlist/groups/{group_id}")
+def watchlist_group_delete(group_id: int):
+    """删除自选分组"""
+    try:
+        db.delete_watchlist_group(group_id)
+        return {"ok": True, "groups": db.list_watchlist_groups()}
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+
+@router.post("/watchlist/groups/reorder")
+def watchlist_groups_reorder(body: WatchGroupReorderBody):
+    """批量调整自选分组顺序"""
+    db.reorder_watchlist_groups(body.group_ids)
+    return {"ok": True, "groups": db.list_watchlist_groups()}
+
+
+@router.get("/watchlist/stock-groups/{code}")
+def watchlist_stock_groups_get(code: str):
+    """获取某只股票所属的分组 ID 列表"""
+    return {"code": code, "group_ids": db.get_stock_group_ids(code)}
+
+
+@router.post("/watchlist/stock-groups")
+def watchlist_stock_groups_set(body: WatchStockGroupsBody):
+    """设置某只股票所属的分组列表（支持批量归属多分组）"""
+    code = body.code.strip()
+    if not code.isdigit():
+        raise HTTPException(status_code=400, detail="股票代码须为 6 位数字")
+    db.set_stock_groups(code, body.group_ids)
+    return {"ok": True, "code": code, "group_ids": db.get_stock_group_ids(code), "groups": db.list_watchlist_groups()}
+
+
+@router.post("/watchlist/init-presets")
+def watchlist_init_presets():
+    """重新初始化/补充热门预设分组及成分股"""
+    res = db.init_preset_groups()
+    return {"ok": True, "groups": res.get("groups", []), "codes": db.watchlist_codes()}
 
 
 @router.post("/watchlist")
 def watchlist_post(body: WatchBody):
-    """添加自选股"""
+    """添加自选股（可指定分组，默认归入默认自选）"""
     code = body.code.strip()
     if not code.isdigit():
         raise HTTPException(status_code=400, detail="股票代码须为 6 位数字")
-    db.watchlist_add(code)
-    return {"ok": True, "codes": db.watchlist_codes()}
+    db.watchlist_add(code, body.group_id)
+    return {"ok": True, "codes": db.watchlist_codes(body.group_id), "groups": db.list_watchlist_groups()}
 
 
 @router.delete("/watchlist/{code}")
-def watchlist_delete(code: str):
-    """删除自选股"""
-    db.watchlist_remove(code)
-    return {"ok": True, "codes": db.watchlist_codes()}
+def watchlist_delete(code: str, group_id: Optional[int] = Query(None)):
+    """删除自选股（若传 group_id 则仅从该分组移出，不传则从全部自选及持仓中删除）"""
+    db.watchlist_remove(code, group_id)
+    return {"ok": True, "codes": db.watchlist_codes(group_id), "groups": db.list_watchlist_groups()}
 
 
 @router.post("/watchlist/import")
 def watchlist_import(body: WatchImportBody):
     """批量导入自选股"""
     codes = [str(c).strip() for c in (body.codes or []) if str(c).strip().isdigit() and len(str(c).strip()) == 6]
-    n = db.watchlist_import(codes)
-    return {"ok": True, "count": n, "codes": db.watchlist_codes()}
+    n = db.watchlist_import(codes, body.group_id)
+    return {"ok": True, "count": n, "codes": db.watchlist_codes(body.group_id), "groups": db.list_watchlist_groups()}
 
 
 @router.post("/watchlist/clear")
-def watchlist_clear():
+def watchlist_clear(group_id: Optional[int] = Query(None)):
     """清空自选股"""
-    db.watchlist_clear()
-    return {"ok": True, "codes": []}
+    db.watchlist_clear(group_id)
+    return {"ok": True, "codes": [], "groups": db.list_watchlist_groups()}
 
 
 def _is_etf_row(d: dict) -> bool:

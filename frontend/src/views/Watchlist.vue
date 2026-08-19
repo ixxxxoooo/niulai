@@ -10,10 +10,36 @@
 
     <!-- ===================== 自选（不含盈亏，持仓标记展示） ===================== -->
     <template v-if="tab === 'watch'">
-      <div class="card mt16" v-if="watchStocks.length" ref="stockCard">
+      <div class="group-bar-container mt16">
+        <div class="group-pills">
+          <button
+            class="group-pill"
+            :class="{ active: currentGroupId === null }"
+            @click="selectGroup(null)"
+          >
+            全部（{{ allWatchCount }}）
+          </button>
+          <button
+            v-for="g in watchState.groups"
+            :key="g.id"
+            class="group-pill"
+            :class="{ active: currentGroupId === g.id }"
+            @click="selectGroup(g.id)"
+          >
+            {{ groupIcon(g.name) }} {{ g.name }}（{{ g.count || 0 }}）
+          </button>
+        </div>
+        <div class="group-bar-actions">
+          <UiButton size="sm" variant="subtle" @click="showGroupManage = true">
+            ⚙ 分组管理
+          </UiButton>
+        </div>
+      </div>
+
+      <div class="card mt12" v-if="watchStocks.length" ref="stockCard">
         <div class="card-title">
-          <span>个股自选（{{ watchStocks.length }}）</span>
-          <button class="btn-screenshot" @click="captureElement(stockCard, '个股自选.png')" title="截图">
+          <span>{{ currentGroupName }} · 个股（{{ watchStocks.length }}）</span>
+          <button class="btn-screenshot" @click="captureElement(stockCard, `${currentGroupName}个股.png`)" title="截图">
             <UiIcon name="screenshot" :size="14" />
           </button>
         </div>
@@ -57,7 +83,11 @@
                 <td>{{ fmtAmount(s.amount) }}</td>
                 <td :class="pctClass(s.main_inflow)">{{ fmtAmount(s.main_inflow) }}</td>
                 <td>
-                  <div class="td-actions"><UiButton size="sm" variant="ghost" @click.stop="edit(s)">{{ s.shares ? '改仓' : '录入' }}</UiButton><UiButton size="sm" variant="danger" @click.stop="removeStock(s.code)">删除</UiButton></div>
+                  <div class="td-actions">
+                    <UiButton size="sm" variant="ghost" @click.stop="openStockGroup(s)">分组</UiButton>
+                    <UiButton size="sm" variant="ghost" @click.stop="edit(s)">{{ s.shares ? '改仓' : '录入' }}</UiButton>
+                    <UiButton size="sm" variant="danger" @click.stop="removeStock(s)">{{ currentGroupId !== null ? '移出' : '删除' }}</UiButton>
+                  </div>
                 </td>
               </tr>
             </tbody>
@@ -65,10 +95,10 @@
         </div>
       </div>
 
-      <div class="card mt16" v-if="watchEtfs.length" ref="etfCard">
+      <div class="card mt12" v-if="watchEtfs.length" ref="etfCard">
         <div class="card-title">
-          <span>ETF 自选（{{ watchEtfs.length }}）</span>
-          <button class="btn-screenshot" @click="captureElement(etfCard, 'ETF自选.png')" title="截图">
+          <span>{{ currentGroupName }} · ETF（{{ watchEtfs.length }}）</span>
+          <button class="btn-screenshot" @click="captureElement(etfCard, `${currentGroupName}ETF.png`)" title="截图">
             <UiIcon name="screenshot" :size="14" />
           </button>
         </div>
@@ -99,7 +129,11 @@
                 <td>{{ fmtAmount(s.amount) }}</td>
                 <td :class="pctClass(s.main_inflow)">{{ fmtAmount(s.main_inflow) }}</td>
                 <td>
-                  <div class="td-actions"><UiButton size="sm" variant="ghost" @click.stop="edit(s)">{{ s.shares ? '改仓' : '录入' }}</UiButton><UiButton size="sm" variant="danger" @click.stop="removeStock(s.code)">删除</UiButton></div>
+                  <div class="td-actions">
+                    <UiButton size="sm" variant="ghost" @click.stop="openStockGroup(s)">分组</UiButton>
+                    <UiButton size="sm" variant="ghost" @click.stop="edit(s)">{{ s.shares ? '改仓' : '录入' }}</UiButton>
+                    <UiButton size="sm" variant="danger" @click.stop="removeStock(s)">{{ currentGroupId !== null ? '移出' : '删除' }}</UiButton>
+                  </div>
                 </td>
               </tr>
             </tbody>
@@ -107,8 +141,15 @@
         </div>
       </div>
 
-      <div class="card" v-if="!watchRows.length">
-        <div class="empty">暂无自选。录入持仓后自动加入自选，或从其他页面搜索添加。</div>
+      <div class="card mt12" v-if="!watchRows.length">
+        <div class="empty">
+          <div class="empty-title">当前分组「{{ currentGroupName }}」暂无自选股</div>
+          <div class="empty-desc">可点击「分组管理」导入热门预设，或在其他页面搜索添加。</div>
+          <div class="empty-actions mt12">
+            <UiButton size="sm" variant="primary" @click="showGroupManage = true">管理分组 / 导入预设</UiButton>
+            <UiButton size="sm" variant="ghost" v-if="currentGroupId !== null" @click="selectGroup(null)">查看全部自选</UiButton>
+          </div>
+        </div>
       </div>
     </template>
 
@@ -319,6 +360,22 @@
       :stock-name="riskName"
       @close="showRisk = false"
     />
+
+    <!-- 分组管理弹窗 -->
+    <GroupManageModal
+      :open="showGroupManage"
+      @close="showGroupManage = false"
+      @changed="onGroupsChanged"
+    />
+
+    <!-- 单股多分组设置弹窗 -->
+    <StockGroupModal
+      :open="showStockGroup"
+      :code="stockGroupTarget?.code"
+      :name="stockGroupTarget?.name"
+      @close="showStockGroup = false"
+      @saved="onStockGroupSaved"
+    />
   </div>
 </template>
 <script setup>
@@ -330,13 +387,15 @@ import { fmtAmount, fmtPrice, fmtPct, pctClass } from '../utils.js'
 import { usePolling } from '../composables/usePolling.js'
 import { useTableSort } from '../composables/useTableSort.js'
 import { usePageTab } from '../composables/usePageTab.js'
-import { loadWatchlist, removeWatch, watchState } from '../composables/useWatchlist.js'
+import { loadWatchlist, removeWatch, watchState, setCurrentGroup } from '../composables/useWatchlist.js'
 import { applyListFilter } from '../composables/useListFilter.js'
 import { openStock } from '../composables/useStockMeta.js'
 import { captureElement } from '../composables/useScreenshot.js'
 import MiniTrend from '../components/MiniTrend.vue'
 import BoardBadges from '../components/BoardBadges.vue'
 import RiskModal from '../components/RiskModal.vue'
+import GroupManageModal from '../components/GroupManageModal.vue'
+import StockGroupModal from '../components/StockGroupModal.vue'
 
 /**
  * 从自选/持仓列表进入详情，带同表左右切换与返回自选。
@@ -362,6 +421,56 @@ function openRisk(s) {
   riskCode.value = s.code
   riskName.value = s.name
   showRisk.value = true
+}
+
+// 分组弹窗与当前分组状态
+const showGroupManage = ref(false)
+const showStockGroup = ref(false)
+const stockGroupTarget = ref(null)
+
+const currentGroupId = computed(() => watchState.currentGroupId)
+
+const allWatchCount = computed(() => {
+  if (watchState.allCodes.length) return watchState.allCodes.length
+  return watchState.codes.length
+})
+
+const currentGroupName = computed(() => {
+  if (currentGroupId.value === null) return '全部自选'
+  const g = watchState.groups.find(x => x.id === currentGroupId.value)
+  return g ? g.name : '自选'
+})
+
+function groupIcon(name) {
+  if (/光通信|CPO/i.test(name)) return '📡'
+  if (/PCB|覆铜/i.test(name)) return '🖨️'
+  if (/封装|Chiplet|HBM/i.test(name)) return '🧩'
+  if (/存储|内存/i.test(name)) return '💾'
+  if (/机器人|具身/i.test(name)) return '🤖'
+  if (/低空|eVTOL|飞行/i.test(name)) return '🚁'
+  if (/半导体|芯片|设备/i.test(name)) return '🛡️'
+  if (/AI|硬件|服务器|算力/i.test(name)) return '⚡'
+  if (/消费电子|苹果|华为/i.test(name)) return '📱'
+  if (/固态电池|电池|锂电/i.test(name)) return '🔋'
+  return '📁'
+}
+
+function selectGroup(gid) {
+  setCurrentGroup(gid)
+  load()
+}
+
+function openStockGroup(s) {
+  stockGroupTarget.value = s
+  showStockGroup.value = true
+}
+
+async function onStockGroupSaved() {
+  await load()
+}
+
+async function onGroupsChanged() {
+  await load()
 }
 
 const list = ref([])
@@ -541,17 +650,28 @@ async function clearSnapshots() {
   } catch (e) { alert('清空失败：' + e.message) }
 }
 
-async function removeStock(code) {
-  await removeWatch(code)
-  load()
+async function removeStock(s) {
+  const code = typeof s === 'string' ? s : s.code
+  const sName = typeof s === 'object' ? s.name : code
+  const curGid = currentGroupId.value
+  if (curGid !== null) {
+    const curGroup = watchState.groups.find(g => g.id === curGid)
+    const gName = curGroup ? curGroup.name : '当前分组'
+    if (!confirm(`确定将 ${sName || code} 移出「${gName}」分组吗？`)) return
+    await removeWatch(code, curGid)
+  } else {
+    if (!confirm(`确定从全部自选股中删除 ${sName || code} 吗？`)) return
+    await removeWatch(code, null)
+  }
+  await load()
 }
 
 async function load() {
   try {
-    const codes = watchState.loaded ? watchState.codes : await loadWatchlist()
+    const codes = await loadWatchlist(watchState.currentGroupId)
     const pos = await api.positions().catch(() => ({ items: [] }))
     const posItems = pos.items || []
-    // 自选 ∪ 持仓：确保持仓（哪怕不在自选）也能拉到行情
+    // 自选 ∪ 持仓：确保持仓（哪怕不在当前自选）也能拉到行情
     const allCodes = [...new Set([...codes, ...posItems.map(p => p.code)])]
     if (!allCodes.length) { list.value = []; Object.keys(posMap).forEach(k => delete posMap[k]); return }
     const quotes = await api.batch(allCodes)
@@ -586,6 +706,32 @@ usePolling(load, 3000)
 <style scoped>
 .name-cell { display: inline-flex; align-items: center; gap: 4px; flex-wrap: wrap; }
 .card-title-sub { font-size: 12px; color: var(--text-dim); font-weight: 400; }
+
+/* 自选分组导航条 */
+.group-bar-container {
+  display: flex; justify-content: space-between; align-items: center; gap: 12px;
+  background: var(--bg-card); border: 1px solid var(--border); border-radius: var(--radius-md);
+  padding: 8px 12px; flex-wrap: wrap;
+}
+.group-pills {
+  display: flex; gap: 6px; overflow-x: auto; align-items: center; flex: 1; min-width: 0;
+  scrollbar-width: thin; scroll-behavior: smooth; padding-bottom: 2px;
+}
+.group-pill {
+  display: inline-flex; align-items: center; gap: 4px; padding: 4px 12px;
+  border-radius: var(--radius-sm); font-size: 13px; font-weight: 500;
+  color: var(--text-dim); background: var(--bg-hover); border: 1px solid transparent;
+  cursor: pointer; white-space: nowrap; transition: all .15s ease;
+}
+.group-pill:hover { color: var(--text); background: var(--border); }
+.group-pill.active {
+  color: var(--accent); background: var(--accent-bg); border-color: var(--accent);
+  font-weight: 600;
+}
+.group-bar-actions { flex-shrink: 0; }
+.empty-title { font-size: 14px; font-weight: 500; color: var(--text); }
+.empty-desc { font-size: 12px; color: var(--text-dim); margin-top: 4px; }
+.empty-actions { display: flex; gap: 10px; justify-content: center; }
 
 /* 排雷微胶囊 */
 .risk-pill {
