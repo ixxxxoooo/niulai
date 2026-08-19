@@ -219,7 +219,7 @@ def _migrate_stock_columns(conn: sqlite3.Connection) -> None:
 
 
 def _migrate_watchlist_schema(conn: sqlite3.Connection) -> None:
-    """自选股多分组迁移与初始默认分组。"""
+    """自选股多分组迁移。"""
     conn.execute("""
     CREATE TABLE IF NOT EXISTS watchlist_groups (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -228,13 +228,8 @@ def _migrate_watchlist_schema(conn: sqlite3.Connection) -> None:
         created_at TEXT
     )
     """)
-    # 确保默认自选分组存在
-    row = conn.execute("SELECT id FROM watchlist_groups WHERE id=1").fetchone()
-    if not row:
-        conn.execute(
-            "INSERT OR IGNORE INTO watchlist_groups(id, name, sort_order, created_at) VALUES (1, '默认自选', 0, ?)",
-            (_now(),),
-        )
+    # 清理历史可能存在的"默认自选"虚拟分组
+    conn.execute("DELETE FROM watchlist_groups WHERE name IN ('默认自选', '默认')")
 
     # 检查 watchlist 是否已有 group_id 列
     cols = {r[1] for r in conn.execute("PRAGMA table_info(watchlist)").fetchall()}
@@ -242,14 +237,14 @@ def _migrate_watchlist_schema(conn: sqlite3.Connection) -> None:
         conn.execute("""
         CREATE TABLE IF NOT EXISTS watchlist_new (
             code TEXT NOT NULL,
-            group_id INTEGER NOT NULL DEFAULT 1,
+            group_id INTEGER NOT NULL DEFAULT 0,
             added_at TEXT,
             PRIMARY KEY (code, group_id)
         )
         """)
         conn.execute("""
         INSERT OR IGNORE INTO watchlist_new(code, group_id, added_at)
-        SELECT code, 1, added_at FROM watchlist
+        SELECT code, 0, added_at FROM watchlist
         """)
         conn.execute("DROP TABLE watchlist")
         conn.execute("ALTER TABLE watchlist_new RENAME TO watchlist")
@@ -627,11 +622,11 @@ PRESET_POPULAR_GROUPS = [
 
 
 def _init_preset_groups_if_needed(conn: sqlite3.Connection) -> None:
-    """如果当前仅有默认自选分组，自动初始化热门预设分组及成分股。"""
+    """如果当前暂无分组，自动初始化热门预设分组及成分股。"""
     try:
         row = conn.execute("SELECT COUNT(*) AS c FROM watchlist_groups").fetchone()
         count = row["c"] if row else 0
-        if count <= 1:
+        if count == 0:
             _populate_presets(conn)
     except Exception:
         pass
@@ -644,7 +639,7 @@ def _populate_presets(conn: sqlite3.Connection) -> None:
     watch_payload = []
     for idx, g in enumerate(PRESET_POPULAR_GROUPS):
         gname = g["name"]
-        sort_order = (idx + 1) * 10
+        sort_order = idx * 10
         conn.execute(
             "INSERT OR IGNORE INTO watchlist_groups(name, sort_order, created_at) VALUES (?, ?, ?)",
             (gname, sort_order, now),
@@ -690,7 +685,7 @@ def init_preset_groups(presets: Optional[List[Dict[str, Any]]] = None) -> Dict[s
 
 # ------------------------------------------------------------------ 自选分组管理
 def list_watchlist_groups() -> List[Dict[str, Any]]:
-    """获取所有自选分组及各自分组股票数量。"""
+    """获取所有自选分组、各自分组股票数量及股票代码列表。"""
     conn = get_conn()
     rows = conn.execute("""
         SELECT g.id, g.name, g.sort_order, g.created_at,
@@ -700,7 +695,17 @@ def list_watchlist_groups() -> List[Dict[str, Any]]:
         GROUP BY g.id, g.name, g.sort_order, g.created_at
         ORDER BY g.sort_order ASC, g.id ASC
     """).fetchall()
-    return [dict(r) for r in rows]
+
+    group_map: Dict[int, List[str]] = {}
+    for r in conn.execute("SELECT group_id, code FROM watchlist ORDER BY added_at ASC, code ASC").fetchall():
+        group_map.setdefault(r["group_id"], []).append(r["code"])
+
+    result = []
+    for r in rows:
+        d = dict(r)
+        d["codes"] = group_map.get(r["id"], [])
+        result.append(d)
+    return result
 
 
 def create_watchlist_group(name: str) -> Dict[str, Any]:
@@ -722,7 +727,7 @@ def create_watchlist_group(name: str) -> Dict[str, Any]:
         )
         conn.commit()
         gid = cur.lastrowid
-    return {"id": gid, "name": name, "sort_order": next_sort, "count": 0, "created_at": now}
+    return {"id": gid, "name": name, "sort_order": next_sort, "count": 0, "codes": [], "created_at": now}
 
 
 def update_watchlist_group(group_id: int, name: Optional[str] = None, sort_order: Optional[int] = None) -> bool:
@@ -749,9 +754,7 @@ def update_watchlist_group(group_id: int, name: Optional[str] = None, sort_order
 
 
 def delete_watchlist_group(group_id: int) -> bool:
-    """删除自选分组（不影响其他分组内的股票）。默认分组不可删除。"""
-    if group_id == 1:
-        raise ValueError("默认自选分组不可删除")
+    """删除自选分组（不影响其他分组内的股票）。"""
     conn = get_conn()
     with _lock:
         conn.execute("DELETE FROM watchlist WHERE group_id = ?", (group_id,))
@@ -790,11 +793,11 @@ def watchlist_codes(group_id: Optional[int] = None) -> List[str]:
 
 
 def watchlist_add(code: str, group_id: Optional[int] = None) -> bool:
-    """添加股票到指定分组（默认 group_id=1）。"""
+    """添加股票到自选（若指定 group_id 则加入对应分组，否则 group_id=0）。"""
     code = (code or "").strip()
     if not code:
         return False
-    gid = group_id if group_id is not None else 1
+    gid = group_id if group_id is not None else 0
     conn = get_conn()
     with _lock:
         conn.execute(
@@ -835,7 +838,7 @@ def watchlist_clear(group_id: Optional[int] = None) -> None:
 def watchlist_import(codes: Sequence[str], group_id: Optional[int] = None) -> int:
     """批量导入自选股到指定分组。"""
     now = _now()
-    gid = group_id if group_id is not None else 1
+    gid = group_id if group_id is not None else 0
     payload = [(c.strip(), gid, now) for c in codes if c and str(c).strip()]
     if payload:
         conn = get_conn()
@@ -849,12 +852,12 @@ def watchlist_import(codes: Sequence[str], group_id: Optional[int] = None) -> in
 
 
 def get_stock_group_ids(code: str) -> List[int]:
-    """获取某只股票所属的所有分组 ID。"""
+    """获取某只股票所属的所有有效分组 ID。"""
     code = (code or "").strip()
     if not code:
         return []
     conn = get_conn()
-    rows = conn.execute("SELECT group_id FROM watchlist WHERE code = ?", (code,)).fetchall()
+    rows = conn.execute("SELECT group_id FROM watchlist WHERE code = ? AND group_id > 0", (code,)).fetchall()
     return [r["group_id"] for r in rows]
 
 
@@ -864,14 +867,20 @@ def set_stock_groups(code: str, group_ids: List[int]) -> None:
     if not code:
         return
     now = _now()
+    valid_gids = [int(gid) for gid in group_ids if gid is not None and int(gid) > 0]
     conn = get_conn()
     with _lock:
         conn.execute("DELETE FROM watchlist WHERE code = ?", (code,))
-        if group_ids:
-            payload = [(code, int(gid), now) for gid in group_ids if gid is not None]
+        if valid_gids:
+            payload = [(code, gid, now) for gid in valid_gids]
             conn.executemany(
                 "INSERT OR IGNORE INTO watchlist(code, group_id, added_at) VALUES (?, ?, ?)",
                 payload,
+            )
+        else:
+            conn.execute(
+                "INSERT OR IGNORE INTO watchlist(code, group_id, added_at) VALUES (?, 0, ?)",
+                (code, now),
             )
         conn.commit()
 

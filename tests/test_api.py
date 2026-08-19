@@ -441,7 +441,7 @@ def test_watchlist_groups_and_presets(client):
     assert r.status_code == 200
     groups = r.json().get("groups") or []
     assert len(groups) >= 1
-    assert any(g["name"] in ("默认自选", "光通信", "PCB", "先进封装", "存储芯片") for g in groups)
+    assert any(g["name"] in ("光通信", "PCB", "先进封装", "存储芯片") for g in groups)
 
     # 2. 重新初始化预设
     r_pre = client.post("/api/watchlist/init-presets")

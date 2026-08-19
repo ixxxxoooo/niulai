@@ -2,8 +2,11 @@
   <div v-if="open" class="modal-mask" @click.self="close">
     <div class="modal-card group-manage-card">
       <div class="modal-hd">
-        <span>自选分组管理</span>
-        <UiButton size="sm" variant="ghost" @click="close">关闭</UiButton>
+        <div class="modal-hd-title">
+          <span class="hd-main">自选分组管理</span>
+          <span class="hd-sub">创建、重命名、排序或删除自选分组</span>
+        </div>
+        <UiButton size="sm" variant="ghost" @click="close">✕</UiButton>
       </div>
 
       <div class="modal-bd">
@@ -11,7 +14,8 @@
         <div class="new-group-box mb16">
           <UiInput
             v-model="newGroupName"
-            placeholder="输入新分组名称（如：算力芯片、消费电子）…"
+            placeholder="输入新分组名称（例如：算力芯片、消费电子、光伏储能）…"
+            class="new-group-input"
             @keydown.enter="doCreateGroup"
           />
           <UiButton variant="primary" :disabled="!newGroupName.trim() || busy" @click="doCreateGroup">
@@ -27,10 +31,10 @@
           <table class="group-table">
             <thead>
               <tr>
-                <th style="width:40px">排序</th>
+                <th style="width:48px;text-align:center">排序</th>
                 <th>分组名称</th>
-                <th style="width:80px;text-align:center">股票数</th>
-                <th style="width:140px;text-align:right">操作</th>
+                <th style="width:90px;text-align:center">股票数量</th>
+                <th style="width:150px;text-align:right">操作</th>
               </tr>
             </thead>
             <tbody>
@@ -53,16 +57,18 @@
                 </td>
                 <td class="name-col">
                   <div v-if="editingId === g.id" class="edit-row">
-                    <UiInput v-model="editName" size="sm" @keydown.enter="saveRename(g)" />
-                    <UiButton size="sm" variant="ghost" @click="saveRename(g)">保存</UiButton>
+                    <UiInput v-model="editName" size="sm" class="edit-input" @keydown.enter="saveRename(g)" />
+                    <UiButton size="sm" variant="primary" @click="saveRename(g)">保存</UiButton>
                     <UiButton size="sm" variant="ghost" @click="editingId = null">取消</UiButton>
                   </div>
                   <div v-else class="name-display">
+                    <span class="g-icon">{{ groupIcon(g.name) }}</span>
                     <span class="g-name">{{ g.name }}</span>
-                    <span v-if="g.id === 1" class="default-badge">默认</span>
                   </div>
                 </td>
-                <td style="text-align:center;font-variant-numeric:tabular-nums">{{ g.count || 0 }}</td>
+                <td style="text-align:center">
+                  <span class="count-pill">{{ g.count || 0 }} 只</span>
+                </td>
                 <td style="text-align:right">
                   <div class="td-actions">
                     <UiButton
@@ -74,12 +80,14 @@
                     <UiButton
                       size="sm"
                       variant="danger"
-                      v-if="g.id !== 1"
                       :disabled="busy"
                       @click="doDeleteGroup(g)"
                     >删除</UiButton>
                   </div>
                 </td>
+              </tr>
+              <tr v-if="!groups.length">
+                <td colspan="4" class="empty-cell">暂无自定义分组，可输入名称创建或导入热门预设。</td>
               </tr>
             </tbody>
           </table>
@@ -93,7 +101,7 @@
               variant="subtle"
               :disabled="busy"
               @click="doInitPresets"
-              title="一键补全光通信、PCB、先进封装、存储芯片等热门赛道及核心龙头股票"
+              title="一键补全光通信、PCB、先进封装、存储芯片等 8 大热门赛道及核心龙头股票"
             >
               ⚡ 导入/补全热门预设分组
             </UiButton>
@@ -139,6 +147,20 @@ const error = ref('')
 const successMsg = ref('')
 
 const groups = computed(() => watchState.groups)
+
+function groupIcon(name) {
+  if (/光通信|CPO/i.test(name)) return '📡'
+  if (/PCB|覆铜/i.test(name)) return '🖨️'
+  if (/封装|Chiplet|HBM/i.test(name)) return '🧩'
+  if (/存储|内存/i.test(name)) return '💾'
+  if (/机器人|具身/i.test(name)) return '🤖'
+  if (/低空|eVTOL|飞行/i.test(name)) return '🚁'
+  if (/半导体|芯片|设备/i.test(name)) return '🛡️'
+  if (/AI|硬件|服务器|算力/i.test(name)) return '⚡'
+  if (/消费电子|苹果|华为/i.test(name)) return '📱'
+  if (/固态电池|电池|锂电/i.test(name)) return '🔋'
+  return '📁'
+}
 
 watch(() => props.open, (v) => {
   if (v) {
@@ -193,7 +215,7 @@ async function saveRename(g) {
 }
 
 async function doDeleteGroup(g) {
-  if (!confirm(`确定删除分组「${g.name}」吗？\n该分组下的股票不会被删除，仅移除该分组标签。`)) return
+  if (!confirm(`确定删除分组「${g.name}」吗？\n该分组下的股票仍会保留在自选「全部」及其他所属分组中。`)) return
   busy.value = true
   error.value = ''
   try {
@@ -247,43 +269,66 @@ function close() {
 </script>
 
 <style scoped>
-.group-manage-card { max-width: 620px; }
-.new-group-box { display: flex; gap: 8px; align-items: center; }
+.group-manage-card {
+  width: 92%;
+  max-width: 760px;
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  box-shadow: 0 12px 36px rgba(0, 0, 0, .35);
+}
+.modal-hd-title { display: flex; align-items: baseline; gap: 10px; }
+.hd-main { font-size: 16px; font-weight: 600; color: var(--text); }
+.hd-sub { font-size: 12px; color: var(--text-dim); }
+
+.new-group-box { display: flex; gap: 10px; align-items: center; }
 .new-group-box .ui-input { flex: 1; }
+
 .group-table-wrap {
   border: 1px solid var(--border); border-radius: var(--radius-sm);
-  max-height: 380px; overflow-y: auto;
+  max-height: 440px; overflow-y: auto; background: var(--bg-card);
 }
 .group-table { width: 100%; border-collapse: collapse; font-size: 13px; }
 .group-table th {
-  background: var(--bg-hover); color: var(--text-dim); font-weight: 500;
-  padding: 8px 12px; text-align: left; position: sticky; top: 0; z-index: 1;
+  background: var(--bg-hover); color: var(--text-dim); font-weight: 600;
+  padding: 10px 14px; text-align: left; position: sticky; top: 0; z-index: 1;
+  border-bottom: 1px solid var(--border);
 }
 .group-table td {
-  padding: 8px 12px; border-top: 1px solid var(--border); vertical-align: middle;
+  padding: 10px 14px; border-top: 1px solid var(--border); vertical-align: middle;
 }
-.order-btns { display: flex; flex-direction: column; gap: 2px; }
+.order-cell { text-align: center; }
+.order-btns { display: flex; flex-direction: column; gap: 3px; align-items: center; }
 .btn-order {
-  border: none; background: transparent; cursor: pointer; color: var(--text-dim);
-  font-size: 9px; line-height: 1; padding: 2px; border-radius: 2px;
+  border: none; background: var(--bg-hover); cursor: pointer; color: var(--text-dim);
+  font-size: 10px; line-height: 1; padding: 3px 6px; border-radius: 3px;
+  transition: all .12s;
 }
-.btn-order:hover:not(:disabled) { background: var(--bg-hover); color: var(--text); }
-.btn-order:disabled { opacity: .25; cursor: not-allowed; }
-.name-display { display: flex; align-items: center; gap: 6px; }
-.g-name { font-weight: 500; color: var(--text); }
-.default-badge {
-  font-size: 10px; padding: 1px 5px; border-radius: 3px;
-  background: var(--accent-bg); color: var(--accent); font-weight: 600;
+.btn-order:hover:not(:disabled) { background: var(--border); color: var(--text); }
+.btn-order:disabled { opacity: .2; cursor: not-allowed; }
+
+.name-display { display: flex; align-items: center; gap: 8px; }
+.g-icon { font-size: 15px; line-height: 1; }
+.g-name { font-weight: 600; color: var(--text); font-size: 14px; }
+.count-pill {
+  display: inline-block; font-size: 12px; padding: 2px 8px; border-radius: 10px;
+  background: var(--bg-hover); color: var(--text-dim); font-variant-numeric: tabular-nums;
 }
-.edit-row { display: flex; gap: 6px; align-items: center; }
-.edit-row .ui-input { width: 140px; }
-.td-actions { display: inline-flex; align-items: center; gap: 6px; }
+
+.edit-row { display: flex; gap: 8px; align-items: center; }
+.edit-row .edit-input { width: 180px; }
+.td-actions { display: inline-flex; align-items: center; gap: 8px; }
+
+.empty-cell {
+  text-align: center; padding: 32px 16px; color: var(--text-dim); font-size: 13px;
+}
+
 .modal-footer-box {
   display: flex; justify-content: space-between; align-items: center;
 }
 .success-banner {
-  background: var(--down-bg); color: var(--down); padding: 6px 12px;
-  border-radius: var(--radius-sm); font-size: 12px; border: 1px solid var(--down);
+  background: var(--down-bg); color: var(--down); padding: 8px 14px;
+  border-radius: var(--radius-sm); font-size: 13px; border: 1px solid var(--down);
 }
 .mb16 { margin-bottom: 16px; }
 .mb12 { margin-bottom: 12px; }

@@ -17,7 +17,12 @@
             :class="{ active: currentGroupId === null }"
             @click="selectGroup(null)"
           >
-            全部（{{ allWatchCount }}）
+            <span class="group-pill-name">全部</span>
+            <span
+              v-if="allAvgPct != null"
+              class="group-pill-pct"
+              :class="pctClass(allAvgPct)"
+            >{{ fmtPct(allAvgPct) }}</span>
           </button>
           <button
             v-for="g in watchState.groups"
@@ -26,7 +31,13 @@
             :class="{ active: currentGroupId === g.id }"
             @click="selectGroup(g.id)"
           >
-            {{ groupIcon(g.name) }} {{ g.name }}（{{ g.count || 0 }}）
+            <span class="group-pill-icon">{{ groupIcon(g.name) }}</span>
+            <span class="group-pill-name">{{ g.name }}</span>
+            <span
+              v-if="getGroupAvgPct(g) != null"
+              class="group-pill-pct"
+              :class="pctClass(getGroupAvgPct(g))"
+            >{{ fmtPct(getGroupAvgPct(g)) }}</span>
           </button>
         </div>
         <div class="group-bar-actions">
@@ -484,6 +495,50 @@ const etfCard = ref(null)
 const holdStockCard = ref(null)
 const holdEtfCard = ref(null)
 
+// 股票代码到行情的映射，用于各分组实时涨跌幅计算
+const quotesMap = computed(() => {
+  const map = {}
+  for (const s of list.value) {
+    if (s && s.code) map[s.code] = s
+  }
+  return map
+})
+
+// 计算某个分组内全部股票的平均涨跌幅
+function getGroupAvgPct(g) {
+  const codes = g?.codes || []
+  if (!codes.length) return null
+  let total = 0
+  let count = 0
+  for (const c of codes) {
+    const q = quotesMap.value[c]
+    if (q && q.change_pct != null && !isNaN(q.change_pct)) {
+      total += Number(q.change_pct)
+      count++
+    }
+  }
+  return count > 0 ? total / count : null
+}
+
+// 全部自选的平均涨跌幅
+const allAvgPct = computed(() => {
+  const rows = list.value.filter(s => s.change_pct != null && !isNaN(s.change_pct))
+  if (!rows.length) return null
+  const sum = rows.reduce((acc, s) => acc + Number(s.change_pct), 0)
+  return sum / rows.length
+})
+
+// 股票到所属分组名称列表的反向映射，用于删除时提示
+const stockGroupsMap = computed(() => {
+  const map = {}
+  for (const g of watchState.groups) {
+    for (const c of (g.codes || [])) {
+      if (!map[c]) map[c] = []
+      map[c].push(g.name)
+    }
+  }
+  return map
+})
 
 function isEtf(s) {
   return s.classify === 'Fund' || s.type === 'ETF' || /ETF/i.test(s.name || '') || /^(15|16|51|56|58)/.test(s.code || '')
@@ -657,10 +712,15 @@ async function removeStock(s) {
   if (curGid !== null) {
     const curGroup = watchState.groups.find(g => g.id === curGid)
     const gName = curGroup ? curGroup.name : '当前分组'
-    if (!confirm(`确定将 ${sName || code} 移出「${gName}」分组吗？`)) return
+    if (!confirm(`确定将【${sName || code}】移出「${gName}」分组吗？\n该股票仍会保留在自选「全部」及其他所属分组中。`)) return
     await removeWatch(code, curGid)
   } else {
-    if (!confirm(`确定从全部自选股中删除 ${sName || code} 吗？`)) return
+    const inGroups = stockGroupsMap.value[code] || []
+    let promptMsg = `确定从自选股中删除【${sName || code}】吗？`
+    if (inGroups.length > 0) {
+      promptMsg += `\n该股票当前归属于以下分组：【${inGroups.join('】、【')}】。\n删除后将同时从所有分组及持仓中彻底移除。`
+    }
+    if (!confirm(promptMsg)) return
     await removeWatch(code, null)
   }
   await load()
@@ -671,8 +731,9 @@ async function load() {
     const codes = await loadWatchlist(watchState.currentGroupId)
     const pos = await api.positions().catch(() => ({ items: [] }))
     const posItems = pos.items || []
-    // 自选 ∪ 持仓：确保持仓（哪怕不在当前自选）也能拉到行情
-    const allCodes = [...new Set([...codes, ...posItems.map(p => p.code)])]
+    // 聚合全量代码（所有分组代码 ∪ 当前视图代码 ∪ 持仓代码），确保所有分组涨跌幅均能实时计算
+    const allGroupCodes = (watchState.groups || []).flatMap(g => g.codes || [])
+    const allCodes = [...new Set([...watchState.allCodes, ...allGroupCodes, ...codes, ...posItems.map(p => p.code)])]
     if (!allCodes.length) { list.value = []; Object.keys(posMap).forEach(k => delete posMap[k]); return }
     const quotes = await api.batch(allCodes)
     list.value = quotes
@@ -709,16 +770,15 @@ usePolling(load, 3000)
 
 /* 自选分组导航条 */
 .group-bar-container {
-  display: flex; justify-content: space-between; align-items: center; gap: 12px;
+  display: flex; justify-content: space-between; align-items: flex-start; gap: 12px;
   background: var(--bg-card); border: 1px solid var(--border); border-radius: var(--radius-md);
-  padding: 8px 12px; flex-wrap: wrap;
+  padding: 10px 14px;
 }
 .group-pills {
-  display: flex; gap: 6px; overflow-x: auto; align-items: center; flex: 1; min-width: 0;
-  scrollbar-width: thin; scroll-behavior: smooth; padding-bottom: 2px;
+  display: flex; flex-wrap: wrap; gap: 8px 10px; align-items: center; flex: 1; min-width: 0;
 }
 .group-pill {
-  display: inline-flex; align-items: center; gap: 4px; padding: 4px 12px;
+  display: inline-flex; align-items: center; gap: 6px; padding: 5px 12px;
   border-radius: var(--radius-sm); font-size: 13px; font-weight: 500;
   color: var(--text-dim); background: var(--bg-hover); border: 1px solid transparent;
   cursor: pointer; white-space: nowrap; transition: all .15s ease;
@@ -728,7 +788,17 @@ usePolling(load, 3000)
   color: var(--accent); background: var(--accent-bg); border-color: var(--accent);
   font-weight: 600;
 }
-.group-bar-actions { flex-shrink: 0; }
+.group-pill-icon { font-size: 14px; line-height: 1; }
+.group-pill-name { font-weight: 500; }
+.group-pill-pct {
+  font-size: 11px; font-weight: 600; font-variant-numeric: tabular-nums;
+  padding: 1px 5px; border-radius: 3px; line-height: 1.2;
+}
+.group-pill-pct.up { color: var(--up); background: var(--up-bg); }
+.group-pill-pct.down { color: var(--down); background: var(--down-bg); }
+.group-pill-pct.flat { color: var(--text-dim); }
+
+.group-bar-actions { flex-shrink: 0; padding-top: 2px; }
 .empty-title { font-size: 14px; font-weight: 500; color: var(--text); }
 .empty-desc { font-size: 12px; color: var(--text-dim); margin-top: 4px; }
 .empty-actions { display: flex; gap: 10px; justify-content: center; }
@@ -749,7 +819,6 @@ usePolling(load, 3000)
   font-size: 10px; line-height: 14px; font-weight: 600;
   background: var(--accent-bg); color: var(--accent);
 }
-
 
 /* 同花顺风格持仓表 */
 .hold-table th, .hold-table td { text-align: right; white-space: nowrap; }
