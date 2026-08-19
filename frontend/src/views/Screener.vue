@@ -8,11 +8,16 @@
       </div>
       <div class="top-status-bar">
         <div class="status-kvs">
-          <span class="sk-item" data-tooltip="【覆盖股票池】&#10;当前本地数据库已收录并覆盖的 A 股全市场股票总数">股票池 <b>{{ syncSt.stock_count || 0 }}</b> 只</span>
+          <span class="sk-item" data-tooltip="【全市场股票池】&#10;当前本地数据库已收录并覆盖的 A 股全市场股票总数">股票池 <b>{{ syncSt.stock_count || 0 }}</b> 只</span>
           <span class="sk-sep">/</span>
           <span class="sk-item" data-tooltip="【最新收盘日期】&#10;本地日 K 线已归档至最新真实收盘交易日">收盘日期 <b class="accent">{{ syncSt.latest_date || '—' }}</b></span>
           <span class="sk-sep">/</span>
-          <span class="sk-item" data-tooltip="【本地 K 线条数】&#10;本地 SQLite 数据库中存储的 18 维高精度日 K 线数据总记录数">本地K线 <b>{{ fmtNum(syncSt.total_bars || 0) }}</b> 条</span>
+          <span class="sk-item" :data-tooltip="`【本地 K 线存储与去重机制】\n基于 (股票代码, 交易日期) 联合主键唯一约束，绝对不会重复写入相同日期的历史记录。\n当前共有 ${syncSt.full_bars_count || 0} 只股票具备完整 120 日 K 线（覆盖率 ${syncSt.full_bars_pct || 0}%）。\n点击补齐历史时，仅会为剩余尚未满 120 天的股票增量拉取历史数据，已完整的标的 0 秒自动极速跳过。全部 5500+ 只满额后总数据量约为 66 万条。`">
+            本地K线 <b>{{ fmtNum(syncSt.total_bars || 0) }}</b> 条
+            <span v-if="syncSt.full_bars_count" style="font-size:10.5px;color:var(--text-dim);margin-left:3px">
+              (已满120日 <b>{{ syncSt.full_bars_count }}</b>只 · {{ syncSt.full_bars_pct }}%)
+            </span>
+          </span>
         </div>
         <div class="status-actions">
           <button

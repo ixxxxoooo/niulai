@@ -48,15 +48,26 @@ def daily_sync_status() -> Dict[str, Any]:
     conn = store.get_conn()
     try:
         row = conn.execute("SELECT COUNT(DISTINCT code) AS cnt FROM daily_bars").fetchone()
-        st["stock_count"] = row["cnt"] if row else 0
+        stock_cnt = row["cnt"] if row else 0
+        st["stock_count"] = stock_cnt
         row2 = conn.execute("SELECT MAX(trade_date) AS d FROM daily_bars").fetchone()
         st["latest_date"] = row2["d"] if row2 else None
         row3 = conn.execute("SELECT COUNT(*) AS total_bars FROM daily_bars").fetchone()
         st["total_bars"] = row3["total_bars"] if row3 else 0
+
+        # 统计已具备 120 天完整日 K 的股票数量与覆盖率
+        row4 = conn.execute(
+            "SELECT COUNT(*) AS full_cnt FROM (SELECT code FROM daily_bars GROUP BY code HAVING COUNT(*) >= 120)"
+        ).fetchone()
+        full_cnt = row4["full_cnt"] if row4 else 0
+        st["full_bars_count"] = full_cnt
+        st["full_bars_pct"] = round(full_cnt / stock_cnt * 100, 1) if stock_cnt > 0 else 0.0
     except Exception:
         st["stock_count"] = 0
         st["latest_date"] = None
         st["total_bars"] = 0
+        st["full_bars_count"] = 0
+        st["full_bars_pct"] = 0.0
     return st
 
 
