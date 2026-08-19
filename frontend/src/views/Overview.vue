@@ -52,8 +52,12 @@
       <div class="card">
         <div class="card-title">
           <span>行业板块 · 涨幅榜</span>
-          <a @click="go('/sectors')">全部板块 <UiIcon name="arrowRight" :size="11" /></a>
+          <div style="display: flex; gap: 10px; align-items: center;">
+            <a @click="go('/heatmap')">🗺️ 大盘云图</a>
+            <a @click="go('/sectors')">全部板块 <UiIcon name="arrowRight" :size="11" /></a>
+          </div>
         </div>
+
         <div class="scroll-list">
           <table class="data-table">
             <thead><tr><th>板块</th><th>涨跌幅</th><th>主力净流入</th><th>领涨股</th></tr></thead>

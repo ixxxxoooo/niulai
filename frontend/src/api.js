@@ -45,6 +45,9 @@ export const api = {
   overview: () => get('/market/overview'),
   marketVolume: () => get('/market/volume'),
   indicesTrends: () => get('/market/indices-trends'),
+  marketHeatmap: (type = 'industry', sort = 'amount', limit = 80) =>
+    get(`/market/heatmap?type=${type}&sort=${sort}&limit=${limit}`),
+
 
   // 开盘啦（抓包接口，容错降级）
   kaipanlaLimitUpSectors: (date = '') => get(`/kaipanla/limit-up-sectors?date=${date}`),

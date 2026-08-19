@@ -487,6 +487,27 @@ def test_watchlist_groups_and_presets(client):
     assert not any(g["id"] == gid for g in r_del_grp.json()["groups"])
 
 
+def test_market_heatmap_api(client):
+    """验证大盘热力云图数据接口"""
+    from backend.datasource.models import SectorQuote, StockBrief
+    with mock.patch("backend.datasource.eastmoney.get_client") as gem:
+        gem.return_value.sector_list.return_value = [
+            SectorQuote(code="BK0420", name="半导体", price=100.0, change_pct=2.5, amount=5000000000.0, main_inflow=100000000.0, leader_name="中芯国际", leader_code="688981", leader_pct=4.2)
+        ]
+        gem.return_value.sector_stocks.return_value = [
+            StockBrief(code="688981", name="中芯国际", price=50.0, change_pct=4.2, amount=2000000000.0, main_inflow=50000000.0)
+        ]
+        resp = client.get("/api/market/heatmap?type=industry")
+        assert resp.status_code == 200
+        data = resp.json()
+        assert data["stype"] == "industry"
+        assert data["count"] >= 1
+        assert data["items"][0]["name"] == "半导体"
+        assert "children" in data["items"][0]
+        assert data["items"][0]["children"][0]["name"] == "中芯国际"
+
+
+
 
 
 
