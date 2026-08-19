@@ -293,7 +293,7 @@ _cache_lock = threading.Lock()
 
 
 def ensure_tables() -> None:
-    """确保新表已建 + lhb_seats 补 source 列（旧库迁移）。"""
+    """确保新表已建 + 自动平滑迁移新字段（旧库向前兼容）。"""
     conn = store.get_conn()
     for stmt in _EXTRA_SCHEMA.strip().split(";"):
         stmt = stmt.strip()
@@ -305,6 +305,25 @@ def ensure_tables() -> None:
     cols = {r[1] for r in conn.execute("PRAGMA table_info(lhb_seats)").fetchall()}
     if "source" not in cols:
         conn.execute("ALTER TABLE lhb_seats ADD COLUMN source TEXT DEFAULT 'builtin'")
+
+    bar_cols = {r[1] for r in conn.execute("PRAGMA table_info(daily_bars)").fetchall()}
+    for col_name, col_type in [
+        ("turnover", "REAL"),
+        ("volume_ratio", "REAL"),
+        ("amplitude", "REAL"),
+        ("change_pct", "REAL"),
+        ("main_inflow", "REAL"),
+        ("main_ratio", "REAL"),
+        ("float_mv", "REAL"),
+        ("total_mv", "REAL"),
+        ("pe", "REAL"),
+        ("pb", "REAL"),
+    ]:
+        if col_name not in bar_cols:
+            try:
+                conn.execute(f"ALTER TABLE daily_bars ADD COLUMN {col_name} {col_type}")
+            except Exception:
+                pass
     conn.commit()
 
 

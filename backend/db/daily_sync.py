@@ -86,7 +86,7 @@ def sync_today_bars_bulk(trade_date: Optional[str] = None,
     from ..datasource import eastmoney
     client = eastmoney.get_client()
 
-    fields = "f12,f14,f2,f3,f4,f5,f6,f15,f16,f17,f18,f8,f62"
+    fields = "f12,f14,f2,f3,f4,f5,f6,f7,f8,f9,f10,f15,f16,f17,f18,f20,f21,f23,f62,f184"
     diff_list = client._clist_all_pages(config.FS_ALL_A, fields=fields, concurrency=6)
 
     if not diff_list:
@@ -96,6 +96,14 @@ def sync_today_bars_bulk(trade_date: Optional[str] = None,
 
     if progress:
         progress(60, f"已获取 {len(diff_list)} 只股票数据，正在批量写入数据库…", len(diff_list), len(diff_list))
+
+    def _sf(v, d=0.0):
+        if v is None or v == "-":
+            return d
+        try:
+            return float(v)
+        except (ValueError, TypeError):
+            return d
 
     rows_data: List[tuple] = []
     for it in diff_list:
@@ -108,12 +116,27 @@ def sync_today_bars_bulk(trade_date: Optional[str] = None,
             continue
         try:
             c = float(close_p)
-            o = float(it.get("f17") or c)
-            h = float(it.get("f15") or c)
-            l = float(it.get("f16") or c)
-            v = float(vol or 0)
-            a = float(it.get("f6") or 0)
-            rows_data.append((code, today_str, o, h, l, c, v, a))
+            o = _sf(it.get("f17"), c)
+            h = _sf(it.get("f15"), c)
+            l = _sf(it.get("f16"), c)
+            v = _sf(vol, 0.0)
+            a = _sf(it.get("f6"), 0.0)
+            turnover = _sf(it.get("f8"), 0.0)
+            volume_ratio = _sf(it.get("f10"), 0.0)
+            amplitude = _sf(it.get("f7"), 0.0)
+            change_pct = _sf(it.get("f3"), 0.0)
+            main_inflow = _sf(it.get("f62"), 0.0)
+            main_ratio = _sf(it.get("f184"), 0.0)
+            float_mv = _sf(it.get("f21"), 0.0)
+            total_mv = _sf(it.get("f20"), 0.0)
+            pe = _sf(it.get("f9"), 0.0)
+            pb = _sf(it.get("f23"), 0.0)
+
+            rows_data.append((
+                code, today_str, o, h, l, c, v, a,
+                turnover, volume_ratio, amplitude, change_pct,
+                main_inflow, main_ratio, float_mv, total_mv, pe, pb
+            ))
         except (ValueError, TypeError):
             continue
 
@@ -123,8 +146,10 @@ def sync_today_bars_bulk(trade_date: Optional[str] = None,
             conn = store.get_conn()
             conn.executemany(
                 "INSERT OR REPLACE INTO daily_bars"
-                "(code, trade_date, open, high, low, close, volume, amount) "
-                "VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+                "(code, trade_date, open, high, low, close, volume, amount, "
+                "turnover, volume_ratio, amplitude, change_pct, "
+                "main_inflow, main_ratio, float_mv, total_mv, pe, pb) "
+                "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
                 rows_data,
             )
             conn.commit()
@@ -134,7 +159,7 @@ def sync_today_bars_bulk(trade_date: Optional[str] = None,
     logger.info("全市场日K极速批量同步完成: %d 只, 日期: %s (耗时 %.0fms)", written, today_str, dur_ms)
 
     if progress:
-        progress(100, f"极速同步完成，写入 {written} 只股票日K (耗时 {dur_ms:.0f}ms)", written, written)
+        progress(100, f"极速同步完成，写入 {written} 只股票全维日K (耗时 {dur_ms:.0f}ms)", written, written)
 
     return written
 

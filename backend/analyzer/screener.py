@@ -1,4 +1,4 @@
-"""盘后量化选股引擎：8 大高胜率经典实战策略
+"""盘后量化选股引擎：12 大高胜率经典实战策略
 支持 板块过滤（主板/创业板/科创板/北交所）、ST/破位排雷与多策略共振聚合
 @author ygw
 """
@@ -15,55 +15,95 @@ RULES = {
         "tag": "龙头起爆",
         "badge": "🔥 强烈推荐",
         "desc": "收盘价放量创近 20 日新高，突破前期平台阻力位",
+        "is_default": True,
         "default_params": {"period": 20, "min_amount": 80_000_000},
     },
     "ma_bullish": {
         "name": "多头排列",
         "tag": "顺势主升",
         "badge": "💎 胜率极高",
-        "desc": "MA5 > MA10 > MA20 均线发散向上，处于健康顺势主升浪",
+        "desc": "MA5 > MA10 > MA20 多头均线发散，顺势主升浪",
+        "is_default": True,
         "default_params": {},
     },
-    "golden_cross": {
-        "name": "均线金叉",
-        "tag": "右侧买点",
-        "badge": "✨ 趋势启动",
-        "desc": "MA5 短期均线向上金叉 MA20 长期均线，拐点确立",
-        "default_params": {"fast": 5, "slow": 20},
+    "main_inflow_surge": {
+        "name": "主力抢筹",
+        "tag": "资金控盘",
+        "badge": "💰 强烈推荐",
+        "desc": "单日主力净买入 > 2500万 且 净占比 > 6%，主力强力建仓",
+        "is_default": True,
+        "default_params": {"min_inflow": 25_000_000, "min_ratio": 6.0},
     },
     "volume_surge": {
         "name": "放量拉升",
-        "tag": "主力抢筹",
+        "tag": "量价齐升",
         "badge": "📊 资金异动",
-        "desc": "今日成交量达近 20 日均量 1.8 倍以上且收阳，主力强力介入",
+        "desc": "今日量达近 20 日均量 1.8 倍以上且量比 > 1.5，强力介入",
+        "is_default": True,
         "default_params": {"period": 20, "multiple": 1.8},
-    },
-    "pullback_support": {
-        "name": "缩量回踩",
-        "tag": "稳健低吸",
-        "badge": "🎯 极佳盈亏比",
-        "desc": "多头趋势中缩量回踩 MA10/MA20 均线支撑位，低吸性价比极高",
-        "default_params": {"ma": 20, "max_dist_pct": 2.5},
     },
     "box_breakout": {
         "name": "平台突围",
         "tag": "蓄势爆发",
         "badge": "🚀 爆发力强",
-        "desc": "近 10 日窄幅箱体整理（振幅<10%），今日放量大阳线强势突破",
+        "desc": "近 10 日窄幅整理（振幅<10%），今日放量长阳突破箱顶",
+        "is_default": True,
         "default_params": {"box_days": 10, "max_amp": 10.0},
+    },
+    "pullback_support": {
+        "name": "缩量回踩",
+        "tag": "稳健低吸",
+        "badge": "🎯 极佳盈亏比",
+        "desc": "多头趋势中缩量回踩 MA10/MA20 均线支撑位，安全边际高",
+        "is_default": False,
+        "default_params": {"ma": 20, "max_dist_pct": 2.5},
+    },
+    "golden_cross": {
+        "name": "均线金叉",
+        "tag": "右侧买点",
+        "badge": "✨ 趋势启动",
+        "desc": "MA5 短期均线向上金叉 MA20 长期均线，右侧拐点确立",
+        "is_default": False,
+        "default_params": {"fast": 5, "slow": 20},
     },
     "macd_zero_cross": {
         "name": "水上金叉",
         "tag": "二次加速",
         "badge": "⚡ 加速主升",
-        "desc": "MACD 指标在 0 轴上方二次形成多头金叉，主升浪二次加速",
+        "desc": "MACD 在 0 轴上方二次形成多头金叉，主升浪二次加速",
+        "is_default": False,
+        "default_params": {},
+    },
+    "active_turnover": {
+        "name": "活跃换手",
+        "tag": "游资主升",
+        "badge": "🌪️ 股性爆发",
+        "desc": "换手率 6%~18% 黄金区间且涨幅 > 3%，股性极度活跃",
+        "is_default": False,
+        "default_params": {"min_turnover": 6.0, "max_turnover": 18.0, "min_pct": 3.0},
+    },
+    "small_cap_leader": {
+        "name": "小盘弹性龙",
+        "tag": "弹性先锋",
+        "badge": "🦄 弹性先锋",
+        "desc": "流通市值 30~180 亿黄金弹性区间 + 均线多头 + 主力加仓",
+        "is_default": False,
+        "default_params": {"min_mv": 3_000_000_000, "max_mv": 18_000_000_000},
+    },
+    "bullish_engulfing": {
+        "name": "阳包阴反包",
+        "tag": "强势反转",
+        "badge": "📈 洗盘结束",
+        "desc": "昨日收阴洗盘，今日放量阳线实体反包昨日阴线开盘价",
+        "is_default": False,
         "default_params": {},
     },
     "oversold_rebound": {
-        "name": "超跌反包",
+        "name": "超跌反弹",
         "tag": "拐点反转",
-        "badge": "🔄 止跌反弹",
-        "desc": "前期回调充分超跌，今日放量反包长阳站上短期均线，拐点确立",
+        "badge": "🔄 止跌反转",
+        "desc": "前期深度回调超跌，今日放量大阳反包站上短期均线",
+        "is_default": False,
         "default_params": {"min_pct": 3.0},
     },
 }
@@ -73,7 +113,8 @@ def _load_bars(code: str, min_count: int = 5) -> Optional[List[dict]]:
     """从 daily_bars 读取指定股票的日 K 数据（按日期升序）。"""
     conn = store.get_conn()
     rows = conn.execute(
-        "SELECT trade_date, open, high, low, close, volume, amount "
+        "SELECT trade_date, open, high, low, close, volume, amount, "
+        "turnover, volume_ratio, amplitude, change_pct, main_inflow, main_ratio, float_mv "
         "FROM daily_bars WHERE code = ? ORDER BY trade_date",
         (code,),
     ).fetchall()
@@ -170,6 +211,80 @@ def _check_ma_bullish(bars: List[dict], params: dict) -> Optional[str]:
     return f"MA5/10/20 三线多头排列 ({ma5:.2f}>{ma10:.2f}>{ma20:.2f})"
 
 
+def _check_main_inflow_surge(bars: List[dict], params: dict) -> Optional[str]:
+    """主力抢筹：单日主力资金净流入 > 2500万 且 主力占比 > 6%，大资金强力建仓。"""
+    today = bars[-1]
+    inflow = today.get("main_inflow") or 0
+    ratio = today.get("main_ratio") or 0
+    close_p = today.get("close") or 0
+    open_p = today.get("open") or 0
+    min_inflow = params.get("min_inflow", 25_000_000)
+    min_ratio = params.get("min_ratio", 6.0)
+
+    if inflow >= min_inflow and ratio >= min_ratio and close_p >= open_p:
+        inflow_wan = inflow / 10000
+        return f"主力单日强力净流入 {inflow_wan:.0f}万 (净占比 {ratio:.1f}%)"
+    return None
+
+
+def _check_active_turnover(bars: List[dict], params: dict) -> Optional[str]:
+    """游资活跃换手：换手率处于 6%~18% 黄金活跃区间且涨幅 > 3%，股性极度活跃。"""
+    today = bars[-1]
+    turnover = today.get("turnover") or 0
+    pct = today.get("change_pct") or 0
+    vr = today.get("volume_ratio") or 1.0
+    min_to = params.get("min_turnover", 6.0)
+    max_to = params.get("max_turnover", 18.0)
+    min_pct = params.get("min_pct", 3.0)
+
+    if min_to <= turnover <= max_to and pct >= min_pct and vr >= 1.2:
+        return f"黄金活跃换手 {turnover:.1f}% (涨幅+{pct:.1f}%, 量比{vr:.2f})"
+    return None
+
+
+def _check_small_cap_leader(bars: List[dict], params: dict) -> Optional[str]:
+    """小盘弹性龙头：流通市值 30~180 亿黄金弹性区间 + 短线均线多头 + 主力净买入。"""
+    if len(bars) < 10:
+        return None
+    today = bars[-1]
+    float_mv = today.get("float_mv") or 0
+    inflow = today.get("main_inflow") or 0
+    closes = [b.get("close") or 0 for b in bars]
+    ma5 = _ma(closes, 5) or 0
+    ma10 = _ma(closes, 10) or 0
+
+    min_mv = params.get("min_mv", 3_000_000_000)
+    max_mv = params.get("max_mv", 18_000_000_000)
+
+    if min_mv <= float_mv <= max_mv and ma5 > ma10 and closes[-1] > ma5 and inflow > 5_000_000:
+        mv_yi = float_mv / 100_000_000
+        inflow_wan = inflow / 10000
+        return f"高弹性小盘市值 {mv_yi:.1f}亿，短线均线多头发散且主力加仓 {inflow_wan:.0f}万"
+    return None
+
+
+def _check_bullish_engulfing(bars: List[dict], params: dict) -> Optional[str]:
+    """阳包阴反包：昨日收阴洗盘，今日放量长阳实体完全反包昨日阴线开盘价。"""
+    if len(bars) < 2:
+        return None
+    prev = bars[-2]
+    today = bars[-1]
+    prev_o = prev.get("open") or 0
+    prev_c = prev.get("close") or 0
+    today_o = today.get("open") or 0
+    today_c = today.get("close") or 0
+    today_v = today.get("volume") or 0
+    prev_v = prev.get("volume") or 0
+
+    # 昨日阴线，今日阳线
+    if prev_c < prev_o and today_c > today_o:
+        # 今日收盘完全包住昨日开盘
+        if today_c > prev_o and today_v >= prev_v * 1.05:
+            pct = today.get("change_pct") or ((today_c - prev_c) / prev_c * 100 if prev_c > 0 else 0)
+            return f"放量阳包阴强势反包 (+{pct:.1f}%)，洗盘彻底结束"
+    return None
+
+
 def _check_pullback_support(bars: List[dict], params: dict) -> Optional[str]:
     """缩量回踩规则：价格回踩均线附近且缩量。"""
     ma_period = params.get("ma", 20)
@@ -261,11 +376,15 @@ def _check_oversold_rebound(bars: List[dict], params: dict) -> Optional[str]:
 _CHECKERS = {
     "breakout": _check_breakout,
     "ma_bullish": _check_ma_bullish,
-    "golden_cross": _check_golden_cross,
+    "main_inflow_surge": _check_main_inflow_surge,
     "volume_surge": _check_volume_surge,
-    "pullback_support": _check_pullback_support,
     "box_breakout": _check_box_breakout,
+    "pullback_support": _check_pullback_support,
+    "golden_cross": _check_golden_cross,
     "macd_zero_cross": _check_macd_zero_cross,
+    "active_turnover": _check_active_turnover,
+    "small_cap_leader": _check_small_cap_leader,
+    "bullish_engulfing": _check_bullish_engulfing,
     "oversold_rebound": _check_oversold_rebound,
 }
 
@@ -283,8 +402,8 @@ def run_screen(rules: List[str], params: Optional[Dict[str, dict]] = None,
     # 提取过滤开关
     exclude_st = filters.get("exclude_st", True)
     exclude_broken = filters.get("exclude_broken", True)
-    exclude_kcb = filters.get("exclude_kcb", False)  # 科创板 688
-    exclude_cyb = filters.get("exclude_cyb", False)  # 创业板 300/301
+    exclude_kcb = filters.get("exclude_kcb", True)   # 科创板 688
+    exclude_cyb = filters.get("exclude_cyb", True)   # 创业板 300/301
     exclude_bjs = filters.get("exclude_bjs", True)   # 北交所 8/4/920
     min_amount = filters.get("min_amount", 30_000_000)
 
@@ -298,154 +417,162 @@ def run_screen(rules: List[str], params: Optional[Dict[str, dict]] = None,
     run_id = conn.execute("SELECT last_insert_rowid()").fetchone()[0]
 
     # 获取待扫股票列表与基础元数据
+    stocks_meta = {}
     if scope == "watchlist":
-        codes = store.watchlist_codes()
-        stock_rows = conn.execute(
-            "SELECT code, name, is_st FROM stocks WHERE code IN ({})".format(
-                ",".join("?" * len(codes))), codes
-        ).fetchall() if codes else []
-    else:
-        stock_rows = conn.execute(
-            "SELECT code, name, is_st FROM stocks WHERE classify = 'AStock'"
+        rows = conn.execute(
+            "SELECT s.code, s.name, s.industry FROM watchlist w JOIN stocks s ON w.code = s.code"
         ).fetchall()
+    else:
+        rows = conn.execute("SELECT code, name, industry FROM stocks").fetchall()
+    for r in rows:
+        stocks_meta[r[0]] = {"name": r[1] or "", "industry": r[2] or ""}
 
-    code_meta = {
-        r["code"]: {"name": r["name"], "is_st": r["is_st"]}
-        for r in stock_rows
-    }
+    # 获取参与扫描的代码列表
+    candidate_codes = set(stocks_meta.keys())
+    if not candidate_codes:
+        distinct_codes = [r[0] for r in conn.execute("SELECT DISTINCT code FROM daily_bars").fetchall()]
+        for c in distinct_codes:
+            candidate_codes.add(c)
+            if c not in stocks_meta:
+                stocks_meta[c] = {"name": c, "industry": ""}
+
+    # 过滤板块与排雷
+    filtered_codes = []
+    for c in candidate_codes:
+        meta = stocks_meta.get(c, {})
+        name = meta.get("name", "")
+
+        # 1. 过滤 ST 股
+        if exclude_st and ("ST" in name or "退" in name or "*ST" in name):
+            continue
+        # 2. 过滤北交所 (8/4/920 开头)
+        if exclude_bjs and (c.startswith("8") or c.startswith("4") or c.startswith("920")):
+            continue
+        # 3. 过滤科创板 (688 开头)
+        if exclude_kcb and c.startswith("688"):
+            continue
+        # 4. 过滤创业板 (300/301 开头)
+        if exclude_cyb and (c.startswith("300") or c.startswith("301")):
+            continue
+
+        filtered_codes.append(c)
 
     hits_by_rule: Dict[str, list] = {r: [] for r in rules}
     stock_hits_map: Dict[str, dict] = {}
-    total_signals = 0
-    scanned = 0
 
-    for code, meta in code_meta.items():
-        name = meta.get("name") or ""
-
-        # 1. 板块过滤
-        if exclude_kcb and code.startswith("688"):
-            continue
-        if exclude_cyb and code.startswith(("300", "301")):
-            continue
-        if exclude_bjs and (code.startswith(("8", "4", "920"))):
+    for c in filtered_codes:
+        bars = _load_bars(c, min_count=2)
+        if not bars:
             continue
 
-        # 2. ST / 退市排雷
-        if exclude_st:
-            if meta.get("is_st") == 1 or name.startswith(("ST", "*ST", "退")):
-                continue
+        today = bars[-1]
+        today_close = today.get("close") or 0
+        today_amount = today.get("amount") or 0
+        prev_close = bars[-2].get("close") if len(bars) >= 2 else today_close
+        change_pct = ((today_close - prev_close) / prev_close * 100) if prev_close else 0
 
-        bars = _load_bars(code)
-        if not bars or len(bars) < 2:
+        # 破位排雷：排除今日大幅下跌 (<-3%) 的弱势破位标的
+        if exclude_broken and change_pct < -3.0:
             continue
-        scanned += 1
-
-        last_bar = bars[-1]
-        prev_bar = bars[-2]
-        close_val = last_bar.get("close")
-        if close_val is None or close_val <= 0:
+        # 流动性过滤：成交额过低（< 3000万）的僵尸股排除
+        if min_amount and today_amount > 0 and today_amount < min_amount:
             continue
 
-        amount_val = last_bar.get("amount") or 0.0
-        # 3. 过滤成交极低僵尸股
-        if amount_val > 0 and amount_val < min_amount:
-            continue
+        meta = stocks_meta.get(c, {})
+        stock_name = meta.get("name") or c
 
-        prev_close = prev_bar.get("close") or close_val
-        change_pct = round((close_val - prev_close) / prev_close * 100, 2) if prev_close > 0 else 0.0
-
-        # 4. 破位大跌排雷（涨跌幅 < -3.0% 且不包含超跌反弹策略时排除）
-        if exclude_broken and "oversold_rebound" not in rules:
-            if change_pct < -3.0:
-                continue
-
-        matched_for_stock = []
+        # 执行选定策略
         for rule_id in rules:
             checker = _CHECKERS.get(rule_id)
             if not checker:
                 continue
-            rule_params = {**(RULES.get(rule_id, {}).get("default_params") or {}), **(params.get(rule_id) or {})}
-            signal = checker(bars, rule_params)
-            if signal:
-                matched_for_stock.append((rule_id, signal))
-                total_signals += 1
-                try:
-                    conn.execute(
-                        "INSERT INTO screener_hits(run_id, rule_id, code, name, close, change_pct, detail) "
-                        "VALUES (?, ?, ?, ?, ?, ?, ?)",
-                        (run_id, rule_id, code, name, close_val, change_pct, signal),
-                    )
-                except Exception:
-                    pass
+            r_params = {**RULES.get(rule_id, {}).get("default_params", {}), **params.get(rule_id, {})}
+            detail_msg = checker(bars, r_params)
+            if detail_msg:
+                hit_item = {
+                    "code": c,
+                    "name": stock_name,
+                    "close": today_close,
+                    "change_pct": round(change_pct, 2),
+                    "detail": detail_msg,
+                    "industry": meta.get("industry", ""),
+                    "amount": today_amount,
+                }
+                hits_by_rule[rule_id].append(hit_item)
 
-        if matched_for_stock:
-            stock_entry = {
-                "code": code,
-                "name": name,
-                "close": close_val,
-                "change_pct": change_pct,
-                "amount": amount_val,
-                "volume": last_bar.get("volume") or 0.0,
-                "hit_rules": [r[0] for r in matched_for_stock],
-                "match_count": len(matched_for_stock),
-                "signals": [
-                    {"rule": r[0], "name": RULES.get(r[0], {}).get("name", r[0]), "detail": r[1]}
-                    for r in matched_for_stock
-                ],
-                "detail": " · ".join(f"[{RULES.get(r[0], {}).get('name', r[0])}] {r[1]}" for r in matched_for_stock),
-            }
-            stock_hits_map[code] = stock_entry
+                if c not in stock_hits_map:
+                    stock_hits_map[c] = {
+                        "code": c,
+                        "name": stock_name,
+                        "close": today_close,
+                        "change_pct": round(change_pct, 2),
+                        "amount": today_amount,
+                        "industry": meta.get("industry", ""),
+                        "hit_rules": [],
+                        "signals": [],
+                    }
+                stock_hits_map[c]["hit_rules"].append(rule_id)
+                r_name = RULES.get(rule_id, {}).get("name", rule_id)
+                stock_hits_map[c]["signals"].append({"rule": rule_id, "name": r_name, "detail": detail_msg})
 
-            for r_id, sig in matched_for_stock:
-                hits_by_rule[r_id].append({
-                    "code": code,
-                    "name": name,
-                    "close": close_val,
-                    "change_pct": change_pct,
-                    "amount": amount_val,
-                    "detail": sig,
-                    "hit_rules": stock_entry["hit_rules"],
-                    "match_count": stock_entry["match_count"],
-                })
+    # 共振聚合排序
+    aggregated_items = []
+    for s in stock_hits_map.values():
+        s["match_count"] = len(s["hit_rules"])
+        s["detail"] = " · ".join(f"[{item['name']}] {item['detail']}" for item in s["signals"])
+        aggregated_items.append(s)
 
-    # 将聚合股票列表按：共振策略数降序 -> 涨跌幅降序 -> 成交额降序 排序
-    aggregated_items = sorted(
-        stock_hits_map.values(),
-        key=lambda x: (x["match_count"], x["change_pct"], x["amount"]),
-        reverse=True,
-    )
+    # 优先按共振策略数量降序，再按涨跌幅降序
+    aggregated_items.sort(key=lambda x: (x["match_count"], x.get("change_pct") or 0), reverse=True)
 
-    for r_id in hits_by_rule:
-        hits_by_rule[r_id].sort(key=lambda x: (x.get("match_count", 1), x.get("change_pct", 0)), reverse=True)
+    # 结果入库归档
+    total_hits = len(aggregated_items)
+    with store._lock:
+        conn = store.get_conn()
+        conn.execute(
+            "UPDATE screener_runs SET finished_at = ?, hit_count = ?, status = 'completed' WHERE id = ?",
+            (store._now(), total_hits, run_id),
+        )
+        hit_rows = []
+        for r_id, items in hits_by_rule.items():
+            for it in items:
+                hit_rows.append((run_id, r_id, it["code"], it["name"], it["close"], it["change_pct"], it["detail"]))
+        if hit_rows:
+            conn.executemany(
+                "INSERT INTO screener_hits(run_id, rule_id, code, name, close, change_pct, detail) "
+                "VALUES (?, ?, ?, ?, ?, ?, ?)",
+                hit_rows,
+            )
+        conn.commit()
 
-    elapsed = (time.monotonic() - t0) * 1000
-    conn.execute(
-        "UPDATE screener_runs SET finished_at=?, hit_count=?, status='done' WHERE id=?",
-        (store._now(), len(aggregated_items), run_id),
-    )
-    conn.commit()
-
-    logger.info("选股完成 run=%d scanned=%d 命中股票=%d 信号数=%d (%.0fms)",
-                run_id, scanned, len(aggregated_items), total_signals, elapsed)
+    elapsed_ms = int((time.monotonic() - t0) * 1000)
+    logger.info("选股扫描完成: run_id=%d, 策略=%s, 扫描=%d只, 命中=%d只, 耗时=%dms",
+                run_id, rules, len(filtered_codes), total_hits, elapsed_ms)
 
     return {
         "run_id": run_id,
+        "scanned": len(filtered_codes),
+        "hit_count": total_hits,
+        "elapsed_ms": elapsed_ms,
         "items": aggregated_items,
         "hits": hits_by_rule,
-        "hit_count": len(aggregated_items),
-        "total_signals": total_signals,
-        "scanned": scanned,
-        "elapsed_ms": round(elapsed, 1),
     }
 
 
-def list_runs(limit: int = 20) -> List[dict]:
-    """获取历史选股任务列表。"""
-    conn = store.get_conn()
-    rows = conn.execute(
-        "SELECT * FROM screener_runs ORDER BY id DESC LIMIT ?", (limit,)
-    ).fetchall()
-    return [dict(r) for r in rows]
+def list_rules() -> List[Dict[str, Any]]:
+    """返回支持的 12 大量化选股策略列表。"""
+    res = []
+    for k, v in RULES.items():
+        res.append({
+            "id": k,
+            "name": v["name"],
+            "tag": v.get("tag", ""),
+            "badge": v.get("badge", ""),
+            "desc": v["desc"],
+            "is_default": v.get("is_default", False),
+            "default_params": v.get("default_params", {}),
+        })
+    return res
 
 
 def clear_runs() -> int:

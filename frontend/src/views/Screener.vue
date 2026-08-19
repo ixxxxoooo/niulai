@@ -370,7 +370,7 @@ const syncMode = ref('today_bulk')
 let syncTimer = null
 
 const ruleList = ref([])
-const selectedRules = ref(['breakout', 'ma_bullish', 'golden_cross', 'volume_surge'])
+const selectedRules = ref(['breakout', 'ma_bullish', 'main_inflow_surge', 'volume_surge', 'box_breakout'])
 const scope = ref('all')
 const notifyFeishu = ref(false)
 const running = ref(false)
@@ -420,7 +420,7 @@ function loadSavedState() {
     const raw = localStorage.getItem(STORAGE_KEY)
     if (!raw) return
     const state = JSON.parse(raw)
-    if (Array.isArray(state.selectedRules)) selectedRules.value = state.selectedRules
+    if (Array.isArray(state.selectedRules) && state.selectedRules.length) selectedRules.value = state.selectedRules
     if (state.scope) scope.value = state.scope
     if (state.filters) Object.assign(filters, state.filters)
     if (state.notifyFeishu !== undefined) notifyFeishu.value = !!state.notifyFeishu
@@ -458,11 +458,15 @@ function getRuleTagClass(id) {
   const map = {
     breakout: 'tag-breakout',
     ma_bullish: 'tag-ma',
-    golden_cross: 'tag-gold',
+    main_inflow_surge: 'tag-inflow',
     volume_surge: 'tag-vol',
-    pullback_support: 'tag-pullback',
     box_breakout: 'tag-box',
+    pullback_support: 'tag-pullback',
+    golden_cross: 'tag-gold',
     macd_zero_cross: 'tag-macd',
+    active_turnover: 'tag-turnover',
+    small_cap_leader: 'tag-smallcap',
+    bullish_engulfing: 'tag-engulfing',
     oversold_rebound: 'tag-bounce',
   }
   return map[id] || ''
@@ -847,11 +851,15 @@ onMounted(async () => {
 }
 .tag-breakout { background: rgba(240, 68, 68, 0.1); color: var(--up); border-color: rgba(240, 68, 68, 0.25); }
 .tag-gold { background: rgba(234, 179, 8, 0.12); color: #eab308; border-color: rgba(234, 179, 8, 0.25); }
+.tag-inflow { background: rgba(234, 179, 8, 0.12); color: #eab308; border-color: rgba(234, 179, 8, 0.3); font-weight: 600; }
 .tag-vol { background: rgba(168, 85, 247, 0.12); color: #a855f7; border-color: rgba(168, 85, 247, 0.25); }
 .tag-ma { background: rgba(59, 130, 246, 0.12); color: var(--accent); border-color: rgba(59, 130, 246, 0.25); }
 .tag-pullback { background: rgba(34, 197, 94, 0.12); color: #22c55e; border-color: rgba(34, 197, 94, 0.25); }
 .tag-box { background: rgba(236, 72, 153, 0.12); color: #ec4899; border-color: rgba(236, 72, 153, 0.25); }
 .tag-macd { background: rgba(14, 165, 233, 0.12); color: #0ea5e9; border-color: rgba(14, 165, 233, 0.25); }
+.tag-turnover { background: rgba(20, 184, 166, 0.12); color: #14b8a6; border-color: rgba(20, 184, 166, 0.3); }
+.tag-smallcap { background: rgba(168, 85, 247, 0.12); color: #a855f7; border-color: rgba(168, 85, 247, 0.3); }
+.tag-engulfing { background: rgba(244, 63, 94, 0.12); color: #f43f5e; border-color: rgba(244, 63, 94, 0.3); }
 .tag-bounce { background: rgba(249, 115, 22, 0.12); color: #f97316; border-color: rgba(249, 115, 22, 0.25); }
 
 .signal-col { font-size: 12px; color: var(--text); line-height: 1.4; }

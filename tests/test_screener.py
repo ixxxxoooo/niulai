@@ -17,6 +17,10 @@ def test_screener_rules_list():
     assert "golden_cross" in RULES
     assert "volume_surge" in RULES
     assert "ma_bullish" in RULES
+    assert "main_inflow_surge" in RULES
+    assert "active_turnover" in RULES
+    assert "small_cap_leader" in RULES
+    assert "bullish_engulfing" in RULES
     assert "pullback_support" in RULES
     assert "box_breakout" in RULES
     assert "macd_zero_cross" in RULES
