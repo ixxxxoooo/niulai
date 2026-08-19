@@ -25,10 +25,16 @@
             >{{ fmtPct(allAvgPct) }}</span>
           </button>
           <button
-            v-for="g in watchState.groups"
+            v-for="(g, idx) in watchState.groups"
             :key="g.id"
             class="group-pill"
-            :class="{ active: currentGroupId === g.id }"
+            :class="{ active: currentGroupId === g.id, 'pill-dragging': pillDragIndex === idx, 'pill-drag-over': pillDragOverIndex === idx }"
+            draggable="true"
+            @dragstart="onPillDragStart(idx, $event)"
+            @dragover.prevent="pillDragOverIndex = idx"
+            @dragleave="pillDragOverIndex === idx ? (pillDragOverIndex = null) : null"
+            @drop="onPillDrop(idx, $event)"
+            @dragend="onPillDragEnd"
             @click="selectGroup(g.id)"
           >
             <span class="group-pill-icon">{{ groupIcon(g.name) }}</span>
@@ -398,7 +404,7 @@ import { fmtAmount, fmtPrice, fmtPct, pctClass } from '../utils.js'
 import { usePolling } from '../composables/usePolling.js'
 import { useTableSort } from '../composables/useTableSort.js'
 import { usePageTab } from '../composables/usePageTab.js'
-import { loadWatchlist, removeWatch, watchState, setCurrentGroup } from '../composables/useWatchlist.js'
+import { loadWatchlist, removeWatch, watchState, setCurrentGroup, reorderGroups } from '../composables/useWatchlist.js'
 import { applyListFilter } from '../composables/useListFilter.js'
 import { openStock } from '../composables/useStockMeta.js'
 import { captureElement } from '../composables/useScreenshot.js'
@@ -438,6 +444,39 @@ function openRisk(s) {
 const showGroupManage = ref(false)
 const showStockGroup = ref(false)
 const stockGroupTarget = ref(null)
+
+const pillDragIndex = ref(null)
+const pillDragOverIndex = ref(null)
+
+function onPillDragStart(idx, e) {
+  pillDragIndex.value = idx
+  if (e.dataTransfer) {
+    e.dataTransfer.effectAllowed = 'move'
+    e.dataTransfer.setData('text/plain', String(idx))
+  }
+}
+
+async function onPillDrop(idx, e) {
+  if (pillDragIndex.value === null || pillDragIndex.value === idx) {
+    onPillDragEnd()
+    return
+  }
+  const list = [...watchState.groups]
+  const [moved] = list.splice(pillDragIndex.value, 1)
+  list.splice(idx, 0, moved)
+  watchState.groups = list
+  onPillDragEnd()
+  try {
+    await reorderGroups(list.map(g => g.id))
+  } catch (err) {
+    console.error('Pill reorder error:', err)
+  }
+}
+
+function onPillDragEnd() {
+  pillDragIndex.value = null
+  pillDragOverIndex.value = null
+}
 
 const currentGroupId = computed(() => watchState.currentGroupId)
 
@@ -808,6 +847,11 @@ usePolling(load, 3000)
 .group-pill-pct.up { color: var(--up); background: var(--up-bg); }
 .group-pill-pct.down { color: var(--down); background: var(--down-bg); }
 .group-pill-pct.flat { color: var(--text-dim); }
+
+.group-pill[draggable="true"] { cursor: grab; }
+.group-pill:active { cursor: grabbing; }
+.group-pill.pill-dragging { opacity: 0.35; transform: scale(0.95); }
+.group-pill.pill-drag-over { border-color: var(--accent); background: var(--accent-bg); transform: scale(1.05); }
 
 .group-bar-actions { flex-shrink: 0; padding-top: 2px; }
 .empty-title { font-size: 14px; font-weight: 500; color: var(--text); }

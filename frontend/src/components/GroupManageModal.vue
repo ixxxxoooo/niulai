@@ -31,28 +31,42 @@
           <table class="group-table">
             <thead>
               <tr>
-                <th style="width:48px;text-align:center">排序</th>
+                <th style="width:72px;text-align:center">排序</th>
                 <th>分组名称</th>
                 <th style="width:90px;text-align:center">股票数量</th>
                 <th style="width:150px;text-align:right">操作</th>
               </tr>
             </thead>
             <tbody>
-              <tr v-for="(g, idx) in groups" :key="g.id">
+              <tr
+                v-for="(g, idx) in groups"
+                :key="g.id"
+                draggable="true"
+                :class="{ 'row-dragging': dragIndex === idx, 'row-drag-over': dragOverIndex === idx }"
+                @dragstart="onDragStart(idx, $event)"
+                @dragover.prevent="onDragOver(idx, $event)"
+                @dragenter.prevent="dragOverIndex = idx"
+                @dragleave="onDragLeave(idx, $event)"
+                @drop="onDrop(idx, $event)"
+                @dragend="onDragEnd"
+              >
                 <td class="order-cell">
-                  <div class="order-btns">
-                    <button
-                      class="btn-order"
-                      :disabled="idx === 0 || busy"
-                      @click="moveOrder(idx, -1)"
-                      title="上移"
-                    >▲</button>
-                    <button
-                      class="btn-order"
-                      :disabled="idx === groups.length - 1 || busy"
-                      @click="moveOrder(idx, 1)"
-                      title="下移"
-                    >▼</button>
+                  <div class="order-cell-inner">
+                    <span class="drag-handle" title="按住拖拽排序">⋮⋮</span>
+                    <div class="order-btns">
+                      <button
+                        class="btn-order"
+                        :disabled="idx === 0 || busy"
+                        @click="moveOrder(idx, -1)"
+                        title="上移"
+                      >▲</button>
+                      <button
+                        class="btn-order"
+                        :disabled="idx === groups.length - 1 || busy"
+                        @click="moveOrder(idx, 1)"
+                        title="下移"
+                      >▼</button>
+                    </div>
                   </div>
                 </td>
                 <td class="name-col">
@@ -259,8 +273,57 @@ async function moveOrder(idx, delta) {
   }
 }
 
+const dragIndex = ref(null)
+const dragOverIndex = ref(null)
+
+function onDragStart(idx, e) {
+  dragIndex.value = idx
+  if (e.dataTransfer) {
+    e.dataTransfer.effectAllowed = 'move'
+    e.dataTransfer.setData('text/plain', String(idx))
+  }
+}
+
+function onDragOver(idx, e) {
+  if (dragIndex.value === null || dragIndex.value === idx) return
+  dragOverIndex.value = idx
+}
+
+function onDragLeave(idx, e) {
+  if (dragOverIndex.value === idx) {
+    dragOverIndex.value = null
+  }
+}
+
+async function onDrop(idx, e) {
+  if (dragIndex.value === null || dragIndex.value === idx) {
+    onDragEnd()
+    return
+  }
+  const list = [...groups.value]
+  const [moved] = list.splice(dragIndex.value, 1)
+  list.splice(idx, 0, moved)
+  onDragEnd()
+
+  busy.value = true
+  error.value = ''
+  try {
+    await reorderGroups(list.map(g => g.id))
+    emit('changed')
+  } catch (err) {
+    error.value = '拖拽排序保存失败：' + err.message
+  } finally {
+    busy.value = false
+  }
+}
+
+function onDragEnd() {
+  dragIndex.value = null
+  dragOverIndex.value = null
+}
+
 async function doInitPresets() {
-  if (!confirm('确定导入/补全 8 大热门产业链赛道（光通信、PCB、先进封装、存储芯片、人形机器人、低空经济、半导体等）及其核心龙头股票吗？')) return
+  if (!confirm('确定导入/补全全部 22 大核心板块（光通信、PCB、先进封装、存储芯片、AI软件、消费电子、锂电池、电网、光伏、券商、航天、军工、能源、电力等）及其核心龙头股票吗？')) return
   busy.value = true
   error.value = ''
   successMsg.value = ''
@@ -309,11 +372,32 @@ function close() {
 .group-table td {
   padding: 10px 14px; border-top: 1px solid var(--border); vertical-align: middle;
 }
+.group-table tbody tr {
+  transition: background .15s ease, opacity .15s ease;
+}
+.group-table tbody tr.row-dragging {
+  opacity: 0.35;
+  background: var(--bg-hover);
+}
+.group-table tbody tr.row-drag-over {
+  background: var(--accent-bg);
+  border-top: 2px solid var(--accent);
+}
+
 .order-cell { text-align: center; }
-.order-btns { display: flex; flex-direction: column; gap: 3px; align-items: center; }
+.order-cell-inner { display: inline-flex; align-items: center; gap: 6px; }
+.drag-handle {
+  cursor: grab; color: var(--text-dim); font-size: 13px; font-weight: 600;
+  user-select: none; padding: 2px 4px; border-radius: 3px;
+  transition: all .12s;
+}
+.drag-handle:hover { color: var(--text); background: var(--bg-hover); }
+.drag-handle:active { cursor: grabbing; }
+
+.order-btns { display: flex; flex-direction: column; gap: 2px; align-items: center; }
 .btn-order {
   border: none; background: var(--bg-hover); cursor: pointer; color: var(--text-dim);
-  font-size: 10px; line-height: 1; padding: 3px 6px; border-radius: 3px;
+  font-size: 9px; line-height: 1; padding: 2px 5px; border-radius: 2px;
   transition: all .12s;
 }
 .btn-order:hover:not(:disabled) { background: var(--border); color: var(--text); }
