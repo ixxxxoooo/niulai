@@ -46,6 +46,14 @@
             >{{ fmtPct(getGroupAvgPct(g)) }}</span>
           </button>
         </div>
+        <!-- 分组卡片右下角设置按钮 -->
+        <button
+          class="group-settings-btn"
+          title="自选分组管理与排序"
+          @click="showGroupManage = true"
+        >
+          ⚙
+        </button>
       </div>
 
       <div class="card mt12" v-if="watchRows.length" ref="stockCard">
@@ -342,17 +350,6 @@
       @close="showStockGroup = false"
       @saved="onStockGroupSaved"
     />
-
-    <!-- 右下角悬浮设置按钮：自选分组管理 -->
-    <button
-      v-if="tab === 'watch'"
-      class="floating-group-btn"
-      title="自选分组管理与排序"
-      @click="showGroupManage = true"
-    >
-      <span class="floating-btn-icon">⚙</span>
-      <span class="floating-btn-text">分组管理</span>
-    </button>
   </div>
 </template>
 <script setup>
@@ -777,12 +774,18 @@ usePolling(load, 3000)
 
 /* 自选分组导航条 */
 .group-bar-container {
-  display: flex; justify-content: space-between; align-items: flex-start; gap: 12px;
-  background: var(--bg-card); border: 1px solid var(--border); border-radius: var(--radius-md);
-  padding: 10px 14px;
+  position: relative;
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  padding: 10px 48px 10px 14px;
+  min-height: 48px;
 }
 .group-pills {
-  display: flex; flex-wrap: wrap; gap: 8px 10px; align-items: center; flex: 1; min-width: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 10px;
+  align-items: center;
 }
 .group-pill {
   display: inline-flex; align-items: center; gap: 6px; padding: 5px 12px;
@@ -810,38 +813,34 @@ usePolling(load, 3000)
 .group-pill.pill-dragging { opacity: 0.35; transform: scale(0.95); }
 .group-pill.pill-drag-over { border-color: var(--accent); background: var(--accent-bg); transform: scale(1.05); }
 
-/* 右下角悬浮分组管理设置按钮 */
-.floating-group-btn {
-  position: fixed;
-  right: 28px;
-  bottom: 28px;
-  z-index: 90;
+/* 分组卡片右下角纯图标设置按钮 */
+.group-settings-btn {
+  position: absolute;
+  right: 12px;
+  bottom: 10px;
+  width: 30px;
+  height: 30px;
   display: inline-flex;
   align-items: center;
-  gap: 6px;
-  padding: 9px 16px;
-  border-radius: 24px;
-  background: var(--bg-card);
+  justify-content: center;
+  border-radius: var(--radius-sm);
+  background: var(--bg-hover);
   border: 1px solid var(--border);
-  color: var(--text);
-  font-size: 13px;
-  font-weight: 500;
+  color: var(--text-dim);
+  font-size: 15px;
+  line-height: 1;
   cursor: pointer;
-  box-shadow: 0 4px 18px rgba(0, 0, 0, .28);
-  transition: all .2s cubic-bezier(.4, 0, .2, 1);
-  backdrop-filter: blur(8px);
+  transition: all .15s ease;
 }
-.floating-group-btn:hover {
-  background: var(--accent);
-  color: #fff;
+.group-settings-btn:hover {
+  background: var(--accent-bg);
   border-color: var(--accent);
-  transform: translateY(-2px);
-  box-shadow: 0 6px 22px rgba(76, 154, 255, .35);
+  color: var(--accent);
+  transform: scale(1.08);
 }
-.floating-group-btn:active {
-  transform: translateY(0);
+.group-settings-btn:active {
+  transform: scale(0.95);
 }
-.floating-btn-icon { font-size: 14px; line-height: 1; }
 
 .empty-title { font-size: 14px; font-weight: 500; color: var(--text); }
 .empty-desc { font-size: 12px; color: var(--text-dim); margin-top: 4px; }
