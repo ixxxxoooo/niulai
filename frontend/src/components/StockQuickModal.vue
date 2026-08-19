@@ -29,6 +29,7 @@
 <script setup>
 import { onMounted, onUnmounted } from 'vue'
 import { navigate } from '../router.js'
+import { openStock } from '../composables/useStockMeta.js'
 import UiIcon from './ui/UiIcon.vue'
 import StockView from '../views/Stock.vue'
 
@@ -46,7 +47,10 @@ function close() {
 
 function goToFullscreen() {
   close()
-  navigate(`/stock/${props.code}`)
+  openStock({ code: props.code, name: props.name }, {
+    origin: '/screener',
+    originLabel: '返回选股',
+  })
 }
 
 function onKeydown(e) {

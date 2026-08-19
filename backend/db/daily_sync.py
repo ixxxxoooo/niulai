@@ -60,14 +60,35 @@ def daily_sync_status() -> Dict[str, Any]:
     return st
 
 
+def get_latest_completed_trade_date(now_dt: Optional[datetime] = None) -> str:
+    """
+    计算最新已收盘归档的交易日 YYYY-MM-DD。
+    - 若当前处于周一至周五且时间 >= 15:00，则收盘归档日为当天；
+    - 若时间 < 15:00（如凌晨、清晨、盘前盘中），则收盘归档日为上一个交易日；
+    - 若当前为周六/周日，则收盘归档日为周五。
+    """
+    if now_dt is None:
+        now_dt = datetime.now(TZ_CN)
+    d = now_dt.date()
+    # 如果是交易日且已经过了 15:00 收盘
+    if now_dt.weekday() < 5 and (now_dt.hour > 15 or (now_dt.hour == 15 and now_dt.minute >= 0)):
+        return d.strftime("%Y-%m-%d")
+
+    # 否则取上一个交易日（往前找最近的周一至周五）
+    d = d - timedelta(days=1)
+    while d.weekday() >= 5:  # 5 是周六，6 是周日
+        d = d - timedelta(days=1)
+    return d.strftime("%Y-%m-%d")
+
+
 def sync_today_bars_bulk(trade_date: Optional[str] = None,
                          progress: Optional[Callable] = None) -> int:
     """
-    使用东财全市场 clist 批量打包接口，1.5 秒极速同步全市场 5400+ 只 A 股今日收盘日 K。
+    使用东财全市场 clist 批量打包接口，1.5 秒极速同步全市场 5400+ 只 A 股最新收盘日 K。
     杜绝逐只股票连续请求导致的频控与封禁。
 
     参数:
-        trade_date: 目标日期 YYYY-MM-DD（默认今天）
+        trade_date: 目标日期 YYYY-MM-DD（默认最新已收盘交易日）
         progress: 进度回调 (percent, message, done, total)
 
     返回:
@@ -77,7 +98,7 @@ def sync_today_bars_bulk(trade_date: Optional[str] = None,
     ensure_tables()
 
     now = datetime.now(TZ_CN)
-    today_str = trade_date or now.strftime("%Y-%m-%d")
+    today_str = trade_date or get_latest_completed_trade_date(now)
 
     if progress:
         progress(10, "正在批量拉取全市场 A 股收盘数据（约 1.5 秒）…", 0, 5400)
