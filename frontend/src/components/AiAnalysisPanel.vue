@@ -842,20 +842,21 @@ onUnmounted(() => {
 .md :deep(.ai-neutral) { color: var(--text-dim); font-weight: 600; }
 .md :deep(.ai-warn) { color: var(--yellow); font-weight: 600; }
 
-/* Markdown 通用样式 */
-.md h1, .md h2, .md h3, .md h4 { margin: 10px 0 6px; line-height: 1.4; }
-.md h2 { font-size: 14px; color: var(--accent); }
-.md h3 { font-size: 13px; }
-.md p { margin: 6px 0; }
-.md ul, .md ol { margin: 6px 0; padding-left: 20px; }
-.md li { margin: 2px 0; }
-.md code { background: var(--bg-hover); padding: 1px 5px; border-radius: 4px; font-size: 12px; font-family: monospace; }
-.md pre { background: var(--bg-hover); padding: 10px; border-radius: 8px; overflow-x: auto; font-size: 12px; }
-.md pre code { background: transparent; padding: 0; }
-.md blockquote { margin: 8px 0; padding: 4px 12px; border-left: 3px solid var(--accent); color: var(--text-dim); background: var(--bg-hover); border-radius: 4px; }
-.md table { border-collapse: collapse; margin: 8px 0; font-size: 12px; width: 100%; }
-.md th, .md td { border: 1px solid var(--border); padding: 5px 9px; text-align: left; }
-.md th { background: var(--bg-hover); color: var(--text-dim); font-weight: 500; }
-.md a { color: var(--accent); }
-.md hr { border: none; border-top: 1px solid var(--border); margin: 10px 0; }
+/* Markdown 通用样式（作用在 v-html 渲染的 DOM 内） */
+.md :deep(h1), .md :deep(h2), .md :deep(h3), .md :deep(h4) { margin: 10px 0 6px; line-height: 1.4; }
+.md :deep(h2) { font-size: 14px; color: var(--accent); }
+.md :deep(h3) { font-size: 13px; }
+.md :deep(p) { margin: 6px 0; }
+.md :deep(ul) { margin: 6px 0; padding-left: 20px; list-style-type: disc; }
+.md :deep(ol) { margin: 6px 0; padding-left: 20px; list-style-type: decimal; }
+.md :deep(li) { margin: 4px 0; line-height: 1.65; }
+.md :deep(code) { background: var(--bg-hover); padding: 1px 5px; border-radius: 4px; font-size: 12px; font-family: monospace; }
+.md :deep(pre) { background: var(--bg-hover); padding: 10px; border-radius: 8px; overflow-x: auto; font-size: 12px; }
+.md :deep(pre code) { background: transparent; padding: 0; }
+.md :deep(blockquote) { margin: 8px 0; padding: 4px 12px; border-left: 3px solid var(--accent); color: var(--text-dim); background: var(--bg-hover); border-radius: 4px; }
+.md :deep(table) { border-collapse: collapse; margin: 8px 0; font-size: 12px; width: 100%; }
+.md :deep(th), .md :deep(td) { border: 1px solid var(--border); padding: 5px 9px; text-align: left; }
+.md :deep(th) { background: var(--bg-hover); color: var(--text-dim); font-weight: 500; }
+.md :deep(a) { color: var(--accent); }
+.md :deep(hr) { border: none; border-top: 1px solid var(--border); margin: 10px 0; }
 </style>
