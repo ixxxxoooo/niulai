@@ -43,3 +43,41 @@ def test_holiday_config():
     assert not schedule.is_trading_day(datetime.date(2026, 1, 1))
     # 未配置的普通工作日
     assert schedule.is_trading_day(datetime.date(2026, 8, 14))
+
+
+def test_lhb_multi_slot_auto_sync():
+    from unittest import mock
+    from backend.db import store
+    from backend.db.lhb_moves import auto_sync_today_if_needed
+
+    store.init_db()
+    store.set_setting("lhbAutoSync", "1")
+    today = "2026-08-10"  # 周一
+
+    # 1. 16:00 未到达任何槽位，不触发
+    with mock.patch("backend.db.lhb_moves.sync_records_for_dates") as mock_sync:
+        now_1600 = datetime.datetime(2026, 8, 10, 16, 0)
+        auto_sync_today_if_needed(now_1600)
+        mock_sync.assert_not_called()
+
+    # 2. 16:45 到达第一批槽位，触发 16:45
+    with mock.patch("backend.db.lhb_moves.sync_records_for_dates", return_value={"written": 10}) as mock_sync:
+        now_1645 = datetime.datetime(2026, 8, 10, 16, 45)
+        auto_sync_today_if_needed(now_1645)
+        mock_sync.assert_called_once_with([today])
+        slots = store.get_setting(f"lhbSyncedSlots_{today}")
+        assert "16:45" in slots
+
+    # 3. 再次 16:50 运行，已记录 16:45，未到 17:05，不重复触发
+    with mock.patch("backend.db.lhb_moves.sync_records_for_dates") as mock_sync:
+        now_1650 = datetime.datetime(2026, 8, 10, 16, 50)
+        auto_sync_today_if_needed(now_1650)
+        mock_sync.assert_not_called()
+
+    # 4. 到达 17:05，触发第二批槽位
+    with mock.patch("backend.db.lhb_moves.sync_records_for_dates", return_value={"written": 30}) as mock_sync:
+        now_1705 = datetime.datetime(2026, 8, 10, 17, 5)
+        auto_sync_today_if_needed(now_1705)
+        mock_sync.assert_called_once_with([today])
+        slots = store.get_setting(f"lhbSyncedSlots_{today}")
+        assert "17:05" in slots and "16:45" in slots

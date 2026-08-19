@@ -149,7 +149,12 @@
           </div>
         </div>
         <div class="setting-row">
-          <span class="setting-label">每日收盘后自动同步</span>
+          <div>
+            <span class="setting-label">每日定时梯次自动同步</span>
+            <div style="font-size:11px;color:var(--text-dim);margin-top:2px">
+              交易日 16:45（初榜尝鲜）、17:05（全市场放榜）、18:00（晚间复核）、19:00（夜间归档）多波段自动同步
+            </div>
+          </div>
           <div class="setting-control">
             <div class="tab" :class="{ active: autoSync }" @click="setAutoSync(true)">开启</div>
             <div class="tab" :class="{ active: !autoSync }" @click="setAutoSync(false)">关闭</div>

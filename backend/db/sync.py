@@ -197,26 +197,33 @@ def start_background_sync() -> None:
             sync_stock_list(force=tags_incomplete())
         except Exception:
             logger.exception("股票列表后台同步失败")
+
+        last_meta_check = 0.0
         while True:
-            time.sleep(600)
-            try:
-                hours = float(store.get_setting("autoSyncHours") or 0)
-                if hours <= 0:
-                    continue
-                if is_stale(hours):
-                    sync_stock_list(force=True)
-                last_c = store.get_setting("lastConceptSyncAt") or ""
-                need_c = True
-                if last_c:
-                    try:
-                        dt = datetime.strptime(last_c, "%Y-%m-%d %H:%M:%S")
-                        need_c = (datetime.now() - dt).total_seconds() > hours * 3600
-                    except ValueError:
+            time.sleep(30)
+            now_ts = time.time()
+            # 股票基础列表与概念板块低频检查（每 10 分钟一次）
+            if now_ts - last_meta_check >= 600:
+                last_meta_check = now_ts
+                try:
+                    hours = float(store.get_setting("autoSyncHours") or 0)
+                    if hours > 0:
+                        if is_stale(hours):
+                            sync_stock_list(force=True)
+                        last_c = store.get_setting("lastConceptSyncAt") or ""
                         need_c = True
-                if need_c:
-                    sync_concept_tags()
-            except Exception:
-                logger.exception("定时同步失败")
+                        if last_c:
+                            try:
+                                dt = datetime.strptime(last_c, "%Y-%m-%d %H:%M:%S")
+                                need_c = (datetime.now() - dt).total_seconds() > hours * 3600
+                            except ValueError:
+                                need_c = True
+                        if need_c:
+                            sync_concept_tags()
+                except Exception:
+                    logger.exception("定时同步失败")
+
+            # 龙虎榜高精度定时节点检查（每 30 秒检查一次是否有到达的触发时间点）
             try:
                 from .lhb_moves import auto_sync_today_if_needed
                 auto_sync_today_if_needed()

@@ -131,7 +131,7 @@ def sync_records_for_dates(dates: List[str], progress: Optional[Any] = None) -> 
                 nm = name_map.get(r[1], {}).get("name") or ""
                 try:
                     conn.execute(
-                        "INSERT OR IGNORE INTO lhb_records"
+                        "INSERT OR REPLACE INTO lhb_records"
                         "(date, code, name, side, seat_name, type, nickname, premium, buy, sell, net, reason) "
                         "VALUES (?,?,?,?,?,?,?,?,?,?,?,?)",
                         (r[0], r[1], nm, r[2], r[3], r[4], r[5], r[6], r[7], r[8], r[9], r[10]),
@@ -233,24 +233,43 @@ def moves_sync_status() -> Dict[str, Any]:
         return dict(_job)
 
 
-def auto_sync_today_if_needed() -> None:
-    """每日收盘后自动同步当天龙虎榜（供后台线程定时调用）。"""
+# 交易日多波段定时同步时间节点: (小时, 分钟, 节点名称, 阶段说明)
+LHB_SYNC_SLOTS = [
+    (16, 45, "16:45", "初榜尝鲜（交易所第一批数据）"),
+    (17, 5,  "17:05", "全市场放榜（营业部及游资打标全面更新）"),
+    (18, 0,  "18:00", "晚间复核（补齐晚间修正与深港通席位）"),
+    (19, 0,  "19:00", "夜间归档（最终收盘席位汇总）"),
+]
+
+
+def auto_sync_today_if_needed(now_dt: Optional[datetime] = None) -> None:
+    """每日收盘后多时间点自动梯次同步当天龙虎榜（供后台线程定时调用）。"""
     enabled = store.get_setting("lhbAutoSync")
     if enabled == "0":
         return
-    now = datetime.now(TZ_CN)
-    if now.hour < 17 or now.weekday() >= 5:
+    now = now_dt or datetime.now(TZ_CN)
+    if now.weekday() >= 5:  # 周末休市不执行
         return
     today = now.strftime("%Y-%m-%d")
-    conn = store.get_conn()
-    row = conn.execute("SELECT date FROM lhb_dates WHERE date=?", (today,)).fetchone()
-    if row:
-        return
-    try:
-        sync_records_for_dates([today])
-        logger.info("龙虎榜自动同步完成: %s", today)
-    except Exception as e:
-        logger.warning("龙虎榜自动同步失败: %s", e)
+    current_hm = (now.hour, now.minute)
+
+    # 获取今日已完成同步的时间槽集合
+    synced_key = f"lhbSyncedSlots_{today}"
+    raw_synced = store.get_setting(synced_key) or ""
+    synced_slots = set(filter(None, raw_synced.split(",")))
+
+    # 按时间顺序检查已到达且未执行的同步槽位
+    for hour, minute, slot_name, desc in LHB_SYNC_SLOTS:
+        if current_hm >= (hour, minute) and slot_name not in synced_slots:
+            try:
+                logger.info("触发龙虎榜梯次同步 [%s · %s]: %s", slot_name, desc, today)
+                res = sync_records_for_dates([today])
+                synced_slots.add(slot_name)
+                store.set_setting(synced_key, ",".join(sorted(synced_slots)))
+                logger.info("龙虎榜 [%s · %s] 同步完成: %s (写入/更新 %s 条)",
+                            slot_name, desc, today, res.get("written", 0))
+            except Exception as e:
+                logger.warning("龙虎榜 [%s · %s] 同步异常: %s", slot_name, desc, e)
 
 
 # ------------------------------------------------------------------ 查询
