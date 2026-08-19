@@ -497,10 +497,17 @@ def test_market_heatmap_api(client):
         gem.return_value.sector_stocks.return_value = [
             StockBrief(code="688981", name="中芯国际", price=50.0, change_pct=4.2, amount=2000000000.0, main_inflow=50000000.0)
         ]
-        resp = client.get("/api/market/heatmap?type=industry")
+        gem.return_value._q.get.return_value = {
+            "data": {
+                "diff": [
+                    {"f12": "688981", "f14": "中芯国际", "f2": 50.0, "f3": 4.2, "f6": 2000000000.0, "f8": 1.5, "f20": 400000000000.0, "f21": 200000000000.0, "f100": "半导体", "f62": 50000000.0}
+                ]
+            }
+        }
+        resp = client.get("/api/market/heatmap?scope=all_top300&size_by=amount")
         assert resp.status_code == 200
         data = resp.json()
-        assert data["stype"] == "industry"
+        assert data["scope"] == "all_top300"
         assert data["count"] >= 1
         assert data["items"][0]["name"] == "半导体"
         assert "children" in data["items"][0]

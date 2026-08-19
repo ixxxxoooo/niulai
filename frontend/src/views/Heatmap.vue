@@ -1,31 +1,29 @@
 <template>
-  <div class="heatmap-page">
+  <div class="heatmap-page" :class="{ 'is-fullscreen': isFullscreen }" ref="fullscreenContainer">
     <div class="page-title-row">
       <div>
         <div class="page-title">大盘热力云图</div>
-        <div class="page-subtitle">面积代表成交资金体量 · 色彩反映板块与龙头涨跌强度</div>
+        <div class="page-subtitle">面积代表资金体量 · 色彩反映行业与个股强弱全景（Finviz / 机构标准 Treemap）</div>
       </div>
       <div class="page-actions">
-        <!-- 维度切换 -->
-        <div class="filter-pills">
-          <button
-            class="filter-pill"
-            :class="{ active: sectorType === 'industry' }"
-            @click="switchType('industry')"
-          >
-            🏭 行业板块
-          </button>
-          <button
-            class="filter-pill"
-            :class="{ active: sectorType === 'concept' }"
-            @click="switchType('concept')"
-          >
-            💡 概念题材
-          </button>
+        <!-- 搜索定位 -->
+        <div class="heatmap-search-box">
+          <span class="search-icon">🔍</span>
+          <input
+            v-model="searchQuery"
+            type="text"
+            class="search-input"
+            placeholder="搜索高亮代码/拼音/名称…"
+            @input="onSearchInput"
+          />
+          <button v-if="searchQuery" class="search-clear" @click="clearSearch">✕</button>
         </div>
 
-        <button class="btn-tool" @click="load" :disabled="loading" title="刷新数据">
+        <button class="btn-tool" @click="load" :disabled="loading" title="立即刷新数据">
           <UiIcon name="refresh" :size="14" :class="{ rotating: loading }" /> 刷新
+        </button>
+        <button class="btn-tool" @click="toggleFullscreen" :title="isFullscreen ? '退出全屏' : '全屏盯盘'">
+          <UiIcon :name="isFullscreen ? 'close' : 'menu'" :size="14" /> {{ isFullscreen ? '退出全屏' : '全屏' }}
         </button>
         <button class="btn-tool" @click="doScreenshot" title="截图云图">
           <UiIcon name="screenshot" :size="14" /> 截图
@@ -33,24 +31,129 @@
       </div>
     </div>
 
-    <!-- 图例与统计状态栏 -->
+    <!-- 范围与面积控制胶囊栏 -->
+    <div class="heatmap-toolbar mt12">
+      <!-- 范围切换 -->
+      <div class="toolbar-section">
+        <span class="toolbar-label">范围：</span>
+        <div class="filter-pills">
+          <button
+            class="filter-pill"
+            :class="{ active: currentScope === 'all_top300' }"
+            @click="switchScope('all_top300')"
+          >
+            🔥 全市场 TOP 300
+          </button>
+          <button
+            class="filter-pill"
+            :class="{ active: currentScope === 'all_top500' }"
+            @click="switchScope('all_top500')"
+          >
+            🚀 全市场 TOP 500
+          </button>
+          <button
+            class="filter-pill"
+            :class="{ active: currentScope === 'hs300' }"
+            @click="switchScope('hs300')"
+          >
+            👑 沪深 300
+          </button>
+          <button
+            class="filter-pill"
+            :class="{ active: currentScope === 'cyb_kcb' }"
+            @click="switchScope('cyb_kcb')"
+          >
+            ⚡ 双创核心
+          </button>
+          <button
+            class="filter-pill"
+            :class="{ active: currentScope === 'zz500' }"
+            @click="switchScope('zz500')"
+          >
+            📈 中证 500
+          </button>
+          <button
+            class="filter-pill"
+            :class="{ active: currentScope === 'watchlist' }"
+            @click="switchScope('watchlist')"
+          >
+            ⭐ 我的自选股
+          </button>
+          <button
+            class="filter-pill"
+            :class="{ active: currentScope === 'industry_overview' }"
+            @click="switchScope('industry_overview')"
+          >
+            🏭 行业全景
+          </button>
+          <button
+            class="filter-pill"
+            :class="{ active: currentScope === 'concept_overview' }"
+            @click="switchScope('concept_overview')"
+          >
+            💡 题材全景
+          </button>
+        </div>
+      </div>
+
+      <!-- 面积指标切换 -->
+      <div class="toolbar-section">
+        <span class="toolbar-label">面积：</span>
+        <div class="filter-pills">
+          <button
+            class="filter-pill"
+            :class="{ active: currentSizeBy === 'amount' }"
+            @click="switchSizeBy('amount')"
+            title="以今日成交额作为方块大小（反映资金活跃度）"
+          >
+            💰 成交额
+          </button>
+          <button
+            class="filter-pill"
+            :class="{ active: currentSizeBy === 'float_mv' }"
+            @click="switchSizeBy('float_mv')"
+            title="以流通市值作为方块大小（反映行业真实体量权重）"
+          >
+            🏢 流通市值
+          </button>
+          <button
+            class="filter-pill"
+            :class="{ active: currentSizeBy === 'total_mv' }"
+            @click="switchSizeBy('total_mv')"
+            title="以总市值作为方块大小"
+          >
+            🏛️ 总市值
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- 统计状态与色阶图例栏 -->
     <div class="heatmap-stat-bar mt12">
       <div class="stat-left">
         <span class="stat-item">
-          总监控成交额：<strong>{{ fmtAmount(totalAmount) }}</strong>
+          监控总成交额：<strong>{{ fmtAmount(totalAmount) }}</strong>
         </span>
         <span class="stat-item">
-          板块总数：<strong>{{ sectorCount }}</strong>
+          覆盖标的：<strong>{{ totalStockCount }} 只</strong>
         </span>
-        <span class="stat-hint">
-          💡 点击板块可直接进入板块详情；悬停查看领涨龙头与资金流向。
+        <span class="stat-item">
+          覆盖板块：<strong>{{ totalGroupCount }} 个</strong>
+        </span>
+        <span class="stat-item stat-up" v-if="upCount || downCount">
+          上涨 <strong>{{ upCount }}</strong> · 下跌 <strong>{{ downCount }}</strong>
+        </span>
+        <span class="stat-search-hit" v-if="searchQuery">
+          🔍 已高亮 <strong>{{ searchHitCount }}</strong> 只标的
         </span>
       </div>
 
       <div class="legend-bar">
-        <span class="legend-label">跌幅 ≥ -5%</span>
+        <span class="legend-label legend-down">≤ -7%</span>
+        <span class="legend-label legend-down">-3%</span>
         <div class="legend-grad"></div>
-        <span class="legend-label">涨幅 ≥ +5%</span>
+        <span class="legend-label legend-up">+3%</span>
+        <span class="legend-label legend-up">≥ +7%</span>
       </div>
     </div>
 
@@ -62,7 +165,7 @@
       <div ref="chartEl" class="chart-container"></div>
       <div class="chart-loading-mask" v-if="loading && !hasRendered">
         <UiIcon name="refresh" :size="24" class="rotating" />
-        <span>正在加载大盘热力云图…</span>
+        <span>正在构建大盘金融热力云图…</span>
       </div>
     </div>
   </div>
@@ -70,7 +173,7 @@
 
 <script setup>
 /**
- * 大盘热力云图（Market Treemap）
+ * 大盘热力云图（Market Treemap - 业界金融标准版）
  * @author ygw
  */
 import { ref, onMounted, onUnmounted, nextTick } from 'vue'
@@ -82,92 +185,202 @@ import { usePolling } from '../composables/usePolling.js'
 import { usePageTab } from '../composables/usePageTab.js'
 import { captureElement } from '../composables/useScreenshot.js'
 import { openStock } from '../composables/useStockMeta.js'
+import UiIcon from '../components/ui/UiIcon.vue'
 
-const sectorType = usePageTab('heatmap_type', 'industry')
+const currentScope = usePageTab('heatmap_scope', 'all_top300')
+const currentSizeBy = usePageTab('heatmap_size_by', 'amount')
+
 const loading = ref(false)
 const hasRendered = ref(false)
 const error = ref('')
 const totalAmount = ref(0)
-const sectorCount = ref(0)
+const totalStockCount = ref(0)
+const totalGroupCount = ref(0)
+const upCount = ref(0)
+const downCount = ref(0)
 
+const searchQuery = ref('')
+const searchHitCount = ref(0)
+const rawItems = ref([])
+
+const isFullscreen = ref(false)
+const fullscreenContainer = ref(null)
 const chartEl = ref(null)
 const chartCardRef = ref(null)
 let chartInstance = null
 
-function switchType(t) {
-  sectorType.value = t
+function switchScope(scope) {
+  currentScope.value = scope
   load()
 }
 
+function switchSizeBy(sizeBy) {
+  currentSizeBy.value = sizeBy
+  load()
+}
+
+function toggleFullscreen() {
+  if (!document.fullscreenElement) {
+    fullscreenContainer.value?.requestFullscreen?.()
+    isFullscreen.value = true
+  } else {
+    document.exitFullscreen?.()
+    isFullscreen.value = false
+  }
+}
+
+function onFullscreenChange() {
+  isFullscreen.value = !!document.fullscreenElement
+  nextTick(() => {
+    chartInstance?.resize()
+  })
+}
+
+function onSearchInput() {
+  renderChart(rawItems.value)
+}
+
+function clearSearch() {
+  searchQuery.value = ''
+  renderChart(rawItems.value)
+}
+
 /**
- * 根据涨跌幅生成 A 股标准红绿渐变色
+ * 根据涨跌幅生成 A 股标准金融红绿渐变色
  * @param {number} pct - 涨跌幅百分比
  */
-function getPctColor(pct) {
-  if (pct == null || isNaN(pct)) return '#4b5563'
-  if (pct >= 5.0) return '#b91c1c'  // 极强深红
-  if (pct >= 3.0) return '#dc2626'  // 强势红
-  if (pct >= 1.5) return '#ef4444'  // 亮红
-  if (pct > 0.0) return '#f87171'   // 微涨浅红
-  if (pct === 0.0) return '#6b7280' // 平盘暗灰
-  if (pct > -1.5) return '#34d399'  // 微跌浅绿
-  if (pct > -3.0) return '#10b981'  // 弱势绿
-  if (pct > -5.0) return '#059669'  // 强跌绿
-  return '#047857'                  // 极弱深绿
+function getPctColor(pct, isDimmed = false) {
+  if (pct == null || isNaN(pct)) return isDimmed ? 'rgba(75,85,99,0.2)' : '#4b5563'
+  let hex = '#374151'
+  if (pct >= 7.0) hex = '#b91c1c'       // 极强深红 / 涨停
+  else if (pct >= 5.0) hex = '#dc2626'  // 强势红
+  else if (pct >= 3.0) hex = '#ea580c'  // 暖橙红
+  else if (pct >= 1.5) hex = '#e11d48'  // 亮红
+  else if (pct > 0.0) hex = '#f43f5e'   // 微涨红
+  else if (pct === 0.0) hex = '#374151' // 平盘暗灰
+  else if (pct > -1.5) hex = '#10b981'  // 微跌浅绿
+  else if (pct > -3.0) hex = '#059669'  // 弱势绿
+  else if (pct > -5.0) hex = '#047857'  // 强跌绿
+  else if (pct > -7.0) hex = '#065f46'  // 极深绿
+  else hex = '#064e3b'                  // 极弱深绿 / 跌停
+
+  if (isDimmed) {
+    return hex + '33' // 20% 不透明度
+  }
+  return hex
 }
 
 /**
  * 转换后端树状数据为 ECharts Treemap 系列数据
  */
-function transformTreemapData(items) {
-  return items.map(item => {
-    const pct = item.change_pct || 0
-    const color = getPctColor(pct)
-    const node = {
-      name: item.name,
-      code: item.code,
-      value: item.value || 1,
-      change_pct: pct,
-      amount: item.amount,
-      main_inflow: item.main_inflow,
-      leader_name: item.leader_name,
-      leader_code: item.leader_code,
-      leader_pct: item.leader_pct,
-      up_count: item.up_count,
-      down_count: item.down_count,
-      itemStyle: {
-        color: color,
-        borderColor: '#1f2937',
-        borderWidth: 1,
-        gapWidth: 1,
-      },
-    }
+function transformTreemapData(groups) {
+  const query = searchQuery.value.trim().toLowerCase()
+  let hits = 0
 
-    if (item.children && item.children.length) {
-      node.children = item.children.map(c => {
-        const cPct = c.change_pct || 0
-        return {
-          name: c.name,
-          code: c.code,
-          value: c.value || 1,
-          change_pct: cPct,
-          amount: c.amount,
-          main_inflow: c.main_inflow,
-          price: c.price,
-          isStock: true,
-          itemStyle: {
-            color: getPctColor(cPct),
-            borderColor: '#111827',
-            borderWidth: 1,
+  const res = groups.map(g => {
+    const gPct = g.change_pct || 0
+    const gAmt = g.amount || 0
+    const stocks = g.children || []
+
+    const transformedChildren = stocks.map(s => {
+      const sPct = s.change_pct || 0
+      const sName = s.name || ''
+      const sCode = s.code || ''
+      const isMatched = !query || sName.toLowerCase().includes(query) || sCode.includes(query)
+      if (query && isMatched) hits++
+
+      const color = getPctColor(sPct, query && !isMatched)
+      const sign = sPct > 0 ? '+' : ''
+
+      return {
+        name: sName,
+        code: sCode,
+        value: s.value || 1,
+        price: s.price,
+        change_pct: sPct,
+        amount: s.amount,
+        turnover: s.turnover,
+        float_mv: s.float_mv,
+        total_mv: s.total_mv,
+        main_inflow: s.main_inflow,
+        industry: s.industry || g.name,
+        isStock: true,
+        isMatched,
+        itemStyle: {
+          color: color,
+          borderColor: 'rgba(15, 23, 42, 0.75)',
+          borderWidth: 1,
+          gapWidth: 1,
+        },
+        label: {
+          show: true,
+          position: 'inside',
+          formatter: (params) => {
+            const d = params.data
+            if (!d) return ''
+            return `{name|${d.name}}\n{pct|${sign}${fmtPct(d.change_pct)}}`
           },
+          rich: {
+            name: {
+              fontSize: 12,
+              fontWeight: 700,
+              color: '#ffffff',
+              lineHeight: 16,
+              textShadowColor: 'rgba(0,0,0,0.85)',
+              textShadowBlur: 2,
+            },
+            pct: {
+              fontSize: 11,
+              fontWeight: 600,
+              color: '#ffffff',
+              lineHeight: 14,
+              textShadowColor: 'rgba(0,0,0,0.85)',
+              textShadowBlur: 2,
+            }
+          }
         }
-      })
+      }
+    })
+
+    const sign = gPct > 0 ? '+' : ''
+    const gPctText = `${sign}${fmtPct(gPct)}`
+
+    return {
+      name: g.name,
+      code: g.code,
+      value: g.value || 1,
+      change_pct: gPct,
+      amount: gAmt,
+      stock_count: g.stock_count || stocks.length,
+      up_count: g.up_count || 0,
+      down_count: g.down_count || 0,
+      children: transformedChildren,
+      itemStyle: {
+        borderColor: '#1e293b',
+        borderWidth: 2,
+        gapWidth: 2,
+      },
+      upperLabel: {
+        show: true,
+        height: 24,
+        color: '#f8fafc',
+        backgroundColor: 'rgba(15, 23, 42, 0.92)',
+        borderColor: '#334155',
+        borderWidth: 1,
+        borderRadius: [3, 3, 0, 0],
+        padding: [0, 8],
+        fontSize: 12,
+        fontWeight: 700,
+        formatter: `${g.name}  ${gPctText} · ${fmtAmount(gAmt)}`,
+      }
     }
-    return node
   })
+
+  searchHitCount.value = hits
+  return res
 }
 
-function renderChart(items) {
+function renderChart(groups) {
   if (!chartEl.value) return
   if (!chartInstance) {
     chartInstance = echarts.init(chartEl.value)
@@ -176,44 +389,50 @@ function renderChart(items) {
       if (!data) return
       if (data.isStock && data.code) {
         openStock(data, { origin: '/heatmap', originLabel: '返回云图' })
-      } else if (data.code) {
+      } else if (data.code && !data.isStock) {
         navigate(`/sector/${data.code}`)
       }
     })
   }
 
-  const seriesData = transformTreemapData(items)
+  const seriesData = transformTreemapData(groups)
 
   const option = {
     backgroundColor: 'transparent',
     tooltip: {
-      backgroundColor: 'rgba(17, 24, 39, 0.95)',
-      borderColor: '#374151',
+      backgroundColor: 'rgba(15, 23, 42, 0.96)',
+      borderColor: '#334155',
       borderWidth: 1,
-      textStyle: { color: '#f3f4f6', fontSize: 12 },
+      padding: [10, 14],
+      textStyle: { color: '#f8fafc', fontSize: 12 },
       formatter: (info) => {
         const d = info.data
         if (!d) return ''
         const pctCls = d.change_pct > 0 ? '#ef4444' : d.change_pct < 0 ? '#10b981' : '#9ca3af'
         const sign = d.change_pct > 0 ? '+' : ''
-        
+
         if (d.isStock) {
           return `
-            <div style="font-weight:700;font-size:13px;margin-bottom:4px;">${d.name} (${d.code})</div>
-            <div>现价: <strong>${d.price != null ? d.price.toFixed(2) : '-'}</strong></div>
-            <div>涨跌幅: <span style="color:${pctCls};font-weight:700;">${sign}${fmtPct(d.change_pct)}</span></div>
-            <div>成交额: <strong>${fmtAmount(d.amount)}</strong></div>
-            ${d.main_inflow != null ? `<div>主力净流入: <span style="color:${d.main_inflow > 0 ? '#ef4444' : '#10b981'}">${fmtAmount(d.main_inflow)}</span></div>` : ''}
+            <div style="font-weight:700;font-size:14px;margin-bottom:6px;color:#ffffff;">${d.name} <span style="font-size:12px;color:#94a3b8;">(${d.code})</span> · <span style="font-size:12px;color:#cbd5e1;">${d.industry || ''}</span></div>
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px 16px;line-height:1.6;">
+              <div>现价: <strong>${d.price != null ? d.price.toFixed(2) : '-'}</strong></div>
+              <div>涨跌幅: <span style="color:${pctCls};font-weight:700;">${sign}${fmtPct(d.change_pct)}</span></div>
+              <div>成交额: <strong>${fmtAmount(d.amount)}</strong></div>
+              ${d.turnover != null ? `<div>换手率: <strong>${fmtPct(d.turnover)}</strong></div>` : ''}
+              ${d.float_mv ? `<div>流通市值: <strong>${fmtAmount(d.float_mv)}</strong></div>` : ''}
+              ${d.main_inflow != null ? `<div>主力净流入: <span style="color:${d.main_inflow > 0 ? '#ef4444' : '#10b981'};font-weight:600;">${fmtAmount(d.main_inflow)}</span></div>` : ''}
+            </div>
+            <div style="font-size:11px;color:#64748b;margin-top:6px;border-top:1px dashed #334155;padding-top:4px;">💡 点击直接打开个股分时/K线详情</div>
           `
         }
 
         return `
-          <div style="font-weight:700;font-size:13px;margin-bottom:4px;">${d.name}</div>
-          <div>板块涨跌: <span style="color:${pctCls};font-weight:700;">${sign}${fmtPct(d.change_pct)}</span></div>
-          <div>板块成交: <strong>${fmtAmount(d.amount)}</strong></div>
-          ${d.main_inflow != null ? `<div>主力净流入: <span style="color:${d.main_inflow > 0 ? '#ef4444' : '#10b981'}">${fmtAmount(d.main_inflow)}</span></div>` : ''}
-          ${d.leader_name ? `<div style="margin-top:4px;border-top:1px dashed #4b5563;padding-top:4px;">领涨龙头: <strong>${d.leader_name}</strong> (<span style="color:#ef4444">${fmtPct(d.leader_pct)}</span>)</div>` : ''}
-          <div style="font-size:11px;color:#9ca3af;margin-top:3px;">上涨: ${d.up_count || 0} 家 · 下跌: ${d.down_count || 0} 家</div>
+          <div style="font-weight:700;font-size:14px;margin-bottom:6px;color:#ffffff;">${d.name} <span style="font-size:12px;color:#94a3b8;">(${d.stock_count || 0} 只标的)</span></div>
+          <div style="line-height:1.6;">
+            <div>板块综合涨跌: <span style="color:${pctCls};font-weight:700;">${sign}${fmtPct(d.change_pct)}</span></div>
+            <div>板块总成交额: <strong>${fmtAmount(d.amount)}</strong></div>
+            <div style="font-size:11px;color:#94a3b8;margin-top:4px;">上涨: <span style="color:#ef4444;font-weight:600;">${d.up_count || 0}</span> 家 · 下跌: <span style="color:#10b981;font-weight:600;">${d.down_count || 0}</span> 家</div>
+          </div>
         `
       }
     },
@@ -227,56 +446,30 @@ function renderChart(items) {
         right: 0,
         bottom: 0,
         roam: false,
-        nodeClick: 'link',
+        nodeClick: false,
         breadcrumb: { show: false },
-        label: {
-          show: true,
-          position: 'inside',
-          formatter: (params) => {
-            const d = params.data
-            if (!d) return ''
-            const sign = d.change_pct > 0 ? '+' : ''
-            return `{name|${d.name}}\n{pct|${sign}${fmtPct(d.change_pct)}}`
-          },
-          rich: {
-            name: {
-              fontSize: 13,
-              fontWeight: 700,
-              color: '#ffffff',
-              lineHeight: 18,
-              textShadowColor: 'rgba(0,0,0,0.6)',
-              textShadowBlur: 2,
-            },
-            pct: {
-              fontSize: 11,
-              fontWeight: 600,
-              color: '#ffffff',
-              lineHeight: 16,
-              textShadowColor: 'rgba(0,0,0,0.6)',
-              textShadowBlur: 2,
-            }
-          }
-        },
-        upperLabel: {
-          show: false,
-        },
-        itemStyle: {
-          borderColor: '#111827',
-          borderWidth: 1,
-          gapWidth: 1,
-        },
         levels: [
           {
             itemStyle: {
               borderWidth: 2,
-              borderColor: '#111827',
+              borderColor: '#0f172a',
               gapWidth: 2,
             }
           },
           {
             itemStyle: {
+              borderWidth: 2,
+              borderColor: '#1e293b',
+              gapWidth: 2,
+            },
+            upperLabel: {
+              show: true,
+            }
+          },
+          {
+            itemStyle: {
               borderWidth: 1,
-              borderColor: '#1f2937',
+              borderColor: 'rgba(15, 23, 42, 0.75)',
               gapWidth: 1,
             }
           }
@@ -293,14 +486,26 @@ function renderChart(items) {
 async function load() {
   loading.value = true
   try {
-    const data = await api.marketHeatmap(sectorType.value, 'amount', 80)
+    const data = await api.marketHeatmap(currentScope.value, currentSizeBy.value, 300)
+    rawItems.value = data.items || []
     totalAmount.value = data.total_amount || 0
-    sectorCount.value = data.count || 0
+    totalStockCount.value = data.stock_count || 0
+    totalGroupCount.value = data.count || 0
+
+    let up = 0
+    let down = 0
+    for (const g of rawItems.value) {
+      up += (g.up_count || 0)
+      down += (g.down_count || 0)
+    }
+    upCount.value = up
+    downCount.value = down
+
     error.value = ''
     await nextTick()
-    renderChart(data.items || [])
+    renderChart(rawItems.value)
   } catch (e) {
-    error.value = '大盘云图加载失败：' + e.message
+    error.value = '大盘金融云图加载失败：' + e.message
   } finally {
     loading.value = false
   }
@@ -312,18 +517,20 @@ function handleResize() {
 
 async function doScreenshot() {
   if (!chartCardRef.value) return
-  await captureElement(chartCardRef.value, `大盘热力云图_${sectorType.value}.png`)
+  await captureElement(chartCardRef.value, `大盘热力云图_${currentScope.value}_${currentSizeBy.value}.png`)
 }
 
-usePolling(load, 10000)
+usePolling(load, 15000)
 
 onMounted(() => {
   load()
   window.addEventListener('resize', handleResize)
+  document.addEventListener('fullscreenchange', onFullscreenChange)
 })
 
 onUnmounted(() => {
   window.removeEventListener('resize', handleResize)
+  document.removeEventListener('fullscreenchange', onFullscreenChange)
   if (chartInstance) {
     chartInstance.dispose()
     chartInstance = null
@@ -336,6 +543,86 @@ onUnmounted(() => {
   padding-bottom: 24px;
 }
 
+.heatmap-page.is-fullscreen {
+  position: fixed;
+  inset: 0;
+  z-index: 9999;
+  background: var(--bg);
+  padding: 16px 20px;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+.heatmap-page.is-fullscreen .heatmap-card {
+  flex: 1;
+  height: 100%;
+  min-height: auto;
+}
+
+/* 顶部搜索框 */
+.heatmap-search-box {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+}
+.search-icon {
+  position: absolute;
+  left: 8px;
+  font-size: 12px;
+  pointer-events: none;
+  opacity: 0.6;
+}
+.search-input {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 5px 24px 5px 26px;
+  font-size: 12px;
+  color: var(--text);
+  width: 180px;
+  transition: all .15s;
+}
+.search-input:focus {
+  outline: none;
+  border-color: var(--accent);
+  width: 220px;
+  background: var(--bg);
+}
+.search-clear {
+  position: absolute;
+  right: 6px;
+  border: none;
+  background: transparent;
+  color: var(--text-dim);
+  font-size: 11px;
+  cursor: pointer;
+}
+
+/* 胶囊控制栏 */
+.heatmap-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  padding: 10px 14px;
+}
+.toolbar-section {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.toolbar-label {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-dim);
+  white-space: nowrap;
+}
+
 .heatmap-stat-bar {
   display: flex;
   align-items: center;
@@ -345,7 +632,7 @@ onUnmounted(() => {
   background: var(--bg-card);
   border: 1px solid var(--border);
   border-radius: var(--radius-md);
-  padding: 10px 16px;
+  padding: 8px 16px;
 }
 
 .stat-left {
@@ -359,47 +646,58 @@ onUnmounted(() => {
   font-size: 13px;
   color: var(--text-dim);
 }
-
 .stat-item strong {
   color: var(--text);
   font-weight: 700;
 }
-
-.stat-hint {
+.stat-up strong {
+  color: var(--up);
+}
+.stat-search-hit {
   font-size: 12px;
-  color: var(--text-dim);
+  color: var(--accent);
+  background: var(--accent-bg);
+  padding: 2px 8px;
+  border-radius: var(--radius-sm);
 }
 
 /* 图例 */
 .legend-bar {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 6px;
 }
-
 .legend-label {
   font-size: 11px;
   color: var(--text-dim);
   font-weight: 600;
 }
+.legend-label.legend-up {
+  color: var(--up);
+}
+.legend-label.legend-down {
+  color: var(--down);
+}
 
 .legend-grad {
-  width: 120px;
+  width: 140px;
   height: 10px;
   border-radius: var(--radius-pill);
-  background: linear-gradient(90deg, #047857, #10b981, #6b7280, #ef4444, #b91c1c);
+  background: linear-gradient(90deg, #047857, #10b981, #374151, #e11d48, #b91c1c);
   border: 1px solid var(--border);
 }
 
 /* 云图卡片 */
 .heatmap-card {
   position: relative;
-  height: calc(100vh - 210px);
-  min-height: 520px;
-  padding: 8px;
-  background: var(--bg-card);
+  height: calc(100vh - 250px);
+  min-height: 560px;
+  padding: 6px;
+  background: #0b0f19;
+  border: 1px solid var(--border);
   border-radius: var(--radius-lg);
   overflow: hidden;
+  box-shadow: inset 0 2px 8px rgba(0,0,0,0.4);
 }
 
 .chart-container {
@@ -410,13 +708,13 @@ onUnmounted(() => {
 .chart-loading-mask {
   position: absolute;
   inset: 0;
-  background: rgba(0, 0, 0, 0.45);
-  backdrop-filter: blur(2px);
+  background: rgba(11, 15, 25, 0.75);
+  backdrop-filter: blur(4px);
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 10px;
+  gap: 12px;
   color: var(--text);
   font-size: 13px;
   z-index: 10;

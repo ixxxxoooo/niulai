@@ -45,8 +45,8 @@ export const api = {
   overview: () => get('/market/overview'),
   marketVolume: () => get('/market/volume'),
   indicesTrends: () => get('/market/indices-trends'),
-  marketHeatmap: (type = 'industry', sort = 'amount', limit = 80) =>
-    get(`/market/heatmap?type=${type}&sort=${sort}&limit=${limit}`),
+  marketHeatmap: (scope = 'all_top300', sizeBy = 'amount', limit = 300) =>
+    get(`/market/heatmap?scope=${encodeURIComponent(scope)}&size_by=${encodeURIComponent(sizeBy)}&limit=${limit}`),
 
 
   // 开盘啦（抓包接口，容错降级）

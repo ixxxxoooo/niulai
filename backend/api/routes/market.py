@@ -65,14 +65,14 @@ def market_volume():
 
 
 @router.get("/market/heatmap")
-@ttl_cache(ttl=10)
+@ttl_cache(ttl=5)
 def market_heatmap(
-    type: str = Query("industry", pattern="^(industry|concept)$"),
-    sort: str = Query("amount", pattern="^(amount|change_pct)$"),
-    limit: int = Query(80, ge=10, le=200),
+    scope: str = Query("all_top300", description="云图范围：all_top300|all_top500|hs300|cyb_kcb|zz500|watchlist|industry_overview|concept_overview"),
+    size_by: str = Query("amount", description="面积权重：amount|float_mv|total_mv"),
+    limit: int = Query(300, ge=10, le=500),
 ):
-    """大盘热力云图数据（板块体量面积 + 涨跌色彩 + 核心龙头股子层级）"""
-    return sector_an.market_heatmap_data(stype=type, sort_by=sort, limit=limit)
+    """大盘热力云图数据（符合业界标准的行业与个股双层双维度云图树）"""
+    return sector_an.market_heatmap_data(scope=scope, size_by=size_by, limit=limit)
 
 
 
