@@ -113,6 +113,27 @@
   </div>
 </template>
 
+<script>
+// 模块级单例缓存：切路由离开再返回时 0ms 瞬间渲染上次数据，消除白屏与卡顿感
+const _cachedOverview = {
+  indices: [],
+  total_amount: null,
+  up_count: null,
+  down_count: null,
+  flat_count: null,
+  limit_up_count: null,
+  is_trading_time: false,
+  quote_time: '',
+}
+let _cachedTrends = { items: [] }
+let _cachedIndustry = []
+let _cachedConcept = []
+let _cachedZhangsu = []
+let _cachedEtf = []
+let _cachedVolume = null
+let _cachedCalendarNotice = null
+</script>
+
 <script setup>
 import { ref, reactive, onMounted, onUnmounted } from 'vue'
 import { api } from '../api.js'
@@ -133,12 +154,14 @@ function openFromOverview(row, list) {
   openStock(row, { list, origin: '/', originLabel: '返回盘面' })
 }
 
-const overview = reactive({ indices: [], total_amount: null, up_count: null, down_count: null, flat_count: null, limit_up_count: null, is_trading_time: false, quote_time: '' })
-const volume = ref(null) // 两市量能（独立 30s 慢轮询，避免每次刷新查指数K线）
-const industryTop = ref([])
-const conceptTop = ref([])
-const zhangsuTop = ref([])
-const etfTop = ref([])
+// 采用模块级缓存初始化，确保进入总览页时 0ms 瞬间呈现指数，绝不白屏
+const overview = reactive({ ..._cachedOverview })
+const volume = ref(_cachedVolume)
+const industryTop = ref([..._cachedIndustry])
+const conceptTop = ref([..._cachedConcept])
+const zhangsuTop = ref([..._cachedZhangsu])
+const etfTop = ref([..._cachedEtf])
+const nextImportantEvent = ref(_cachedCalendarNotice)
 const error = ref('')
 
 const etfColumns = [
@@ -166,81 +189,98 @@ function goIndex(q) {
   if (secid) go('/index/' + secid)
 }
 
-async function load() {
-  const reqOverview = api.overview().then(ov => {
-    Object.assign(overview, ov)
-    error.value = ''
-  }).catch(e => {
-    error.value = '大盘数据加载失败：' + e.message
-  })
-
-  const reqSectors = Promise.allSettled([
-    api.sectors('industry', 'change_pct', 50).then(ind => { industryTop.value = ind }),
-    api.sectors('concept', 'change_pct', 50).then(con => { conceptTop.value = con }),
-  ])
-
-  const reqRanks = Promise.allSettled([
-    api.zhangsu(30).then(zs => { zhangsuTop.value = zs }),
-    api.etfRank('change_pct', 30).then(etf => { etfTop.value = etf }),
-  ])
-
-  await Promise.allSettled([reqOverview, reqSectors, reqRanks])
-}
-
-
-const poll = usePolling(load, 5000)
-
-// 指数分时缩略图：独立 30s 慢轮询（不随 5s load 高频拉取，后端 30s 缓存兜底）
-const indexTrends = ref({ items: [] })
+// 指数分时缩略图
+const indexTrends = ref({ ..._cachedTrends })
 function trendOf(q) {
   const secid = q.secid
   const items = indexTrends.value?.items || []
   return items.find(t => t.secid === secid || t.code === q.code) || null
 }
+
 async function loadIndexTrends() {
   try {
-    indexTrends.value = await api.indicesTrends()
+    const res = await api.indicesTrends()
+    if (res && res.items) {
+      indexTrends.value = res
+      _cachedTrends = res
+    }
   } catch (e) { /* 分时缩略图失败不影响总览 */ }
 }
 
-// 两市量能：30 秒慢轮询（后端 30s 缓存，变化慢无需高频）
+// 两市量能
 async function loadVolume() {
   try {
-    volume.value = await api.marketVolume()
+    const res = await api.marketVolume()
+    if (res) {
+      volume.value = res
+      _cachedVolume = res
+    }
   } catch (e) { /* 量能失败不阻塞总览 */ }
 }
-let volTimer = null
-let trendTimer = null
 
 // 关键日历事件提醒
-const nextImportantEvent = ref(null)
 async function loadCalendarNotice() {
   try {
     const data = await api.calendarEvents(2)
     if (data && data.hero_cards && data.hero_cards.length) {
-      // 优先取最近未过去的事件
       const upcoming = data.hero_cards.filter(c => c.days_left >= 0 && c.days_left <= 7)
-      if (upcoming.length) {
-        nextImportantEvent.value = upcoming[0]
-      } else {
-        nextImportantEvent.value = data.hero_cards[0]
-      }
+      const notice = upcoming.length ? upcoming[0] : data.hero_cards[0]
+      nextImportantEvent.value = notice
+      _cachedCalendarNotice = notice
     }
   } catch (e) { /* ignore */ }
 }
 
+async function load() {
+  // 1. 核心指数最先请求，毫秒级刷新
+  const reqOverview = api.overview().then(ov => {
+    Object.assign(overview, ov)
+    Object.assign(_cachedOverview, ov)
+    error.value = ''
+  }).catch(e => {
+    error.value = '大盘数据加载失败：' + e.message
+  })
+
+  // 2. 次级板块与榜单并行异步拉取
+  const reqSectors = Promise.allSettled([
+    api.sectors('industry', 'change_pct', 50).then(ind => { industryTop.value = ind; _cachedIndustry = ind }),
+    api.sectors('concept', 'change_pct', 50).then(con => { conceptTop.value = con; _cachedConcept = con }),
+  ])
+
+  const reqRanks = Promise.allSettled([
+    api.zhangsu(30).then(zs => { zhangsuTop.value = zs; _cachedZhangsu = zs }),
+    api.etfRank('change_pct', 30).then(etf => { etfTop.value = etf; _cachedEtf = etf }),
+  ])
+
+  await Promise.allSettled([reqOverview, reqSectors, reqRanks])
+}
+
+const poll = usePolling(load, 4000)
+
+let volTimer = null
+let trendTimer = null
+
 onMounted(() => {
-  loadVolume()
+  if (!indexTrends.value.items.length) {
+    loadIndexTrends()
+  }
+  if (!volume.value) {
+    loadVolume()
+  }
+  if (!nextImportantEvent.value) {
+    loadCalendarNotice()
+  }
+
   volTimer = setInterval(loadVolume, 30000)
-  loadIndexTrends()
-  trendTimer = setInterval(loadIndexTrends, 30000)
-  loadCalendarNotice()
+  trendTimer = setInterval(loadIndexTrends, 20000)
 })
+
 onUnmounted(() => {
   clearInterval(volTimer)
   clearInterval(trendTimer)
 })
 </script>
+
 
 <style scoped>
 .calendar-banner {

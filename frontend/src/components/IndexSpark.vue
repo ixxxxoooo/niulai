@@ -27,10 +27,7 @@ const hasData = computed(() =>
 const preClose = computed(() => props.trend?.pre_close || 0)
 
 // 全天固定时间轴 09:30~11:30 + 13:00~15:00（每分钟），数据按时间定位
-const fullTimes = buildFullTrendTimes()
-const timeIndex = new Map(fullTimes.map((t, i) => [t, i]))
-
-function buildFullTrendTimes() {
+const fullTimes = (() => {
   const out = []
   const push = (startH, startM, endH, endM) => {
     for (let m = startH * 60 + startM; m <= endH * 60 + endM; m++) {
@@ -40,7 +37,9 @@ function buildFullTrendTimes() {
   push(9, 30, 11, 30)
   push(13, 0, 15, 0)
   return out
-}
+})()
+const timeIndex = new Map(fullTimes.map((t, i) => [t, i]))
+
 
 // 带时间索引的数据点 [{time, price, idx}]
 const spacedPoints = computed(() => {

@@ -34,17 +34,18 @@ def market_overview() -> MarketOverview:
     """
     client = eastmoney.get_client()
 
-    # 并发拉取指数、腾讯快照时间、涨跌停池条数
+    # 并发拉取指数、腾讯快照时间、涨跌停池条数（全部使用毫秒级接口，严禁全量分页扫描）
     with ThreadPoolExecutor(max_workers=4) as ex:
         f_indices = ex.submit(client.index_quotes)
         f_tq = ex.submit(lambda: tencent.get_client().fetch_quotes(["000001"]))
         f_zt = ex.submit(lambda: len(client.limit_up_pool(300)))
-        f_dt = ex.submit(lambda: len(client.limit_down_list(300)))
+        f_dt = ex.submit(lambda: len(client.limit_down_pool(300)))
 
         indices = _safe(lambda: f_indices.result(), [])
         tq = _safe(lambda: f_tq.result(), {})
         limit_up_count = _safe(lambda: f_zt.result(), None)
         limit_down_count = _safe(lambda: f_dt.result(), None)
+
 
     total_amount: Optional[float] = None
     up_count = 0
