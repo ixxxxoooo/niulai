@@ -503,22 +503,24 @@ function nowLabel() {
 async function loadFast() {
   try {
     const [d, t, lt] = await Promise.all([
-      api.stock(code.value),
-      api.trends(code.value),
+      api.stock(code.value).catch(() => ({ code: code.value, name: localMeta.value?.name || code.value })),
+      api.trends(code.value).catch(() => null),
       api.stockLimitTag(code.value).catch(() => null),
     ])
-    Object.keys(detail).forEach(k => delete detail[k])
-    Object.assign(detail, d)
-    rememberStock(d)
-    if (d.name) localMeta.value = { ...localMeta.value, ...d }
+    if (d) {
+      Object.keys(detail).forEach(k => delete detail[k])
+      Object.assign(detail, d)
+      rememberStock(d)
+      if (d.name) localMeta.value = { ...localMeta.value, ...d }
+    }
     trend.value = t
     limitTag.value = lt
-    quoteSource.value = d.data_source || d.source || '东财/腾讯'
-    quoteFetchedAt.value = d.fetched_at || nowLabel()
+    quoteSource.value = (d && (d.data_source || d.source)) || '东财/腾讯'
+    quoteFetchedAt.value = (d && d.fetched_at) || nowLabel()
     error.value = ''
     loadHoldings()
   } catch (e) {
-    error.value = '实时数据加载失败：' + e.message
+    console.error('loadFast failed', e)
   }
 }
 

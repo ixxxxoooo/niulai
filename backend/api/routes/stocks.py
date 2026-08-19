@@ -181,7 +181,14 @@ def stock_holdings(code: str):
 def stock_trends(code: str):
     t = eastmoney.get_client().intraday_trends(code)
     if t is None:
-        raise HTTPException(status_code=404, detail=f"未找到股票 {code}")
+        return {
+            "code": code,
+            "name": "",
+            "market": 1,
+            "decimal": 2,
+            "pre_close": 0.0,
+            "points": [],
+        }
     return t.model_dump()
 
 
@@ -195,7 +202,12 @@ def stock_kline(
     """K 线（前复权）：day/week/month，附带 MA 均线指标；用百度补齐额/涨跌/换手"""
     k = eastmoney.get_client().kline(code, period=period, limit=limit)
     if k is None or not k.get("points"):
-        raise HTTPException(status_code=404, detail=f"未找到股票 {code}")
+        return {
+            "code": code,
+            "period": period,
+            "points": [],
+            "indicators": {"ma5": [], "ma10": [], "ma20": [], "ma60": []}
+        }
     _merge_baidu_kline_fields(code, period, k["points"])
     k["indicators"] = _calc_indicators(k["points"])
     return k
