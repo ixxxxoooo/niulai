@@ -61,16 +61,16 @@
           <span class="card-title-text">{{ currentGroupName }}（{{ watchRows.length }}）</span>
           <div class="card-title-actions">
             <!-- 快捷添加股票组件 -->
-            <div class="quick-add-wrap" ref="quickAddRef">
+            <div class="quick-add-wrap" ref="quickAddRef" @click.stop>
               <button
                 v-if="!quickAddOpen"
                 class="btn-quick-add"
                 :title="`添加股票到「${currentGroupName}」`"
-                @click="openQuickAdd"
+                @click.stop="openQuickAdd"
               >
                 <span class="plus-icon">+</span>
               </button>
-              <div v-else class="quick-add-box">
+              <div v-else class="quick-add-box" @click.stop>
                 <span class="quick-add-icon">🔍</span>
                 <input
                   ref="quickAddInput"
@@ -84,10 +84,10 @@
                   @keydown.enter.prevent="onQuickAddEnter"
                   @keydown.esc="closeQuickAdd"
                 />
-                <button class="quick-add-close" @click="closeQuickAdd" title="关闭">✕</button>
+                <button class="quick-add-close" @click.stop="closeQuickAdd" title="关闭">✕</button>
 
                 <!-- 搜索候选下拉浮层 -->
-                <div v-if="suggestList.length && quickAddOpen" class="quick-suggest-pop">
+                <div v-if="suggestList.length && quickAddOpen" class="quick-suggest-pop" @click.stop>
                   <div
                     v-for="(item, sIdx) in suggestList"
                     :key="item.code"
@@ -166,7 +166,7 @@
           <div class="empty-title">当前分组「{{ currentGroupName }}」暂无自选标的</div>
           <div class="empty-desc">可点击右上角「+」直接搜索添加代码，或点击右下角设置按钮导入预设。</div>
           <div class="empty-actions mt12">
-            <UiButton size="sm" variant="primary" @click="openQuickAdd">+ 立即添加股票</UiButton>
+            <UiButton size="sm" variant="primary" @click.stop="openQuickAdd">+ 立即添加股票</UiButton>
             <UiButton size="sm" variant="ghost" v-if="currentGroupId !== null" @click="selectGroup(null)">查看全部自选</UiButton>
           </div>
         </div>
