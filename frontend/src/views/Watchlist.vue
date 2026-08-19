@@ -468,7 +468,6 @@ function groupIcon(name) {
 
 function selectGroup(gid) {
   setCurrentGroup(gid)
-  load()
 }
 
 function openStockGroup(s) {

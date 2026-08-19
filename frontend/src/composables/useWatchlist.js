@@ -23,11 +23,21 @@ try {
 } catch (e) { /* ignore */ }
 
 /**
- * 切换当前查看的分组
+ * 切换当前查看的分组（内存 0ms 即时响应，无缝丝滑）
  * @param {number|null} groupId null 为全部
  */
 export function setCurrentGroup(groupId) {
   watchState.currentGroupId = groupId != null ? Number(groupId) : null
+  if (watchState.currentGroupId === null) {
+    if (watchState.allCodes.length) {
+      watchState.codes = [...watchState.allCodes]
+    }
+  } else {
+    const targetGroup = watchState.groups.find(g => g.id === watchState.currentGroupId)
+    if (targetGroup && Array.isArray(targetGroup.codes)) {
+      watchState.codes = [...targetGroup.codes]
+    }
+  }
   try {
     if (watchState.currentGroupId != null) {
       localStorage.setItem(SAVED_GROUP_KEY, String(watchState.currentGroupId))
@@ -44,16 +54,18 @@ export function setCurrentGroup(groupId) {
 export async function loadWatchlist(groupId = undefined) {
   const targetGid = groupId !== undefined ? groupId : watchState.currentGroupId
   const r = await api.watchlist(targetGid)
-  watchState.codes = r.codes || []
   watchState.groups = r.groups || []
-  // 如果是查询全量，同步更新 allCodes
+  
+  // 聚合全量代码
+  const allGroupCodes = (watchState.groups || []).flatMap(g => g.codes || [])
+  const allSet = new Set([...(r.codes || []), ...allGroupCodes, ...watchState.allCodes])
+  watchState.allCodes = [...allSet]
+
   if (targetGid === null) {
-    watchState.allCodes = [...watchState.codes]
+    watchState.codes = r.codes || []
   } else {
-    // 异步加载一次全量代码以供 isWatched 准确判断
-    api.watchlist(null).then(res => {
-      watchState.allCodes = res.codes || []
-    }).catch(() => {})
+    const targetGroup = watchState.groups.find(g => g.id === targetGid)
+    watchState.codes = (targetGroup && targetGroup.codes) ? targetGroup.codes : (r.codes || [])
   }
   watchState.loaded = true
   return watchState.codes
