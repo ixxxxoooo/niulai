@@ -312,7 +312,7 @@
               <th style="width:80px" class="tar" title="最新一个交易日的收盘涨跌幅">涨跌幅</th>
               <th style="width:95px" class="tar" title="最新一个交易日的成交总金额">成交额</th>
               <th style="width:190px" title="该股票同时命中的所有多维量化策略">命中策略共振</th>
-              <th class="signal-th" title="多维策略计算得出的核心形态、买点支撑、均线数据与资金流入明细">技术形态与信号明细</th>
+              <th class="signal-th tal" style="text-align:left" title="多维策略计算得出的核心形态、买点支撑、均线数据与资金流入明细">技术形态与信号明细</th>
               <th style="width:75px" class="tac action-th">操作</th>
             </tr>
           </thead>
@@ -347,7 +347,8 @@
                 </div>
               </td>
               <td
-                class="signal-col"
+                class="signal-col tal"
+                style="text-align:left"
                 :title="(item.signals && item.signals.length) ? item.signals.map(s => `【${s.name}】：${s.detail}`).join('\n') : item.detail"
               >
                 {{ (item.signals && item.signals.length > 1) ? item.signals.map(s => `[${s.name}] ${s.detail}`).join(' · ') : item.detail }}
@@ -1015,13 +1016,17 @@ onMounted(async () => {
 .tag-engulfing { background: rgba(244, 63, 94, 0.12); color: #f43f5e; border-color: rgba(244, 63, 94, 0.3); }
 .tag-bounce { background: rgba(249, 115, 22, 0.12); color: #f97316; border-color: rgba(249, 115, 22, 0.25); }
 
-.signal-th { min-width: 240px; }
+.signal-th {
+  min-width: 240px;
+  text-align: left !important;
+}
 .signal-col {
   font-size: 11px;
   color: var(--text);
-  line-height: 1.4;
+  line-height: 1.45;
   white-space: normal;
   word-break: break-word;
+  text-align: left !important;
 }
 
 .action-th, .action-td {
