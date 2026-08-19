@@ -98,12 +98,12 @@ export function initGlobalTooltip() {
     clearTimeout(showTimer)
     clearTimeout(hideTimer)
 
-    // 80ms 瞬时灵敏响应，丝滑无感知延迟
+    // 标准默认延迟 500ms，停顿悬停时再平滑展现，避免划过时过于灵敏频繁闪烁
     showTimer = setTimeout(() => {
       if (activeTarget === target) {
         showTooltip(target, text)
       }
-    }, 80)
+    }, 500)
   }, { passive: true })
 
   document.addEventListener('mouseout', (e) => {
