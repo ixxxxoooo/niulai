@@ -262,3 +262,177 @@ def test_positions_roundtrip(client):
     finally:
         if not existed:
             client.delete("/api/watchlist/600519")
+
+
+def test_merge_stock_detail_flatline_zero():
+    """验证腾讯返回 change=0.0 / change_pct=0.0 时能够保留 0.0 而不是被 None 覆盖"""
+    from backend.api.routes.common import _merge_stock_detail
+    from backend.datasource.models import StockDetail
+
+    fake_em = StockDetail(
+        code="600519", name="贵州茅台", price=100.0, prev_close=100.0,
+        change=None, change_pct=None,
+    )
+    fake_tx = {
+        "600519": {
+            "name": "贵州茅台", "price": 100.0, "prev_close": 100.0,
+            "change": 0.0, "change_pct": 0.0,
+        }
+    }
+    with mock.patch("backend.datasource.eastmoney.get_client") as gem, \
+         mock.patch("backend.datasource.tencent.get_client") as gtx:
+        gem.return_value.stock_snapshot.return_value = fake_em
+        gtx.return_value.fetch_quotes.return_value = fake_tx
+        merged = _merge_stock_detail("600519")
+        assert merged.change == 0.0
+        assert merged.change_pct == 0.0
+
+
+def test_ai_history_store(client):
+    """验证 AI 历史记录存储与读取（上限 5 条）"""
+    from backend.db import store as db
+    db.init_db()
+
+    for i in range(7):
+        client.post("/api/ai/save", json={
+            "code": "600519",
+            "reasoning": f"think {i}",
+            "content": f"content {i}",
+            "result": {"score": i},
+        })
+
+    resp = client.get("/api/ai/history/600519")
+    assert resp.status_code == 200
+    items = resp.json()["items"]
+    assert len(items) == 5
+    assert items[0]["content"] == "content 6"
+    assert items[0]["result"]["score"] == 6
+
+
+def test_market_volume_date_alignment():
+    """验证两市量能按共同交易日对齐"""
+    from backend.analyzer import market as market_an
+
+    fake_hist = {
+        "sh000001": {"2026-08-15": 50000, "2026-08-16": 60000},
+        "sz399001": {"2026-08-14": 40000, "2026-08-15": 50000, "2026-08-16": 60000},
+    }
+    with mock.patch("backend.analyzer.market._fetch_amount_history", return_value=fake_hist):
+        v = market_an.market_volume()
+        assert v is not None
+        assert v["today_amount"] == (60000 + 60000) * 1e4
+        assert v["prev_amount"] == (50000 + 50000) * 1e4
+        assert v["label"] == "放量"
+
+
+def test_rsi_flatline():
+    """验证价格无波动时 RSI 计算结果为 50.0"""
+    from backend.analyzer.indicators import _rsi
+
+    flat_closes = [10.0] * 30
+    res = _rsi(flat_closes, period=14)
+    assert res[14] == 50.0
+    assert res[-1] == 50.0
+
+
+def test_backup_import_clear_empty_table():
+    """验证备份导入空表能够正确清空数据"""
+    from backend.db import store as db
+    db.init_db()
+
+    db.watchlist_add("600519")
+    assert "600519" in db.watchlist_codes()
+
+    # 导入空的 watchlist
+    payload = {"tables": {"watchlist": []}}
+    db.import_user_backup(payload)
+    assert len(db.watchlist_codes()) == 0
+
+
+def test_trading_day_and_custom_holidays():
+    """验证节假日判断与动态自定义休市日生效"""
+    import datetime
+    from backend.analyzer import schedule as sch
+    from backend.db import store as db
+
+    # 元旦法定节假日
+    assert not sch.is_trading_day(datetime.date(2026, 1, 1))
+
+    # 普通周三 (非节假日)
+    normal_day = datetime.date(2026, 8, 19)
+    assert sch.is_trading_day(normal_day)
+
+    # 动态添加自定义休市日
+    db.set_setting("custom_holidays", "2026-08-19")
+    try:
+        assert not sch.is_trading_day(normal_day)
+    finally:
+        db.set_setting("custom_holidays", "")
+
+
+def test_stocks_batch_multi_batch(client):
+    """验证自选股超过50只时分批并发拉取"""
+    from backend.datasource.models import StockBrief
+
+    codes = [f"60{i:04d}" for i in range(1, 65)]  # 64 只股票
+    fake_briefs = [StockBrief(code=c, name=f"测试{c}", price=10.0, change_pct=1.5) for c in codes]
+
+    with mock.patch("backend.datasource.eastmoney.get_client") as gem:
+        gem.return_value.ulist_briefs.side_effect = lambda batch, markets: [
+            StockBrief(code=c, name=f"测试{c}", price=10.0, change_pct=1.5) for c in batch
+        ]
+        resp = client.get(f"/api/stocks/batch?codes={','.join(codes)}")
+        assert resp.status_code == 200
+        data = resp.json()
+        assert len(data) == 64
+        assert data[0]["code"] == "600001"
+        assert data[-1]["code"] == "600064"
+
+
+def test_calendar_events_api(client):
+    """验证交易日历与交割日推算接口"""
+    resp = client.get("/api/calendar/events?months=4")
+    assert resp.status_code == 200
+    data = resp.json()
+    assert "hero_cards" in data
+    assert "events" in data
+    assert len(data["hero_cards"]) >= 2
+    assert len(data["events"]) >= 10
+    # 验证包含股指期货与ETF期权事件
+    types = [e["type"] for e in data["events"]]
+    assert "derivative" in types
+    assert "macro" in types
+
+
+def test_unlock_calendar_api(client):
+    """验证限售股解禁日历接口"""
+    with mock.patch("backend.datasource.eastmoney.get_client") as gem:
+        gem.return_value.restricted_unlock_list.return_value = [
+            {"code": "600519", "name": "贵州茅台", "date": "2026-08-25", "ratio_total": 6.5, "market_cap": 2000000000}
+        ]
+        resp = client.get("/api/calendar/unlocks?days=30")
+        assert resp.status_code == 200
+        data = resp.json()
+        assert data["total"] == 1
+        assert data["heavy_count"] == 1
+        assert data["items"][0]["code"] == "600519"
+
+
+def test_stock_risk_diagnosis_api(client):
+    """验证个股排雷诊断接口"""
+    with mock.patch("backend.datasource.eastmoney.get_client") as gem:
+        gem.return_value.stock_unlock_detail.return_value = [
+            {"code": "000001", "name": "平安银行", "date": "2026-08-20", "ratio_total": 8.0}
+        ]
+        gem.return_value.stock_performance_forecast.return_value = [
+            {"code": "000001", "predict_type": "首亏", "content": "受行业周期影响", "report_date": "2026-06-30"}
+        ]
+        resp = client.get("/api/stocks/000001/risk-diagnosis")
+        assert resp.status_code == 200
+        data = resp.json()
+        assert data["risk_level"] == "high"
+        assert len(data["risk_tags"]) >= 2
+
+
+
+

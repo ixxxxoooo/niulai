@@ -1512,6 +1512,124 @@ class EastMoneyClient:
             d -= datetime.timedelta(days=1)
         return out
 
+    def restricted_unlock_list(self, days_ahead: int = 60, page: int = 1, page_size: int = 80) -> List[Dict[str, Any]]:
+        """获取未来近期限售股解禁列表 (RPT_LIFT_STAGE)"""
+        today_str = datetime.date.today().isoformat()
+        end_date_str = (datetime.date.today() + datetime.timedelta(days=days_ahead)).isoformat()
+        filter_expr = f"(FREE_DATE>='{today_str}')(FREE_DATE<='{end_date_str}')"
+        url = "https://datacenter-web.eastmoney.com/api/data/v1/get"
+        params = {
+            "reportName": "RPT_LIFT_STAGE",
+            "columns": "ALL",
+            "filter": filter_expr,
+            "pageNumber": page,
+            "pageSize": page_size,
+            "sortTypes": 1,
+            "sortColumns": "FREE_DATE",
+        }
+
+        try:
+            resp = httpx.get(url, params=params, headers={"User-Agent": "Mozilla/5.0", "Referer": "https://data.eastmoney.com/"}, timeout=6)
+            resp.raise_for_status()
+            data = resp.json()
+            items = (data.get("result") or {}).get("data") or []
+            out = []
+            for it in items:
+                f_date = str(it.get("FREE_DATE") or "")[:10]
+                out.append({
+                    "code": str(it.get("SECURITY_CODE") or ""),
+                    "name": str(it.get("SECURITY_NAME_ABBR") or ""),
+                    "date": f_date,
+                    "share_type": str(it.get("FREE_SHARES_TYPE") or "限售股份"),
+                    "shares": it.get("FREE_SHARES") or 0,
+                    "market_cap": it.get("LIFT_MARKET_CAP") or it.get("ALIFT_MARKET_CAP") or 0,
+                    "ratio_float": it.get("FREE_RATIO") or 0.0,
+                    "ratio_total": it.get("TOTAL_RATIO") or it.get("TOTALSHARES_RATIO") or 0.0,
+                })
+            return out
+        except Exception as e:
+            logger.warning("限售解禁列表拉取异常: %s", e)
+            return []
+
+    def stock_unlock_detail(self, code: str) -> List[Dict[str, Any]]:
+        """查询指定股票的解禁计划与历史明细"""
+        clean_code = str(code).strip()
+        if "." in clean_code:
+            clean_code = clean_code.split(".")[0]
+        filter_expr = f'(SECURITY_CODE="{clean_code}")'
+        url = "https://datacenter-web.eastmoney.com/api/data/v1/get"
+        params = {
+            "reportName": "RPT_LIFT_STAGE",
+            "columns": "ALL",
+            "filter": filter_expr,
+            "pageNumber": 1,
+            "pageSize": 20,
+            "sortTypes": 1,
+            "sortColumns": "FREE_DATE",
+        }
+        try:
+            resp = httpx.get(url, params=params, headers={"User-Agent": "Mozilla/5.0", "Referer": "https://data.eastmoney.com/"}, timeout=5)
+            resp.raise_for_status()
+            data = resp.json()
+            items = (data.get("result") or {}).get("data") or []
+            out = []
+            for it in items:
+                f_date = str(it.get("FREE_DATE") or "")[:10]
+                out.append({
+                    "code": clean_code,
+                    "name": str(it.get("SECURITY_NAME_ABBR") or ""),
+                    "date": f_date,
+                    "share_type": str(it.get("FREE_SHARES_TYPE") or "限售股份"),
+                    "shares": it.get("FREE_SHARES") or 0,
+                    "market_cap": it.get("LIFT_MARKET_CAP") or it.get("ALIFT_MARKET_CAP") or 0,
+                    "ratio_float": it.get("FREE_RATIO") or 0.0,
+                    "ratio_total": it.get("TOTAL_RATIO") or it.get("TOTALSHARES_RATIO") or 0.0,
+                })
+            return out
+        except Exception as e:
+            logger.warning("个股 %s 解禁明细拉取异常: %s", code, e)
+            return []
+
+    def stock_performance_forecast(self, code: str) -> List[Dict[str, Any]]:
+        """查询指定个股最新业绩预告与财报预警 (RPT_PUBLIC_OP_NEWPREDICT)"""
+        clean_code = str(code).strip()
+        if "." in clean_code:
+            clean_code = clean_code.split(".")[0]
+        filter_expr = f'(SECURITY_CODE="{clean_code}")'
+        url = "https://datacenter-web.eastmoney.com/api/data/v1/get"
+        params = {
+            "reportName": "RPT_PUBLIC_OP_NEWPREDICT",
+            "columns": "ALL",
+            "filter": filter_expr,
+            "pageNumber": 1,
+            "pageSize": 5,
+            "sortTypes": -1,
+            "sortColumns": "REPORT_DATE",
+        }
+        try:
+            resp = httpx.get(url, params=params, headers={"User-Agent": "Mozilla/5.0", "Referer": "https://data.eastmoney.com/"}, timeout=5)
+            resp.raise_for_status()
+            data = resp.json()
+            items = (data.get("result") or {}).get("data") or []
+            out = []
+            for it in items:
+                out.append({
+                    "code": clean_code,
+                    "name": str(it.get("SECURITY_NAME_ABBR") or ""),
+                    "notice_date": str(it.get("NOTICE_DATE") or "")[:10],
+                    "report_date": str(it.get("REPORT_DATE") or "")[:10],
+                    "predict_type": str(it.get("PREDICT_FINANCE") or ""),
+                    "content": str(it.get("PREDICT_CONTENT") or ""),
+                    "change_min": it.get("INCREASE_LOWER") or it.get("PREDICT_AMT_LOWER"),
+                    "change_max": it.get("INCREASE_UPPER") or it.get("PREDICT_AMT_UPPER"),
+                })
+            return out
+        except Exception as e:
+            logger.warning("个股 %s 业绩预告拉取异常: %s", code, e)
+            return []
+
+
+
 
 # 全局单例（进程内复用连接池与节点状态）
 _client: Optional[EastMoneyClient] = None

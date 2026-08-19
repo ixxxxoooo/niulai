@@ -138,6 +138,17 @@ export const api = {
   // 飞书通知
   feishuTest: () => send('POST', '/notify/feishu/test'),
 
+  // 交易与财经日历
+  calendarEvents: (months = 4) => get(`/calendar/events?months=${months}`),
+  calendarUnlocks: (days = 60, page = 1, pageSize = 80) =>
+    get(`/calendar/unlocks?days=${days}&page=${page}&page_size=${pageSize}`),
+
+  // 排雷与风险诊断
+  stockRiskDiagnosis: (code) => get(`/stocks/${code}/risk-diagnosis`),
+  batchStockRisk: (codes) => send('POST', '/stocks/batch-risk', { codes }),
+
+
+
   // 龙虎榜席位
   lhbSeats: () => get('/lhb/seats'),
   lhbSeatsSync: (force = false) => send('POST', '/lhb/seats/sync', { force }),

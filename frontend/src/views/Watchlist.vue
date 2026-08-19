@@ -34,10 +34,23 @@
               <tr v-for="s in tsWS.sorted" :key="s.code" @click="openFromList(s, tsWS.sorted, '返回自选')">
                 <td class="stock-name">
                   <MiniTrend :code="s.code" :name="s.name">
-                    <span class="name-cell"><BoardBadges :row="s" />{{ s.name }}<span v-if="s.shares" class="hold-tag">持仓</span></span>
+                    <span class="name-cell">
+                      <BoardBadges :row="s" />{{ s.name }}
+                      <span v-if="s.shares" class="hold-tag">持仓</span>
+                      <span
+                        v-if="riskMap[s.code]?.badge_text"
+                        class="risk-pill"
+                        :class="'pill-' + riskMap[s.code].badge_level"
+                        @click.stop="openRisk(s)"
+                        :title="`智能排雷预警：${riskMap[s.code].badge_text}，点击查看诊断`"
+                      >
+                        🛡️ {{ riskMap[s.code].badge_text }}
+                      </span>
+                    </span>
                   </MiniTrend>
                 </td>
                 <td>{{ s.code }}</td>
+
                 <td :class="pctClass(s.change_pct)">{{ fmtPrice(s.price) }}</td>
                 <td><span class="pct-badge" :class="pctClass(s.change_pct)">{{ fmtPct(s.change_pct) }}</span></td>
                 <td :class="pctClass(s.zhangsu)">{{ fmtPct(s.zhangsu) }}</td>
@@ -147,10 +160,22 @@
               <tr v-for="s in tsHS.sorted" :key="s.code" @click="openFromList(s, tsHS.sorted, '返回自选')">
                 <td class="stock-name">
                   <MiniTrend :code="s.code" :name="s.name">
-                    <span class="name-cell" :class="pctClass(s.pnl)"><BoardBadges :row="s" />{{ s.name }}</span>
+                    <span class="name-cell" :class="pctClass(s.pnl)">
+                      <BoardBadges :row="s" />{{ s.name }}
+                      <span
+                        v-if="riskMap[s.code]?.badge_text"
+                        class="risk-pill"
+                        :class="'pill-' + riskMap[s.code].badge_level"
+                        @click.stop="openRisk(s)"
+                        :title="`智能排雷预警：${riskMap[s.code].badge_text}，点击查看诊断`"
+                      >
+                        🛡️ {{ riskMap[s.code].badge_text }}
+                      </span>
+                    </span>
                   </MiniTrend>
                   <div class="name-mv">{{ fmtMoney(s.market_value) }}</div>
                 </td>
+
                 <td :class="pctClass(s.pnl)">{{ fmtSignedMoney(s.pnl) }}</td>
                 <td :class="pctClass(s.pnl_pct)">{{ fmtPct(s.pnl_pct) }}</td>
                 <td :class="pctClass(s.change_pct)">{{ fmtPrice(s.price) }}</td>
@@ -286,21 +311,32 @@
         </div>
       </div>
     </div>
+
+    <!-- 排雷诊断弹窗 -->
+    <RiskModal
+      v-if="showRisk"
+      :code="riskCode"
+      :stock-name="riskName"
+      @close="showRisk = false"
+    />
   </div>
 </template>
 <script setup>
+
 // @author ygw
 import { ref, computed, reactive } from 'vue'
 import { api } from '../api.js'
 import { fmtAmount, fmtPrice, fmtPct, pctClass } from '../utils.js'
 import { usePolling } from '../composables/usePolling.js'
 import { useTableSort } from '../composables/useTableSort.js'
+import { usePageTab } from '../composables/usePageTab.js'
 import { loadWatchlist, removeWatch, watchState } from '../composables/useWatchlist.js'
 import { applyListFilter } from '../composables/useListFilter.js'
 import { openStock } from '../composables/useStockMeta.js'
 import { captureElement } from '../composables/useScreenshot.js'
 import MiniTrend from '../components/MiniTrend.vue'
 import BoardBadges from '../components/BoardBadges.vue'
+import RiskModal from '../components/RiskModal.vue'
 
 /**
  * 从自选/持仓列表进入详情，带同表左右切换与返回自选。
@@ -313,8 +349,20 @@ function openFromList(row, list, label) {
   openStock(row, { list, origin: '/watchlist', originLabel: label || '返回自选' })
 }
 
-// 页面 Tab：'watch' 自选 / 'hold' 持仓
-const tab = ref('watch')
+// 页面 Tab：'watch' 自选 / 'hold' 持仓（同页刷新保持，离开重置）
+const tab = usePageTab('watchlist', 'watch')
+
+// 智能排雷状态
+const riskMap = ref({})
+const showRisk = ref(false)
+const riskCode = ref('')
+const riskName = ref('')
+
+function openRisk(s) {
+  riskCode.value = s.code
+  riskName.value = s.name
+  showRisk.value = true
+}
 
 const list = ref([])
 const posMap = reactive({})
@@ -326,6 +374,7 @@ const stockCard = ref(null)
 const etfCard = ref(null)
 const holdStockCard = ref(null)
 const holdEtfCard = ref(null)
+
 
 function isEtf(s) {
   return s.classify === 'Fund' || s.type === 'ETF' || /ETF/i.test(s.name || '') || /^(15|16|51|56|58)/.test(s.code || '')
@@ -397,10 +446,10 @@ const holdStocks = computed(() => holdings.value.filter(s => !isEtf(s)))
 const holdEtfs = computed(() => holdings.value.filter(s => isEtf(s)))
 const hasPos = computed(() => holdings.value.length > 0)
 
-const tsWS = useTableSort(watchStocks)
-const tsWE = useTableSort(watchEtfs)
-const tsHS = useTableSort(holdStocks)
-const tsHE = useTableSort(holdEtfs)
+const tsWS = useTableSort(watchStocks, 'watchlist_stocks')
+const tsWE = useTableSort(watchEtfs, 'watchlist_etfs')
+const tsHS = useTableSort(holdStocks, 'holdings_stocks')
+const tsHE = useTableSort(holdEtfs, 'holdings_etfs')
 
 function bucket(rows) {
   const held = rows.filter(s => s.shares > 0)
@@ -514,24 +563,47 @@ async function load() {
       snapReady.value = true
       loadSnapshots()
     }
+    // 异步拉取排雷标签（不阻塞行情）
+    loadRiskTags(allCodes)
   } catch (e) {
     error.value = '自选股加载失败：' + e.message
   }
+}
+
+async function loadRiskTags(allCodes) {
+  try {
+    const stockOnly = allCodes.filter(c => !isEtf({ code: c }))
+    if (stockOnly.length) {
+      const res = await api.batchStockRisk(stockOnly)
+      riskMap.value = res || {}
+    }
+  } catch (e) { /* ignore */ }
 }
 
 usePolling(load, 3000)
 </script>
 
 <style scoped>
-.name-cell { display: inline-flex; align-items: center; gap: 4px; }
+.name-cell { display: inline-flex; align-items: center; gap: 4px; flex-wrap: wrap; }
 .card-title-sub { font-size: 12px; color: var(--text-dim); font-weight: 400; }
+
+/* 排雷微胶囊 */
+.risk-pill {
+  font-size: 11px; font-weight: 600; padding: 1px 6px; border-radius: var(--radius-sm);
+  cursor: pointer; transition: transform .12s; white-space: nowrap; user-select: none;
+}
+.risk-pill:hover { transform: scale(1.06); filter: brightness(1.1); }
+.risk-pill.pill-high { background: var(--up-bg); color: var(--up); border: 1px solid var(--up); }
+.risk-pill.pill-medium { background: var(--yellow-bg); color: var(--yellow); border: 1px solid var(--yellow); }
+.risk-pill.pill-low, .risk-pill.pill-safe { background: var(--down-bg); color: var(--down); }
 
 /* 持仓标记（自选表） */
 .hold-tag {
-  margin-left: 2px; padding: 0 4px; border-radius: 3px;
+  margin-left: 2px; padding: 0 4px; border-radius: var(--radius-sm);
   font-size: 10px; line-height: 14px; font-weight: 600;
   background: var(--accent-bg); color: var(--accent);
 }
+
 
 /* 同花顺风格持仓表 */
 .hold-table th, .hold-table td { text-align: right; white-space: nowrap; }

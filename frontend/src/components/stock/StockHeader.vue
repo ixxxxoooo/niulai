@@ -19,21 +19,37 @@
       <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9.937 15.5A2 2 0 0 0 8.5 14.063l-6.135-1.582a.5.5 0 0 1 0-.962L8.5 9.936A2 2 0 0 0 9.937 8.5l1.582-6.135a.5.5 0 0 1 .963 0L14.063 8.5A2 2 0 0 0 15.5 9.937l6.135 1.581a.5.5 0 0 1 0 .964L15.5 14.063a2 2 0 0 0-1.437 1.437l-1.582 6.135a.5.5 0 0 1-.963 0z"/><path d="M20 3v4"/><path d="M22 5h-4"/></svg>
       AI分析
     </button>
+    <button class="source-link link-risk" @click="showRiskModal = true" title="智能排雷与解禁诊断">
+      🛡️ 排雷
+    </button>
     <a class="source-link" :href="eastmoneyUrl" target="_blank" rel="noopener">东财 <UiIcon name="external" :size="11" /></a>
     <a class="source-link" :href="baiduUrl" target="_blank" rel="noopener">百度 <UiIcon name="external" :size="11" /></a>
     <a class="source-link link-wencai" :href="iwencaiUrl" target="_blank" rel="noopener">问财 <UiIcon name="external" :size="11" /></a>
+
+    <!-- 排雷诊断弹窗 -->
+    <RiskModal
+      v-if="showRiskModal"
+      :code="code"
+      :stock-name="displayName"
+      @close="showRiskModal = false"
+    />
   </div>
 </template>
 
 <script setup>
 /**
- * 个股页顶栏：返回/切换/自选/监控/外链
+ * 个股页顶栏：返回/切换/自选/监控/排雷/外链
  * @author ygw
  */
+import { ref } from 'vue'
 import BackButton from '../BackButton.vue'
 import BoardBadges from '../BoardBadges.vue'
+import RiskModal from '../RiskModal.vue'
 import { api } from '../../api.js'
 import { navigate } from '../../router.js'
+
+const showRiskModal = ref(false)
+
 
 const props = defineProps({
   backLabel: { type: String, default: '返回' },
@@ -79,20 +95,26 @@ async function gotoIndustry() {
 }
 .btn-bell:hover { color: var(--accent); background: var(--accent-bg); }
 .link-ai {
-  background: #d7f2ff; color: #0284c7; font-weight: 600;
-  border: 1px solid #7dd3fc;
+  background: var(--accent-bg); color: var(--accent); font-weight: 600;
+  border: 1px solid var(--accent);
   display: inline-flex; align-items: center; gap: 4px;
 }
-.link-ai:hover { color: #fff; background: #0ea5e9; border-color: #0ea5e9; }
+.link-ai:hover { color: #fff; background: var(--accent); border-color: var(--accent); }
+.link-risk {
+  background: var(--up-bg); color: var(--up); font-weight: 600;
+  border: 1px solid var(--up);
+  display: inline-flex; align-items: center; gap: 3px;
+}
+.link-risk:hover { color: #fff; background: var(--up); border-color: var(--up); }
 .src-tag {
-  display: inline-block; font-size: 11px; padding: 1px 6px; border-radius: 3px;
+  display: inline-block; font-size: 11px; padding: 1px 6px; border-radius: var(--radius-sm);
   background: var(--kv-bg); color: var(--text-dim); border: 1px solid var(--border);
 }
 .link-wencai {
-  background: #fff3cd; color: #1a56a8; font-weight: 600;
-  border: 1px solid #bfdbfe;
+  background: var(--yellow-bg); color: var(--yellow); font-weight: 600;
+  border: 1px solid var(--yellow);
 }
 .link-wencai:hover {
-  color: #fff; background: #1a56a8; border-color: #1a56a8;
+  color: #fff; background: var(--yellow); border-color: var(--yellow);
 }
 </style>
