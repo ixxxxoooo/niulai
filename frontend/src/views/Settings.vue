@@ -347,10 +347,11 @@ import { ref, onMounted } from 'vue'
 import { api } from '../api.js'
 import { settingsState, saveSetting, loadSettings, applyThemeMode } from '../composables/useSettings.js'
 import { watchState, clearWatch, importWatch } from '../composables/useWatchlist.js'
+import { usePageTab } from '../composables/usePageTab.js'
 
 const themeMode = ref('dark')
 const navMode = ref('top')
-const settingsTab = ref('general')
+const settingsTab = usePageTab('settings', 'general')
 const refreshInterval = ref(5)
 const offInterval = ref(30000)
 const chartTopN = ref(20)

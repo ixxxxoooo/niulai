@@ -50,13 +50,14 @@ import { fmtAmount, fmtPct, pctClass, boardBadges } from '../utils.js'
 import { navigate } from '../router.js'
 import { usePolling } from '../composables/usePolling.js'
 import { useTableSort } from '../composables/useTableSort.js'
+import { usePageTab } from '../composables/usePageTab.js'
 import { openStock as goStock } from '../composables/useStockMeta.js'
 
-const stype = ref('industry')
+const stype = usePageTab('sectors_type', 'industry')
 const sort = ref('change_pct')
 const sectors = ref([])
 const error = ref('')
-const ts = useTableSort(sectors)
+const ts = useTableSort(sectors, 'sectors_list')
 
 function switchType(t) { stype.value = t; load() }
 function switchSort(s) { sort.value = s; load() }

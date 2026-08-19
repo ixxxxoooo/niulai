@@ -368,8 +368,8 @@ const ztRows = computed(() => applyListFilter(rows.value))
 const thsRows = computed(() => applyListFilter(rows.value))
 const lhbRows = computed(() => applyListFilter(rows.value))
 const changesRows = computed(() => applyListFilter(rows.value))
-const ztSort = useTableSort(ztRows)
-const sort = useTableSort(rows)
+const ztSort = useTableSort(ztRows, 'rank_zt_pool')
+const sort = useTableSort(rows, 'rank_dt_pool')
 
 function changeTagClass(typeName) {
   if (!typeName) return ''
@@ -460,22 +460,22 @@ usePolling(load, 3000)
   font-size: 12px; color: var(--text-dim);
 }
 .name-cell { display: inline-flex; align-items: center; gap: 4px; flex-wrap: wrap; }
-.change-tag { display: inline-block; font-size: 12px; padding: 1px 8px; border-radius: 4px; white-space: nowrap; }
-.tag-up { background: rgba(239,68,68,.15); color: var(--up-color, #ef4444); }
-.tag-down { background: rgba(34,197,94,.15); color: var(--down-color, #22c55e); }
-.tag-neutral { background: var(--border); color: var(--text-dim); }
+.change-tag { display: inline-block; font-size: 12px; padding: 1px 8px; border-radius: var(--radius-sm); white-space: nowrap; }
+.tag-up { background: var(--up-bg); color: var(--up); }
+.tag-down { background: var(--down-bg); color: var(--down); }
+.tag-neutral { background: var(--kv-bg); color: var(--text-dim); }
 .zt-lb-badge {
   display: inline-block; font-size: 11px; font-weight: 700;
   color: var(--up); background: var(--up-bg);
-  border: 1px solid rgba(239,68,68,.35); border-radius: 10px;
+  border: 1px solid var(--up); border-radius: var(--radius-pill);
   padding: 1px 8px; cursor: pointer; white-space: nowrap;
 }
 .zt-lb-badge:hover { filter: brightness(1.08); box-shadow: 0 0 0 1px var(--up); }
 .zt-lb-wrap { display: inline-flex; align-items: center; gap: 4px; }
 .zt-zb-badge {
   display: inline-block; font-size: 11px; font-weight: 700;
-  color: var(--yellow); background: rgba(227, 179, 65, 0.16);
-  border: 1px solid rgba(227, 179, 65, 0.45); border-radius: 10px;
+  color: var(--yellow); background: var(--yellow-bg);
+  border: 1px solid var(--yellow); border-radius: var(--radius-pill);
   padding: 1px 8px; cursor: pointer; white-space: nowrap;
 }
 .zt-zb-badge:hover { filter: brightness(1.1); box-shadow: 0 0 0 1px var(--yellow); }

@@ -75,12 +75,47 @@ const props = defineProps({
   rows: { type: Array, default: () => [] },
   columns: { type: Array, default: () => [] },
   noFilter: { type: Boolean, default: false },
+  storageKey: { type: String, default: '' },
 })
 defineEmits(['row-click'])
 
-// ---------- 列头排序 ----------
-const sortKey = ref(null)
-const sortDir = ref(1) // 1=升序 -1=降序
+function getAutoStorageKey() {
+  if (props.storageKey) return props.storageKey
+  const hash = (window.location.hash || '').split('?')[0].replace('#/', '').replace(/\//g, '_')
+  return hash ? `stock_table_${hash}` : ''
+}
+
+// ---------- 列头排序（支持持久化） ----------
+let initialKey = null
+let initialDir = -1
+try {
+  const sk = getAutoStorageKey()
+  if (sk) {
+    const saved = localStorage.getItem('table_sort_' + sk)
+    if (saved) {
+      const parsed = JSON.parse(saved)
+      if (parsed && parsed.key) {
+        initialKey = parsed.key
+        initialDir = parsed.dir === 1 ? 1 : -1
+      }
+    }
+  }
+} catch (e) { /* ignore */ }
+
+const sortKey = ref(initialKey)
+const sortDir = ref(initialDir)
+
+function saveSort() {
+  const sk = getAutoStorageKey()
+  if (!sk) return
+  try {
+    if (sortKey.value) {
+      localStorage.setItem('table_sort_' + sk, JSON.stringify({ key: sortKey.value, dir: sortDir.value }))
+    } else {
+      localStorage.removeItem('table_sort_' + sk)
+    }
+  } catch (e) { /* ignore */ }
+}
 
 function onHeaderClick(c) {
   if (!c.sortable) return
@@ -91,8 +126,10 @@ function onHeaderClick(c) {
     sortKey.value = c.key
     sortDir.value = -1
   }
+  saveSort()
   logAction('table_sort', c.key, sortKey.value ? (sortDir.value === -1 ? 'desc' : 'asc') : 'none')
 }
+
 
 const sortedRows = computed(() => {
   const src = props.noFilter ? props.rows : applyListFilter(props.rows)

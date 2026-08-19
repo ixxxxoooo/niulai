@@ -2,6 +2,15 @@
   <div>
     <div class="error-banner" v-if="error">{{ error }}</div>
 
+    <!-- 关键日历事件横幅 -->
+    <div class="calendar-banner" v-if="nextImportantEvent" @click="go('/calendar')">
+      <span class="cal-badge">📅 重要日历</span>
+      <span class="cal-text">
+        <strong>{{ nextImportantEvent.title }}</strong>：{{ nextImportantEvent.date }} ({{ nextImportantEvent.status_text }}) · {{ nextImportantEvent.target }}
+      </span>
+      <span class="cal-link">查看日历 <UiIcon name="arrowRight" :size="12" /></span>
+    </div>
+
     <!-- A股指数 -->
     <div class="index-grid">
       <div v-for="q in overview.indices" :key="q.code" class="card index-card" @click="goIndex(q)">
@@ -158,22 +167,26 @@ function goIndex(q) {
 }
 
 async function load() {
-  try {
-    const [ov, ind, con, zs, etf] = await Promise.all([
-      api.overview(), api.sectors('industry', 'change_pct', 50),
-      api.sectors('concept', 'change_pct', 50), api.zhangsu(30),
-      api.etfRank('change_pct', 30),
-    ])
+  const reqOverview = api.overview().then(ov => {
     Object.assign(overview, ov)
-    industryTop.value = ind
-    conceptTop.value = con
-    zhangsuTop.value = zs
-    etfTop.value = etf
     error.value = ''
-  } catch (e) {
-    error.value = '数据加载失败：' + e.message
-  }
+  }).catch(e => {
+    error.value = '大盘数据加载失败：' + e.message
+  })
+
+  const reqSectors = Promise.allSettled([
+    api.sectors('industry', 'change_pct', 50).then(ind => { industryTop.value = ind }),
+    api.sectors('concept', 'change_pct', 50).then(con => { conceptTop.value = con }),
+  ])
+
+  const reqRanks = Promise.allSettled([
+    api.zhangsu(30).then(zs => { zhangsuTop.value = zs }),
+    api.etfRank('change_pct', 30).then(etf => { etfTop.value = etf }),
+  ])
+
+  await Promise.allSettled([reqOverview, reqSectors, reqRanks])
 }
+
 
 const poll = usePolling(load, 5000)
 
@@ -199,14 +212,75 @@ async function loadVolume() {
 let volTimer = null
 let trendTimer = null
 
+// 关键日历事件提醒
+const nextImportantEvent = ref(null)
+async function loadCalendarNotice() {
+  try {
+    const data = await api.calendarEvents(2)
+    if (data && data.hero_cards && data.hero_cards.length) {
+      // 优先取最近未过去的事件
+      const upcoming = data.hero_cards.filter(c => c.days_left >= 0 && c.days_left <= 7)
+      if (upcoming.length) {
+        nextImportantEvent.value = upcoming[0]
+      } else {
+        nextImportantEvent.value = data.hero_cards[0]
+      }
+    }
+  } catch (e) { /* ignore */ }
+}
+
 onMounted(() => {
   loadVolume()
   volTimer = setInterval(loadVolume, 30000)
   loadIndexTrends()
   trendTimer = setInterval(loadIndexTrends, 30000)
+  loadCalendarNotice()
 })
 onUnmounted(() => {
   clearInterval(volTimer)
   clearInterval(trendTimer)
 })
 </script>
+
+<style scoped>
+.calendar-banner {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 14px;
+  background: linear-gradient(90deg, rgba(99, 102, 241, 0.12), var(--card-bg));
+  border: 1px solid rgba(99, 102, 241, 0.3);
+  border-radius: 8px;
+  margin-bottom: 12px;
+  cursor: pointer;
+  transition: all .15s;
+}
+.calendar-banner:hover {
+  border-color: var(--accent);
+  background: linear-gradient(90deg, rgba(99, 102, 241, 0.2), var(--card-bg));
+}
+.cal-badge {
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--accent);
+  white-space: nowrap;
+}
+.cal-text {
+  font-size: 13px;
+  color: var(--text);
+  flex: 1;
+  min-width: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.cal-link {
+  font-size: 12px;
+  color: var(--accent);
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  white-space: nowrap;
+}
+</style>
+

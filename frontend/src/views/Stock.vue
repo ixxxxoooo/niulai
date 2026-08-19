@@ -567,12 +567,12 @@ async function loadHoldings() {
 
 async function loadSlow() {
   try {
-    const [tk, f, kd, lb, ad, nw, ann] = await Promise.all([
+    const [tk, f, kd, lb, sr, nw, ann] = await Promise.all([
       api.ticks(code.value, 80),
       api.moneyflowHistory(code.value, 1),
       api.kline(code.value, 'day', 120).catch(() => null),
       api.stockLhb(code.value).catch(() => null),
-      api.analysisData(code.value).catch(() => null),
+      api.baiduSr(code.value, 'day').catch(() => null),
       api.stockNews(code.value, 8).catch(() => []),
       api.stockAnnouncements(code.value, 6).catch(() => []),
     ])
@@ -597,15 +597,13 @@ async function loadSlow() {
       dayPoints.value = kd.points
       chartsRef.value?.setDayKline?.(kd)
     }
-    let sr = null
-    try { sr = await api.baiduSr(code.value, 'day') } catch (e) { /* ignore */ }
-    if ((!sr || (!sr.support?.length && !sr.resistance?.length)) && ad && ad.support_resistance) {
-      sr = ad.support_resistance
+    if (sr && (sr.support?.length || sr.resistance?.length)) {
+      srLevels.value = sr
     }
-    if (sr) srLevels.value = sr
     news.value = nw || []
   } catch (e) { /* 明细/资金流失败不影响主页面 */ }
 }
+
 
 async function screenshotFlow(el) {
   if (!el) return

@@ -69,18 +69,37 @@ export function usePolling(fetcher, intervalMs = 5000, { immediate = true, prima
     }
   }
 
+  function onVisibilityChange() {
+    if (document.hidden) {
+      if (tickTimer) { clearInterval(tickTimer); tickTimer = null }
+    } else {
+      if (!tickTimer) {
+        refresh()
+        tickTimer = setInterval(() => {
+          countdown.value -= 1
+          if (countdown.value <= 0) refresh()
+          syncGlobal()
+        }, 1000)
+      }
+    }
+  }
+
   function start() {
     stop()
     if (primary) primaryRefreshFn = refresh
     if (immediate) refresh()
-    tickTimer = setInterval(() => {
-      countdown.value -= 1
-      if (countdown.value <= 0) refresh()
-      syncGlobal()
-    }, 1000)
+    if (!document.hidden) {
+      tickTimer = setInterval(() => {
+        countdown.value -= 1
+        if (countdown.value <= 0) refresh()
+        syncGlobal()
+      }, 1000)
+    }
+    document.addEventListener('visibilitychange', onVisibilityChange)
   }
 
   function stop() {
+    document.removeEventListener('visibilitychange', onVisibilityChange)
     if (tickTimer) { clearInterval(tickTimer); tickTimer = null }
     if (primary && primaryRefreshFn === refresh) primaryRefreshFn = null
   }
@@ -90,3 +109,4 @@ export function usePolling(fetcher, intervalMs = 5000, { immediate = true, prima
 
   return { countdown, lastUpdated, refreshing, refresh, start, stop }
 }
+

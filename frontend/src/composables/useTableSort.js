@@ -3,9 +3,36 @@
 import { ref, computed, reactive } from 'vue'
 import { logAction } from './useActionLog.js'
 
-export function useTableSort(rowsRef) {
-  const sortKey = ref(null)
-  const sortDir = ref(-1)
+export function useTableSort(rowsRef, storageKey = '') {
+  let initialKey = null
+  let initialDir = -1
+
+  if (storageKey) {
+    try {
+      const saved = localStorage.getItem('table_sort_' + storageKey)
+      if (saved) {
+        const parsed = JSON.parse(saved)
+        if (parsed && parsed.key) {
+          initialKey = parsed.key
+          initialDir = parsed.dir === 1 ? 1 : -1
+        }
+      }
+    } catch (e) { /* ignore */ }
+  }
+
+  const sortKey = ref(initialKey)
+  const sortDir = ref(initialDir)
+
+  function save() {
+    if (!storageKey) return
+    try {
+      if (sortKey.value) {
+        localStorage.setItem('table_sort_' + storageKey, JSON.stringify({ key: sortKey.value, dir: sortDir.value }))
+      } else {
+        localStorage.removeItem('table_sort_' + storageKey)
+      }
+    } catch (e) { /* ignore */ }
+  }
 
   function toggleSort(key) {
     if (sortKey.value === key) {
@@ -22,6 +49,7 @@ export function useTableSort(rowsRef) {
       sortDir.value = -1
       logAction('table_sort', key, 'desc')
     }
+    save()
   }
 
   const sorted = computed(() => {
@@ -40,3 +68,4 @@ export function useTableSort(rowsRef) {
 
   return reactive({ sortKey, sortDir, toggleSort, sorted })
 }
+

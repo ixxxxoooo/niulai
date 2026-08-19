@@ -224,23 +224,25 @@ onMounted(async () => {
 .rule-item input { margin: 0; }
 .rule-desc { font-size: 12px; color: var(--text-dim); }
 .result-tabs { display: flex; gap: 4px; margin-bottom: 10px; }
-.tab-btn { padding: 4px 14px; border: 1px solid var(--border); border-radius: 6px; background: transparent; color: var(--text); cursor: pointer; font-size: 13px; }
-.tab-btn.active { background: var(--accent); color: #fff; border-color: var(--accent); }
+.tab-btn { padding: 4px 14px; border: 1px solid var(--border); border-radius: var(--radius-sm); background: var(--bg-card); color: var(--text-dim); cursor: pointer; font-size: 13px; transition: all 0.15s; }
+.tab-btn:hover { color: var(--text); background: var(--bg-hover); }
+.tab-btn.active { background: var(--accent-bg); color: var(--accent); border-color: var(--accent); font-weight: 600; }
 .result-table { overflow-x: auto; }
 .result-table table { width: 100%; border-collapse: collapse; font-size: 13px; }
 .result-table th { text-align: left; padding: 6px 8px; border-bottom: 1px solid var(--border); color: var(--text-dim); font-weight: 500; }
-.result-table td { padding: 5px 8px; border-bottom: 1px solid var(--border-dim, var(--border)); }
+.result-table td { padding: 5px 8px; border-bottom: 1px solid var(--border); font-variant-numeric: tabular-nums; }
 .clickable { cursor: pointer; }
-.clickable:hover { background: var(--hover-bg, rgba(128,128,128,.08)); }
+.clickable:hover { background: var(--bg-hover); }
 .detail-col { font-size: 12px; color: var(--text-dim); max-width: 260px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .empty-hint { padding: 20px; text-align: center; color: var(--text-dim); font-size: 13px; }
 .history-table { width: 100%; border-collapse: collapse; font-size: 12px; margin-top: 8px; }
-.history-table th, .history-table td { padding: 4px 8px; border-bottom: 1px solid var(--border); text-align: left; }
-.up { color: var(--up-color, #ef4444); }
-.down { color: var(--down-color, #22c55e); }
+.history-table th, .history-table td { padding: 4px 8px; border-bottom: 1px solid var(--border); text-align: left; font-variant-numeric: tabular-nums; }
+.up { color: var(--up); }
+.down { color: var(--down); }
 .progress-wrap { flex: 1; }
 .progress { height: 6px; background: var(--border); border-radius: 3px; overflow: hidden; }
 .progress i { display: block; height: 100%; background: var(--accent); border-radius: 3px; transition: width .3s; }
 .progress-msg { font-size: 12px; color: var(--text-dim); margin-top: 3px; }
-.btn-primary { background: var(--accent); color: #fff; border: none; }
+.btn-primary { background: var(--accent); color: #fff; border: none; border-radius: var(--radius-sm); }
+
 </style>

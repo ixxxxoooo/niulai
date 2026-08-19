@@ -124,6 +124,7 @@ import { computed, ref, watch } from 'vue'
 import { api } from '../api.js'
 import { fmtPct, fmtAmount, pctClass } from '../utils.js'
 import { usePolling } from '../composables/usePolling.js'
+import { usePageTab } from '../composables/usePageTab.js'
 import { applyListFilter } from '../composables/useListFilter.js'
 import { openStock } from '../composables/useStockMeta.js'
 import MiniTrend from '../components/MiniTrend.vue'
@@ -131,7 +132,8 @@ import BoardBadges from '../components/BoardBadges.vue'
 import LadderYouzi from '../components/LadderYouzi.vue'
 import { captureElement } from '../composables/useScreenshot.js'
 
-const tab = ref('ladder')
+const tab = usePageTab('ladder', 'ladder')
+
 
 // ── 涨停原因 · 题材聚合（开盘啦，容错降级） ──
 const kplSectors = ref([])
