@@ -19,7 +19,7 @@
             {{ loading ? '分析中…' : (hasContent ? '重新生成' : '开始分析') }}
           </UiButton>
           <span v-if="elapsed" class="ai-elapsed">{{ elapsed }}s</span>
-          <button class="btn-shot" @click="screenshot" title="截图整个浮窗"><UiIcon name="screenshot" :size="14" /></button>
+          <button class="btn-shot" @click="screenshot" title="截图复制到剪贴板"><UiIcon name="screenshot" :size="14" /></button>
           <button class="modal-close" @click="close" title="关闭"><UiIcon name="close" :size="16" /></button>
         </div>
 
@@ -49,23 +49,54 @@
               <div v-if="debugInfo" class="ai-debug">{{ debugInfo }}</div>
             </div>
 
-
-            <!-- 思考过程（Markdown 实时预览） -->
-            <div v-if="thinkingMd || currentReasoning" class="ai-think">
+            <!-- 思考过程（生成中动态高亮展开，完成后自动收起） -->
+            <div
+              v-if="thinkingMd || currentReasoning || (loading && !streamText)"
+              class="ai-think"
+              :class="{ 'is-thinking': loading && !streamText, 'is-open': thinkOpen }"
+            >
               <button type="button" class="ai-think-toggle" @click="thinkOpen = !thinkOpen">
-                <span class="ai-think-icon" :class="{ open: thinkOpen }"><UiIcon name="chevronRight" :size="12" /></span>
-                <span v-if="loading && !currentReasoning">{{ thinkOpen ? '正在思考…' : '思考中（点击展开）' }}</span>
-                <span v-else>已深度思考{{ thinkSeconds ? `（用时约 ${thinkSeconds}s）` : '' }}</span>
-                <span class="ai-think-hint">{{ thinkOpen ? '收起' : '展开' }}</span>
+                <div class="ai-think-status-wrap">
+                  <!-- 思考中动态脉冲徽标 -->
+                  <span v-if="loading && !streamText" class="think-pulse-badge">
+                    <span class="pulse-ring"></span>
+                    <span class="pulse-dot"></span>
+                  </span>
+                  <span v-else class="ai-think-icon" :class="{ open: thinkOpen }">
+                    <UiIcon name="chevronRight" :size="12" />
+                  </span>
+
+                  <!-- 状态文字 -->
+                  <span v-if="loading && !streamText" class="think-active-title">
+                    🧠 正在深度思考中…
+                    <span class="think-live-timer" v-if="thinkLiveSeconds > 0">（已思考 {{ thinkLiveSeconds }}s）</span>
+                  </span>
+                  <span v-else class="think-done-title">
+                    💡 已深度思考
+                    <span v-if="thinkSeconds" class="think-time-tag">用时约 {{ thinkSeconds }}s</span>
+                  </span>
+                </div>
+
+                <span class="ai-think-hint">{{ thinkOpen ? '收起思考' : '展开思考过程' }}</span>
               </button>
+
               <div v-show="thinkOpen" class="ai-think-body">
-                <div class="ai-think-text md" v-html="renderMd(thinkingMd || currentReasoning)"></div>
+                <!-- 刚发起请求、模型思考内容还未吐出时的过渡态 -->
+                <div v-if="loading && !thinkingMd && !currentReasoning" class="think-waiting-shimmer">
+                  <div class="ai-spinner-sm"></div>
+                  <span>正在构建股票盘口、分时均线与量价结构多维度上下文…</span>
+                </div>
+                <!-- 实时流式思考 Markdown 内容 + 打字光标 -->
+                <div v-else class="ai-think-text md">
+                  <div v-html="renderMd(thinkingMd || currentReasoning)"></div>
+                  <span v-if="loading && !streamText" class="think-typing-cursor">▌</span>
+                </div>
               </div>
             </div>
 
             <div v-if="loading && !streamText && !thinkingMd" class="ai-loading">
               <div class="ai-spinner"></div>
-              <span>正在获取数据并调用 AI…</span>
+              <span>正在获取数据并调用 AI 引擎…</span>
             </div>
 
             <div v-if="streamText && !showResult" class="ai-stream md" v-html="renderMd(streamText)"></div>
@@ -96,12 +127,18 @@
 </template>
 
 <script setup>
-// @author ygw
-import { ref, computed } from 'vue'
+/**
+ * 个股 AI 分析弹窗（含深度思考过程流式展示与剪贴板截图）
+ * @author ygw
+ */
+import { ref, computed, onUnmounted } from 'vue'
 import { marked } from 'marked'
 import { api } from '../api.js'
 import { settingsState } from '../composables/useSettings.js'
 import { captureElement } from '../composables/useScreenshot.js'
+import UiIcon from './ui/UiIcon.vue'
+import UiButton from './ui/UiButton.vue'
+import UiSelect from './ui/UiSelect.vue'
 
 const props = defineProps({
   code: { type: String, required: true },
@@ -129,8 +166,10 @@ const streamText = ref('')
 const thinkingMd = ref('')
 const thinkOpen = ref(false)
 const thinkSeconds = ref(0)
+const thinkLiveSeconds = ref(0)
 const elapsed = ref(0)
 const freshContent = ref('')
+let liveTimerId = null
 
 const hasConfig = computed(() => {
   return settingsState.aiEnabled && settingsState.aiApiKey && settingsState.aiApiKey.length > 5
@@ -189,10 +228,7 @@ function renderMd(text) {
 }
 
 /**
- * 在 Markdown HTML 上做 AI 关键词着色：先占位所有 HTML 标签，
- * 仅对纯文本着色，再还原标签，避免污染标签属性。
- * @param {string} html
- * @returns {string}
+ * 在 Markdown HTML 上做 AI 关键词着色
  */
 function mdHighlight(html) {
   const tags = []
@@ -215,7 +251,8 @@ function applyRecord(rec) {
   currentContent.value = rec.content || ''
   currentResult.value = rec.result && Object.keys(rec.result).length ? rec.result : parseAiResult(rec.content || '')
   freshContent.value = ''
-  thinkOpen.value = !!currentReasoning.value
+  // 历史记录展示时默认收起思考内容，突出正文分析
+  thinkOpen.value = false
 }
 
 async function loadHistory(selectFirst = true) {
@@ -266,10 +303,13 @@ function close() {
   open.value = false
 }
 
+/**
+ * 截图直接复制到剪贴板（不触发文件下载）
+ */
 async function screenshot() {
   if (!modalEl.value) return
   const name = (props.name || props.code || 'AI') + '_AI分析.png'
-  await captureElement(modalEl.value, name, { forceDownload: true })
+  await captureElement(modalEl.value, name, { forceDownload: false })
 }
 
 defineExpose({ open: openModal, close })
@@ -394,6 +434,13 @@ function parseAiResult(text) {
   return sections
 }
 
+function stopLiveTimer() {
+  if (liveTimerId) {
+    clearInterval(liveTimerId)
+    liveTimerId = null
+  }
+}
+
 async function runAnalysis() {
   if (!hasConfig.value) {
     error.value = '未配置 AI API Key，请前往设置页配置'
@@ -407,12 +454,21 @@ async function runAnalysis() {
   currentContent.value = ''
   currentResult.value = {}
   currentReasoning.value = ''
-  thinkOpen.value = false
+  // 开始生成时：默认展开思考过程，让用户清晰看到生成与推理动态
+  thinkOpen.value = true
   thinkSeconds.value = 0
+  thinkLiveSeconds.value = 0
   elapsed.value = 0
   freshContent.value = ''
+  stopLiveTimer()
+
   const t0 = Date.now()
-  let thinkStart = 0
+  let thinkStart = Date.now()
+
+  // 启动实时秒数计时器
+  liveTimerId = setInterval(() => {
+    thinkLiveSeconds.value = Math.max(1, Math.round((Date.now() - thinkStart) / 1000))
+  }, 250)
 
   try {
     let data = {}
@@ -470,14 +526,19 @@ async function runAnalysis() {
           const delta = chunk.choices?.[0]?.delta || {}
           const contentDelta = delta.content || ''
           const reasonDelta = delta.reasoning_content || ''
+          
           if (reasonDelta) {
-            if (!thinkStart) thinkStart = Date.now()
             reasoningText += reasonDelta
             thinkingMd.value = reasoningText
           }
           if (contentDelta) {
+            // 正文开始输出：停止思考计时器，并自动收起思考内容
             if (thinkStart && !thinkSeconds.value) {
               thinkSeconds.value = Math.max(1, Math.round((Date.now() - thinkStart) / 1000))
+              stopLiveTimer()
+            }
+            if (thinkOpen.value) {
+              thinkOpen.value = false
             }
             fullText += contentDelta
             streamText.value = fullText
@@ -488,6 +549,7 @@ async function runAnalysis() {
       }
     }
 
+    stopLiveTimer()
     if (thinkStart && !thinkSeconds.value) {
       thinkSeconds.value = Math.max(1, Math.round((Date.now() - thinkStart) / 1000))
     }
@@ -504,7 +566,9 @@ async function runAnalysis() {
     currentReasoning.value = reasoningText
     currentContent.value = fullText
     currentResult.value = parsed
-    thinkOpen.value = !!reasoningText
+    
+    // 生成完毕后：确保思考过程收起
+    thinkOpen.value = false
     elapsed.value = ((Date.now() - t0) / 1000).toFixed(1)
 
     try {
@@ -514,7 +578,7 @@ async function runAnalysis() {
         content: fullText,
         result: parsed,
       })
-      await loadHistory(true)
+      await loadHistory(false)
     } catch (e) {
       console.warn('[AI] 历史保存失败:', e.message)
     }
@@ -523,20 +587,26 @@ async function runAnalysis() {
     error.value = e.message || '分析失败'
     debugInfo.value = `code=${props.code} model=${settingsState.aiModel}`
   } finally {
+    stopLiveTimer()
     loading.value = false
   }
 }
+
+onUnmounted(() => {
+  stopLiveTimer()
+})
 </script>
 
 <style scoped>
 .ai-modal-mask {
-  position: fixed; inset: 0; background: rgba(0, 0, 0, 0.5);
+  position: fixed; inset: 0; background: rgba(0, 0, 0, 0.55);
+  backdrop-filter: blur(2px);
   display: flex; align-items: center; justify-content: center; z-index: 999;
 }
 .ai-modal {
   background: var(--bg); border: 1px solid var(--border); border-radius: 12px;
   width: 720px; max-width: 94vw; max-height: 88vh; display: flex; flex-direction: column;
-  box-shadow: 0 16px 48px rgba(0, 0, 0, 0.35);
+  box-shadow: 0 16px 48px rgba(0, 0, 0, 0.4);
 }
 .ai-modal-head {
   display: flex; align-items: center; gap: 10px; padding: 14px 18px;
@@ -575,17 +645,11 @@ async function runAnalysis() {
 .btn-shot {
   margin-left: auto;
   border: none; background: transparent; cursor: pointer;
-  padding: 3px 7px; border-radius: 6px; opacity: .75; color: var(--text);
+  padding: 4px 8px; border-radius: 6px; opacity: .75; color: var(--text);
   display: inline-flex; align-items: center; justify-content: center;
+  transition: all .15s;
 }
-.btn-shot:hover { opacity: 1; background: var(--bg-hover); }
-.btn-ai {
-  padding: 5px 14px; border-radius: var(--radius-sm); border: none; cursor: pointer;
-  background: var(--accent); color: #fff;
-  font-size: 13px; font-weight: 500; transition: opacity .2s;
-}
-.btn-ai:hover:not(:disabled) { opacity: .85; }
-.btn-ai:disabled { opacity: .5; cursor: not-allowed; }
+.btn-shot:hover { opacity: 1; background: var(--bg-hover); color: var(--accent); }
 .ai-elapsed { font-size: 12px; color: var(--text-dim); }
 .ai-tip { font-size: 13px; color: var(--text-dim); padding: 16px 0; }
 .ai-tip .link { color: var(--accent); text-decoration: underline; }
@@ -597,20 +661,136 @@ async function runAnalysis() {
   width: 18px; height: 18px; border: 2px solid var(--border); border-top-color: var(--accent);
   border-radius: 50%; animation: spin .8s linear infinite;
 }
+.ai-spinner-sm {
+  width: 14px; height: 14px; border: 2px solid var(--border); border-top-color: var(--accent);
+  border-radius: 50%; animation: spin .8s linear infinite; flex-shrink: 0;
+}
 @keyframes spin { to { transform: rotate(360deg); } }
 
-.ai-think { margin-bottom: 12px; border: 1px solid var(--border); border-radius: var(--radius-md); background: var(--kv-bg); overflow: hidden; }
+/* ── 思考过程容器 ── */
+.ai-think {
+  margin-bottom: 14px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--kv-bg);
+  overflow: hidden;
+  transition: all .25s ease;
+}
+
+/* 正在思考中的特殊高亮动效 */
+.ai-think.is-thinking {
+  border-color: rgba(76, 154, 255, 0.45);
+  background: linear-gradient(180deg, rgba(76, 154, 255, 0.06) 0%, var(--kv-bg) 100%);
+  box-shadow: 0 0 16px rgba(76, 154, 255, 0.1);
+}
+
 .ai-think-toggle {
-  width: 100%; display: flex; align-items: center; gap: 8px;
-  padding: 10px 12px; border: none; background: transparent;
+  width: 100%; display: flex; align-items: center; justify-content: space-between;
+  padding: 10px 14px; border: none; background: transparent;
   color: var(--text-dim); font-size: 13px; cursor: pointer; text-align: left;
 }
 .ai-think-toggle:hover { color: var(--text); }
-.ai-think-icon { display: inline-block; transition: transform .15s; font-size: 12px; color: var(--accent); }
-.ai-think-icon.open { transform: rotate(90deg); }
-.ai-think-hint { margin-left: auto; font-size: 12px; opacity: .7; }
-.ai-think-body { padding: 0 12px 12px; border-top: 1px dashed var(--border); }
-.ai-think-text { margin-top: 10px; font-size: 12px; line-height: 1.65; color: var(--text-dim); max-height: 280px; overflow-y: auto; }
+
+.ai-think-status-wrap {
+  display: flex; align-items: center; gap: 8px;
+}
+
+/* 脉冲跳动点 */
+.think-pulse-badge {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 16px;
+  height: 16px;
+}
+.pulse-dot {
+  width: 8px;
+  height: 8px;
+  background: var(--accent);
+  border-radius: 50%;
+}
+.pulse-ring {
+  position: absolute;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: var(--accent);
+  opacity: 0.4;
+  animation: pulse-wave 1.5s ease-out infinite;
+}
+@keyframes pulse-wave {
+  0% { transform: scale(0.6); opacity: 0.8; }
+  100% { transform: scale(1.6); opacity: 0; }
+}
+
+.think-active-title {
+  color: var(--accent);
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.think-live-timer {
+  font-size: 12px;
+  color: var(--text-dim);
+  font-weight: normal;
+}
+.think-done-title {
+  color: var(--text);
+  font-weight: 500;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.think-time-tag {
+  font-size: 11px;
+  color: var(--text-dim);
+  background: var(--bg-hover);
+  padding: 1px 6px;
+  border-radius: 4px;
+}
+
+.ai-think-icon {
+  display: inline-block; transition: transform .18s; font-size: 12px; color: var(--text-dim);
+}
+.ai-think-icon.open { transform: rotate(90deg); color: var(--accent); }
+.ai-think-hint { font-size: 11px; opacity: .7; color: var(--text-dim); }
+
+.ai-think-body {
+  padding: 0 14px 14px;
+  border-top: 1px dashed var(--border);
+}
+
+.think-waiting-shimmer {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 12px 0 4px;
+  font-size: 12px;
+  color: var(--text-dim);
+}
+
+.ai-think-text {
+  margin-top: 10px;
+  font-size: 12px;
+  line-height: 1.65;
+  color: var(--text-dim);
+  max-height: 280px;
+  overflow-y: auto;
+}
+
+.think-typing-cursor {
+  display: inline-block;
+  color: var(--accent);
+  font-weight: bold;
+  animation: blink 0.8s infinite;
+  margin-left: 2px;
+}
+@keyframes blink {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0; }
+}
 
 .ai-stream { font-size: 13px; line-height: 1.7; color: var(--text); padding: 8px 0; }
 .ai-section { margin-bottom: 16px; }
@@ -625,7 +805,6 @@ async function runAnalysis() {
 .md :deep(.ai-bear) { color: var(--down); font-weight: 600; }
 .md :deep(.ai-neutral) { color: var(--text-dim); font-weight: 600; }
 .md :deep(.ai-warn) { color: var(--yellow); font-weight: 600; }
-
 
 /* Markdown 通用样式 */
 .md h1, .md h2, .md h3, .md h4 { margin: 10px 0 6px; line-height: 1.4; }
