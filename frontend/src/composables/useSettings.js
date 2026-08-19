@@ -23,6 +23,10 @@ export const settingsState = reactive({
   aiApiKey: '',
   aiModel: 'deepseek-chat',
   aiBaseUrl: 'https://api.deepseek.com',
+  feishu_enabled: false,
+  feishu_webhook: '',
+  changes_monitor_enabled: '1',
+  changes_watch_types: '8201,8202,8193,8204,4,64,8208,8210',
   loaded: false,
 })
 
@@ -53,6 +57,10 @@ export async function loadSettings() {
     if (items.aiApiKey) settingsState.aiApiKey = items.aiApiKey
     if (items.aiModel) settingsState.aiModel = items.aiModel
     if (items.aiBaseUrl) settingsState.aiBaseUrl = items.aiBaseUrl
+    if (items.feishu_enabled !== undefined) settingsState.feishu_enabled = items.feishu_enabled === '1' || items.feishu_enabled === true
+    if (items.feishu_webhook !== undefined) settingsState.feishu_webhook = items.feishu_webhook
+    if (items.changes_monitor_enabled !== undefined) settingsState.changes_monitor_enabled = items.changes_monitor_enabled
+    if (items.changes_watch_types !== undefined) settingsState.changes_watch_types = items.changes_watch_types
     settingsState.loaded = true
   } catch (e) { /* 后端未就绪时保留默认 */ }
   return settingsState

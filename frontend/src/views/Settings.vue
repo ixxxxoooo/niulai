@@ -626,15 +626,23 @@ async function testFeishu() {
 }
 
 function setChangesMon(key, value) {
-  if (key === 'changes_monitor_enabled') changesMonitorEnabled.value = value === '1'
+  if (key === 'changes_monitor_enabled') {
+    changesMonitorEnabled.value = value === '1'
+    settingsState.changes_monitor_enabled = value
+  }
   saveSetting(key, value)
 }
 
 function toggleChangeType(code) {
   const idx = watchTypes.value.indexOf(code)
-  if (idx >= 0) watchTypes.value.splice(idx, 1)
-  else watchTypes.value.push(code)
-  saveSetting('changes_watch_types', watchTypes.value.join(','))
+  if (idx >= 0) {
+    watchTypes.value.splice(idx, 1)
+  } else {
+    watchTypes.value.push(code)
+  }
+  const str = watchTypes.value.join(',')
+  settingsState.changes_watch_types = str
+  saveSetting('changes_watch_types', str)
 }
 
 async function loadLogs() {
@@ -669,17 +677,16 @@ onMounted(async () => {
   }
   watchCount.value = watchState.codes.length
   try { stockMeta.value = await api.metaStocks() } catch (e) { /* ignore */ }
-  try {
-    const s = settingsState
-    feishuEnabled.value = s.feishu_enabled === '1' || s.feishu_enabled === true
-    feishuWebhook.value = s.feishu_webhook || ''
-  } catch {}
-  // 异动监控
-  try {
-    changesMonitorEnabled.value = (s.changes_monitor_enabled || '1') === '1'
-    const wt = s.changes_watch_types || DEFAULT_WATCH_TYPES
-    watchTypes.value = wt ? wt.split(',') : []
-  } catch {}
+
+  // 飞书通知
+  feishuEnabled.value = settingsState.feishu_enabled === '1' || settingsState.feishu_enabled === true
+  feishuWebhook.value = settingsState.feishu_webhook || ''
+
+  // 异动监控持久化加载
+  changesMonitorEnabled.value = (settingsState.changes_monitor_enabled || '1') === '1'
+  const wt = settingsState.changes_watch_types !== undefined ? settingsState.changes_watch_types : DEFAULT_WATCH_TYPES
+  watchTypes.value = wt ? wt.split(',').map(x => x.trim()).filter(Boolean) : []
+
   loadLogs()
 })
 </script>

@@ -8,7 +8,7 @@
       @change="onChange"
     />
     <span class="ui-checkbox-box">
-      <svg v-if="checked" viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5" /></svg>
+      <svg v-if="isChecked" viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5" /></svg>
     </span>
     <span v-if="label" class="ui-checkbox-label">{{ label }}</span>
     <slot />
