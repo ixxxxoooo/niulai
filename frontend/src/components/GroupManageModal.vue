@@ -4,9 +4,9 @@
       <div class="modal-hd">
         <div class="modal-hd-title">
           <span class="hd-main">自选分组管理</span>
-          <span class="hd-sub">创建、重命名、排序或删除自选分组</span>
+          <span class="hd-sub">按住左侧手柄拖拽排序，支持新建、重命名或删除</span>
         </div>
-        <UiButton size="sm" variant="ghost" @click="close">✕</UiButton>
+        <button class="modal-close-btn" @click="close" title="关闭">✕</button>
       </div>
 
       <div class="modal-bd">
@@ -31,7 +31,7 @@
           <table class="group-table">
             <thead>
               <tr>
-                <th style="width:72px;text-align:center">排序</th>
+                <th style="width:50px;text-align:center">排序</th>
                 <th>分组名称</th>
                 <th style="width:90px;text-align:center">股票数量</th>
                 <th style="width:150px;text-align:right">操作</th>
@@ -51,23 +51,7 @@
                 @dragend="onDragEnd"
               >
                 <td class="order-cell">
-                  <div class="order-cell-inner">
-                    <span class="drag-handle" title="按住拖拽排序">⋮⋮</span>
-                    <div class="order-btns">
-                      <button
-                        class="btn-order"
-                        :disabled="idx === 0 || busy"
-                        @click="moveOrder(idx, -1)"
-                        title="上移"
-                      >▲</button>
-                      <button
-                        class="btn-order"
-                        :disabled="idx === groups.length - 1 || busy"
-                        @click="moveOrder(idx, 1)"
-                        title="下移"
-                      >▼</button>
-                    </div>
-                  </div>
+                  <span class="drag-handle" title="按住拖拽调整顺序">⋮⋮</span>
                 </td>
                 <td class="name-col">
                   <div v-if="editingId === g.id" class="edit-row">
@@ -255,24 +239,6 @@ async function doDeleteGroup(g) {
   }
 }
 
-async function moveOrder(idx, delta) {
-  const targetIdx = idx + delta
-  if (targetIdx < 0 || targetIdx >= groups.value.length) return
-  const list = [...groups.value]
-  const item = list.splice(idx, 1)[0]
-  list.splice(targetIdx, 0, item)
-  busy.value = true
-  error.value = ''
-  try {
-    await reorderGroups(list.map(g => g.id))
-    emit('changed')
-  } catch (e) {
-    error.value = '排序更新失败：' + e.message
-  } finally {
-    busy.value = false
-  }
-}
-
 const dragIndex = ref(null)
 const dragOverIndex = ref(null)
 
@@ -352,9 +318,36 @@ function close() {
   border-radius: var(--radius-md);
   box-shadow: 0 12px 36px rgba(0, 0, 0, .35);
 }
+.modal-hd {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 14px 20px;
+  border-bottom: 1px solid var(--border);
+}
 .modal-hd-title { display: flex; align-items: baseline; gap: 10px; }
 .hd-main { font-size: 16px; font-weight: 600; color: var(--text); }
 .hd-sub { font-size: 12px; color: var(--text-dim); }
+
+.modal-close-btn {
+  border: none;
+  background: transparent;
+  color: var(--text-dim);
+  font-size: 16px;
+  line-height: 1;
+  width: 30px;
+  height: 30px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  transition: all .15s ease;
+}
+.modal-close-btn:hover {
+  background: var(--bg-hover);
+  color: var(--text);
+}
 
 .new-group-box { display: flex; gap: 10px; align-items: center; }
 .new-group-box .ui-input { flex: 1; }
@@ -385,23 +378,13 @@ function close() {
 }
 
 .order-cell { text-align: center; }
-.order-cell-inner { display: inline-flex; align-items: center; gap: 6px; }
 .drag-handle {
-  cursor: grab; color: var(--text-dim); font-size: 13px; font-weight: 600;
-  user-select: none; padding: 2px 4px; border-radius: 3px;
-  transition: all .12s;
+  cursor: grab; color: var(--text-dim); font-size: 14px; font-weight: 600;
+  user-select: none; padding: 4px 8px; border-radius: 4px;
+  display: inline-block; transition: all .12s;
 }
 .drag-handle:hover { color: var(--text); background: var(--bg-hover); }
 .drag-handle:active { cursor: grabbing; }
-
-.order-btns { display: flex; flex-direction: column; gap: 2px; align-items: center; }
-.btn-order {
-  border: none; background: var(--bg-hover); cursor: pointer; color: var(--text-dim);
-  font-size: 9px; line-height: 1; padding: 2px 5px; border-radius: 2px;
-  transition: all .12s;
-}
-.btn-order:hover:not(:disabled) { background: var(--border); color: var(--text); }
-.btn-order:disabled { opacity: .2; cursor: not-allowed; }
 
 .name-display { display: flex; align-items: center; gap: 8px; }
 .g-icon { font-size: 15px; line-height: 1; }

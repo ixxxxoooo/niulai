@@ -43,9 +43,9 @@ def search(
 @router.get("/stocks/batch")
 @ttl_cache()
 def stocks_batch(codes: str = Query(..., description="逗号分隔的股票代码")):
-    """批量快照（自选股用）：分批并发 ulist 拉涨速/主力净流入，支持最多 200 只自选。"""
+    """批量快照（自选股用）：分批并发 ulist 拉涨速/主力净流入，支持最多 800 只标的。"""
     from concurrent.futures import ThreadPoolExecutor
-    code_list = [c.strip() for c in codes.split(",") if c.strip()][:200]
+    code_list = [c.strip() for c in codes.split(",") if c.strip()][:800]
     if not code_list:
         return []
     metas = db.get_stocks_map(code_list)
@@ -71,7 +71,7 @@ def stocks_batch(codes: str = Query(..., description="逗号分隔的股票代�
     if len(batches) == 1:
         briefs = _fetch_batch(batches[0])
     else:
-        with ThreadPoolExecutor(max_workers=min(len(batches), 4)) as ex:
+        with ThreadPoolExecutor(max_workers=min(len(batches), 8)) as ex:
             for res in ex.map(_fetch_batch, batches):
                 briefs.extend(res)
 

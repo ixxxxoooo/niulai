@@ -46,11 +46,6 @@
             >{{ fmtPct(getGroupAvgPct(g)) }}</span>
           </button>
         </div>
-        <div class="group-bar-actions">
-          <UiButton size="sm" variant="subtle" @click="showGroupManage = true">
-            ⚙ 分组管理
-          </UiButton>
-        </div>
       </div>
 
       <div class="card mt12" v-if="watchStocks.length" ref="stockCard">
@@ -393,6 +388,17 @@
       @close="showStockGroup = false"
       @saved="onStockGroupSaved"
     />
+
+    <!-- 右下角悬浮设置按钮：自选分组管理 -->
+    <button
+      v-if="tab === 'watch'"
+      class="floating-group-btn"
+      title="自选分组管理与排序"
+      @click="showGroupManage = true"
+    >
+      <span class="floating-btn-icon">⚙</span>
+      <span class="floating-btn-text">分组管理</span>
+    </button>
   </div>
 </template>
 <script setup>
@@ -853,7 +859,39 @@ usePolling(load, 3000)
 .group-pill.pill-dragging { opacity: 0.35; transform: scale(0.95); }
 .group-pill.pill-drag-over { border-color: var(--accent); background: var(--accent-bg); transform: scale(1.05); }
 
-.group-bar-actions { flex-shrink: 0; padding-top: 2px; }
+/* 右下角悬浮分组管理设置按钮 */
+.floating-group-btn {
+  position: fixed;
+  right: 28px;
+  bottom: 28px;
+  z-index: 90;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 9px 16px;
+  border-radius: 24px;
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  color: var(--text);
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  box-shadow: 0 4px 18px rgba(0, 0, 0, .28);
+  transition: all .2s cubic-bezier(.4, 0, .2, 1);
+  backdrop-filter: blur(8px);
+}
+.floating-group-btn:hover {
+  background: var(--accent);
+  color: #fff;
+  border-color: var(--accent);
+  transform: translateY(-2px);
+  box-shadow: 0 6px 22px rgba(76, 154, 255, .35);
+}
+.floating-group-btn:active {
+  transform: translateY(0);
+}
+.floating-btn-icon { font-size: 14px; line-height: 1; }
+
 .empty-title { font-size: 14px; font-weight: 500; color: var(--text); }
 .empty-desc { font-size: 12px; color: var(--text-dim); margin-top: 4px; }
 .empty-actions { display: flex; gap: 10px; justify-content: center; }
