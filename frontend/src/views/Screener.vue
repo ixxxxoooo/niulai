@@ -350,7 +350,7 @@
 </template>
 
 <script setup>
-import { ref, reactive, computed, onMounted } from 'vue'
+import { ref, reactive, computed, onMounted, watch } from 'vue'
 import { api } from '../api.js'
 import { showToast } from '../composables/useToast.js'
 import { showConfirm } from '../composables/useConfirm.js'
