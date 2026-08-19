@@ -1,9 +1,10 @@
 <template>
   <div class="page screener-page">
+    <!-- 顶部标题 -->
     <div class="header-section">
       <div class="title-wrap">
         <h2>盘后量化选股</h2>
-        <span class="sub-title">多策略共振扫描 · 智能排雷去杂 · 本地极速量化引擎</span>
+        <span class="sub-title">8 大高胜率经典实战策略 · 多策略共振扫描 · 智能排雷去杂</span>
       </div>
       <div class="auto-badge" title="交易日 15:30 自动收盘归档">
         <UiIcon name="flash" :size="13" /> 交易日 15:30 自动全市场归档
@@ -15,7 +16,7 @@
       <div class="card-title">
         <span class="step-num">1</span>
         <span>日 K 线数据状态</span>
-        <span class="card-sub-info">选股依赖本地收盘日 K 线数据</span>
+        <span class="card-sub-info">选股依赖本地收盘日 K 线数据，1.5 秒极速全量归档</span>
       </div>
 
       <div class="stats-row">
@@ -32,8 +33,8 @@
           <div class="stat-num">{{ fmtNum(syncSt.total_bars || 0) }} <span class="stat-unit">条</span></div>
         </div>
         <div class="stat-card">
-          <div class="stat-meta">全市场批量打包</div>
-          <div class="stat-num success">11 次请求 / 1.5s</div>
+          <div class="stat-meta">批量接口性能</div>
+          <div class="stat-num success">11 次请求 / 1.5s (0频控)</div>
         </div>
       </div>
 
@@ -47,7 +48,7 @@
           {{ syncing && syncMode === 'history' ? '历史K线同步中…' : '同步历史K线 (前120日)' }}
         </UiButton>
         <span class="sync-hint" v-if="syncSt.latest_date">
-          数据已归档至 {{ syncSt.latest_date }}，可直接开始选股
+          数据已归档至 {{ syncSt.latest_date }}，随时可开启量化选股
         </span>
       </div>
 
@@ -64,10 +65,11 @@
     <div class="card section-card">
       <div class="card-title">
         <span class="step-num">2</span>
-        <span>策略模型选择</span>
-        <span class="card-sub-info">支持多策略组合，系统将自动计算多策略共振强势标的</span>
+        <span>量化策略选择与智能排雷</span>
+        <span class="card-sub-info">点击卡片即可勾选策略，多策略叠加将自动计算「共振强势标的」</span>
       </div>
 
+      <!-- 8 大高胜率策略卡片网格 -->
       <div class="strategy-cards-grid">
         <div
           v-for="r in ruleList"
@@ -77,38 +79,100 @@
           @click="toggleRule(r.id)"
         >
           <div class="st-header">
-            <div class="st-check-icon">
-              <UiIcon v-if="selectedRules.includes(r.id)" name="check" :size="12" />
+            <div class="st-check-box">
+              <UiIcon v-if="selectedRules.includes(r.id)" name="check" :size="13" />
             </div>
             <div class="st-name">{{ r.name }}</div>
-            <span class="st-badge">{{ getStrategyTag(r.id) }}</span>
+            <span class="st-badge" :class="getBadgeClass(r.badge)">{{ r.badge || r.tag }}</span>
           </div>
           <div class="st-desc">{{ r.desc }}</div>
         </div>
       </div>
 
-      <div class="options-bar">
-        <div class="opt-group">
-          <span class="opt-label">扫描股票池：</span>
-          <UiRadio v-model="scope" value="all" label="全 A 股 (排除ST/破位)" />
-          <UiRadio v-model="scope" value="watchlist" label="仅我的自选股" />
+      <!-- 股票池范围与排除项过滤 -->
+      <div class="filter-panel">
+        <div class="filter-row">
+          <span class="filter-title">扫描范围：</span>
+          <div class="filter-options">
+            <label class="radio-pill" :class="{ active: scope === 'all' }" @click="scope = 'all'">
+              <span class="radio-dot"></span> 全 A 股市场 (5400+只)
+            </label>
+            <label class="radio-pill" :class="{ active: scope === 'watchlist' }" @click="scope = 'watchlist'">
+              <span class="radio-dot"></span> 仅我的自选股
+            </label>
+          </div>
         </div>
 
-        <div class="opt-group">
-          <UiCheckbox v-model="notifyFeishu" label="扫描完成后推送到飞书群" />
+        <div class="filter-row">
+          <span class="filter-title">排雷与排除：</span>
+          <div class="filter-chips">
+            <div
+              class="chip-btn"
+              :class="{ active: filters.exclude_st }"
+              @click="filters.exclude_st = !filters.exclude_st"
+            >
+              <UiIcon name="check" :size="12" v-if="filters.exclude_st" />
+              <span>排除 ST / *ST 股</span>
+            </div>
+
+            <div
+              class="chip-btn"
+              :class="{ active: filters.exclude_broken }"
+              @click="filters.exclude_broken = !filters.exclude_broken"
+            >
+              <UiIcon name="check" :size="12" v-if="filters.exclude_broken" />
+              <span>排除破位大跌股 (&lt;-3%)</span>
+            </div>
+
+            <div
+              class="chip-btn"
+              :class="{ active: filters.exclude_bjs }"
+              @click="filters.exclude_bjs = !filters.exclude_bjs"
+            >
+              <UiIcon name="check" :size="12" v-if="filters.exclude_bjs" />
+              <span>排除北交所 (8/4/920)</span>
+            </div>
+
+            <div
+              class="chip-btn"
+              :class="{ active: filters.exclude_kcb }"
+              @click="filters.exclude_kcb = !filters.exclude_kcb"
+            >
+              <UiIcon name="check" :size="12" v-if="filters.exclude_kcb" />
+              <span>排除科创板 (688)</span>
+            </div>
+
+            <div
+              class="chip-btn"
+              :class="{ active: filters.exclude_cyb }"
+              @click="filters.exclude_cyb = !filters.exclude_cyb"
+            >
+              <UiIcon name="check" :size="12" v-if="filters.exclude_cyb" />
+              <span>排除创业板 (300/301)</span>
+            </div>
+
+            <div
+              class="chip-btn"
+              :class="{ active: notifyFeishu }"
+              @click="notifyFeishu = !notifyFeishu"
+            >
+              <UiIcon name="check" :size="12" v-if="notifyFeishu" />
+              <span>完成推送到飞书群</span>
+            </div>
+          </div>
         </div>
       </div>
 
-      <div class="action-execute-row">
-        <UiButton
-          variant="primary"
-          size="lg"
+      <!-- 居中大气的主执行按钮 -->
+      <div class="execute-center-wrap">
+        <button
+          class="btn-execute-glow"
           :disabled="running || !selectedRules.length || !syncSt.stock_count"
           @click="runScreen"
         >
-          <UiIcon name="search" :size="15" />
-          {{ running ? '量化引擎极速扫描中…' : '🚀 开始量化选股 (一键多策略共振扫描)' }}
-        </UiButton>
+          <UiIcon name="search" :size="18" />
+          <span>{{ running ? '量化引擎极速扫描中…' : '开始量化选股 (一键多策略共振扫描)' }}</span>
+        </button>
         <span class="warn-tip" v-if="!syncSt.stock_count">请先同步日 K 数据底座后再执行选股</span>
       </div>
     </div>
@@ -236,8 +300,13 @@
     <!-- 历史任务归档 -->
     <details class="card section-card history-panel" v-if="runs.length">
       <summary class="history-summary">
-        <span>📜 历史选股扫描归档 (共 {{ runs.length }} 次)</span>
-        <span class="summary-hint">点击展开查看历史记录</span>
+        <div class="history-title-wrap">
+          <span>📜 历史选股扫描归档 (共 {{ runs.length }} 次)</span>
+          <span class="summary-hint">点击展开查看历史记录</span>
+        </div>
+        <button class="btn-clear-history" @click.prevent.stop="clearHistory">
+          <UiIcon name="trash" :size="12" /> 清空历史归档
+        </button>
       </summary>
       <div class="history-table-wrap">
         <table class="data-table">
@@ -270,14 +339,12 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted } from 'vue'
+import { ref, reactive, computed, onMounted } from 'vue'
 import { api } from '../api.js'
 import { navigate } from '../router.js'
 import { showToast } from '../composables/useToast.js'
 import { fmtPrice, fmtPct, fmtNum, fmtAmount, pctClass } from '../utils.js'
 import UiButton from '../components/ui/UiButton.vue'
-import UiCheckbox from '../components/ui/UiCheckbox.vue'
-import UiRadio from '../components/ui/UiRadio.vue'
 import UiIcon from '../components/ui/UiIcon.vue'
 
 const syncSt = ref({})
@@ -288,7 +355,7 @@ const syncMode = ref('today_bulk')
 let syncTimer = null
 
 const ruleList = ref([])
-const selectedRules = ref(['breakout', 'golden_cross', 'volume_surge', 'ma_bullish'])
+const selectedRules = ref(['breakout', 'ma_bullish', 'golden_cross', 'volume_surge'])
 const scope = ref('all')
 const notifyFeishu = ref(false)
 const running = ref(false)
@@ -296,6 +363,15 @@ const result = ref(null)
 const activeTab = ref('all_aggregated')
 const sortBy = ref('resonance')
 const runs = ref([])
+
+// 排除项过滤器
+const filters = reactive({
+  exclude_st: true,
+  exclude_broken: true,
+  exclude_bjs: true,
+  exclude_kcb: false,
+  exclude_cyb: false,
+})
 
 const ruleMap = computed(() => {
   const m = {}
@@ -307,24 +383,25 @@ function getRuleName(id) {
   return ruleMap.value[id] || id
 }
 
-function getStrategyTag(id) {
-  const map = {
-    breakout: '趋势突破',
-    golden_cross: '均线指标',
-    volume_surge: '量价异动',
-    ma_bullish: '多头排列',
-    pullback_support: '回踩买点',
-  }
-  return map[id] || '量化策略'
+function getBadgeClass(badge) {
+  if (!badge) return ''
+  if (badge.includes('强烈推荐')) return 'badge-fire'
+  if (badge.includes('胜率极高')) return 'badge-diamond'
+  if (badge.includes('爆发力强')) return 'badge-rocket'
+  if (badge.includes('极佳盈亏比')) return 'badge-target'
+  return ''
 }
 
 function getRuleTagClass(id) {
   const map = {
     breakout: 'tag-breakout',
+    ma_bullish: 'tag-ma',
     golden_cross: 'tag-gold',
     volume_surge: 'tag-vol',
-    ma_bullish: 'tag-ma',
     pullback_support: 'tag-pullback',
+    box_breakout: 'tag-box',
+    macd_zero_cross: 'tag-macd',
+    oversold_rebound: 'tag-bounce',
   }
   return map[id] || ''
 }
@@ -430,7 +507,7 @@ async function runScreen() {
   running.value = true
   result.value = null
   try {
-    const res = await api.screenerRun(selectedRules.value, scope.value, notifyFeishu.value)
+    const res = await api.screenerRun(selectedRules.value, scope.value, notifyFeishu.value, null, filters)
     result.value = res
     activeTab.value = 'all_aggregated'
     loadRuns()
@@ -444,6 +521,17 @@ async function runScreen() {
 
 async function loadRuns() {
   try { runs.value = (await api.screenerRuns(20)).runs || [] } catch {}
+}
+
+async function clearHistory() {
+  if (!confirm('确认清空历史选股归档记录吗？')) return
+  try {
+    await api.screenerClearRuns()
+    runs.value = []
+    showToast('已清空历史选股记录')
+  } catch (e) {
+    showToast('清空失败：' + (e.message || e), 'error')
+  }
 }
 
 async function loadRun(id) {
@@ -469,7 +557,7 @@ onMounted(async () => {
 </script>
 
 <style scoped>
-.screener-page { max-width: 1040px; margin: 0 auto; padding-bottom: 40px; }
+.screener-page { max-width: 1060px; margin: 0 auto; padding-bottom: 40px; }
 
 .header-section {
   display: flex; align-items: center; justify-content: space-between;
@@ -488,10 +576,10 @@ onMounted(async () => {
 .section-card { margin-bottom: 16px; }
 .card-title {
   display: flex; align-items: center; gap: 8px; font-size: 15px; font-weight: 600;
-  color: var(--text); margin-bottom: 12px;
+  color: var(--text); margin-bottom: 14px;
 }
 .step-num {
-  width: 20px; height: 20px; border-radius: 50%; background: var(--accent);
+  width: 22px; height: 22px; border-radius: 50%; background: var(--accent);
   color: #fff; font-size: 12px; display: inline-flex; align-items: center;
   justify-content: center; font-weight: 700;
 }
@@ -526,7 +614,7 @@ onMounted(async () => {
 
 /* 策略选择卡片 */
 .strategy-cards-grid {
-  display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
   gap: 12px; margin-bottom: 16px;
 }
 .strategy-card-item {
@@ -537,15 +625,15 @@ onMounted(async () => {
 .strategy-card-item:hover { border-color: var(--accent); background: var(--bg-hover); }
 .strategy-card-item.active {
   border-color: var(--accent); background: rgba(76, 154, 255, 0.08);
-  box-shadow: 0 0 10px rgba(76, 154, 255, 0.15);
+  box-shadow: 0 0 12px rgba(76, 154, 255, 0.15);
 }
 .st-header { display: flex; align-items: center; gap: 8px; }
-.st-check-icon {
+.st-check-box {
   width: 18px; height: 18px; border-radius: 4px; border: 1px solid var(--border);
   background: var(--bg-card); display: inline-flex; align-items: center; justify-content: center;
   color: transparent; transition: all .15s; flex-shrink: 0;
 }
-.strategy-card-item.active .st-check-icon {
+.strategy-card-item.active .st-check-box {
   background: var(--accent); border-color: var(--accent); color: #fff;
 }
 .st-name { font-size: 14px; font-weight: 600; color: var(--text); }
@@ -553,18 +641,69 @@ onMounted(async () => {
   margin-left: auto; font-size: 11px; color: var(--text-dim);
   background: var(--bg-hover); padding: 2px 6px; border-radius: 4px;
 }
+.badge-fire { color: var(--up); background: var(--up-bg); font-weight: 600; }
+.badge-diamond { color: var(--accent); background: var(--accent-bg); font-weight: 600; }
+.badge-rocket { color: #a855f7; background: rgba(168, 85, 247, 0.12); font-weight: 600; }
+.badge-target { color: #22c55e; background: rgba(34, 197, 94, 0.12); font-weight: 600; }
 .st-desc { font-size: 12px; color: var(--text-dim); line-height: 1.45; }
 
-.options-bar {
+/* 过滤排雷面板 */
+.filter-panel {
   border-top: 1px solid var(--border); padding-top: 14px;
-  display: flex; align-items: center; justify-content: space-between;
-  flex-wrap: wrap; gap: 14px; margin-bottom: 16px;
+  display: flex; flex-direction: column; gap: 12px; margin-bottom: 20px;
 }
-.opt-group { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
-.opt-label { font-size: 13px; color: var(--text-dim); font-weight: 500; }
+.filter-row { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+.filter-title { font-size: 13px; font-weight: 600; color: var(--text-dim); min-width: 80px; }
+.filter-options { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+.radio-pill {
+  display: inline-flex; align-items: center; gap: 6px; padding: 6px 14px;
+  border-radius: var(--radius-pill); border: 1px solid var(--border);
+  background: var(--kv-bg); color: var(--text-dim); font-size: 13px;
+  cursor: pointer; user-select: none; transition: all .15s;
+}
+.radio-pill:hover { border-color: var(--accent); color: var(--text); }
+.radio-pill.active {
+  background: var(--accent-bg); color: var(--accent); border-color: var(--accent); font-weight: 600;
+}
+.radio-dot {
+  width: 8px; height: 8px; border-radius: 50%; background: var(--border);
+}
+.radio-pill.active .radio-dot { background: var(--accent); }
 
-.action-execute-row { display: flex; align-items: center; gap: 14px; }
-.warn-tip { font-size: 12px; color: var(--up); }
+.filter-chips { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+.chip-btn {
+  display: inline-flex; align-items: center; gap: 6px; padding: 6px 12px;
+  border-radius: var(--radius-sm); border: 1px solid var(--border);
+  background: var(--kv-bg); color: var(--text-dim); font-size: 12px;
+  cursor: pointer; user-select: none; transition: all .15s;
+}
+.chip-btn:hover { border-color: var(--accent); color: var(--text); }
+.chip-btn.active {
+  background: var(--accent-bg); color: var(--accent); border-color: var(--accent); font-weight: 600;
+}
+
+/* 居中执行主按钮 */
+.execute-center-wrap {
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  padding: 10px 0 8px;
+}
+.btn-execute-glow {
+  display: inline-flex; align-items: center; justify-content: center; gap: 10px;
+  padding: 14px 42px; border-radius: 30px; border: none;
+  background: linear-gradient(135deg, #4c9aff 0%, #2563eb 100%);
+  color: #ffffff; font-size: 16px; font-weight: 700; cursor: pointer;
+  box-shadow: 0 4px 18px rgba(37, 99, 235, 0.35); transition: all .2s ease;
+}
+.btn-execute-glow:hover:not(:disabled) {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 24px rgba(37, 99, 235, 0.45);
+  background: linear-gradient(135deg, #60a5fa 0%, #1d4ed8 100%);
+}
+.btn-execute-glow:active:not(:disabled) { transform: translateY(0); }
+.btn-execute-glow:disabled {
+  opacity: 0.5; cursor: not-allowed; box-shadow: none;
+}
+.warn-tip { font-size: 12px; color: var(--up); margin-top: 8px; }
 
 /* 结果面板 */
 .result-header {
@@ -636,6 +775,9 @@ onMounted(async () => {
 .tag-vol { background: rgba(168, 85, 247, 0.12); color: #a855f7; border-color: rgba(168, 85, 247, 0.25); }
 .tag-ma { background: rgba(59, 130, 246, 0.12); color: var(--accent); border-color: rgba(59, 130, 246, 0.25); }
 .tag-pullback { background: rgba(34, 197, 94, 0.12); color: #22c55e; border-color: rgba(34, 197, 94, 0.25); }
+.tag-box { background: rgba(236, 72, 153, 0.12); color: #ec4899; border-color: rgba(236, 72, 153, 0.25); }
+.tag-macd { background: rgba(14, 165, 233, 0.12); color: #0ea5e9; border-color: rgba(14, 165, 233, 0.25); }
+.tag-bounce { background: rgba(249, 115, 22, 0.12); color: #f97316; border-color: rgba(249, 115, 22, 0.25); }
 
 .signal-col { font-size: 12px; color: var(--text); line-height: 1.4; }
 .btn-view {
@@ -654,7 +796,15 @@ onMounted(async () => {
   cursor: pointer; user-select: none; font-size: 14px; font-weight: 600;
   color: var(--text); display: flex; align-items: center; justify-content: space-between;
 }
+.history-title-wrap { display: flex; align-items: center; gap: 8px; }
 .summary-hint { font-size: 12px; color: var(--text-dim); font-weight: normal; }
+.btn-clear-history {
+  padding: 3px 10px; font-size: 12px; border-radius: 4px; border: 1px solid var(--border);
+  background: var(--kv-bg); color: var(--text-dim); cursor: pointer; display: inline-flex;
+  align-items: center; gap: 4px; transition: all .15s;
+}
+.btn-clear-history:hover { color: var(--up); border-color: var(--up); background: var(--up-bg); }
+
 .history-table-wrap { margin-top: 12px; overflow-x: auto; }
 .badge-status { font-size: 11px; padding: 2px 6px; border-radius: 4px; background: var(--bg-hover); color: var(--text-dim); }
 .action-btn { color: var(--accent); font-size: 12px; cursor: pointer; }

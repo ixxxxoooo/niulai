@@ -181,9 +181,10 @@ export const api = {
   screenerSyncBars: (lookback = 120, scope = 'all', mode = 'today_bulk') =>
     send('POST', '/screener/sync-bars', { lookback_days: lookback, scope, mode }),
   screenerSyncStatus: () => get('/screener/sync-status'),
-  screenerRun: (rules, scope = 'all', notifyFeishu = false, params = null) =>
-    send('POST', '/screener/run', { rules, scope, notify_feishu: notifyFeishu, params }),
+  screenerRun: (rules, scope = 'all', notifyFeishu = false, params = null, filters = null) =>
+    send('POST', '/screener/run', { rules, scope, notify_feishu: notifyFeishu, params, filters }),
   screenerRuns: (limit = 20) => get(`/screener/runs?limit=${limit}`),
+  screenerClearRuns: () => send('DELETE', '/screener/runs'),
   screenerRunDetail: (id) => get(`/screener/runs/${id}`),
 }
 

@@ -21,6 +21,7 @@ class ScreenRunBody(BaseModel):
     rules: List[str] = Field(default=["breakout", "golden_cross", "volume_surge"])
     scope: str = Field(default="all", pattern="^(all|watchlist)$")
     params: Optional[dict] = None
+    filters: Optional[dict] = None
     notify_feishu: bool = False
 
 
@@ -70,14 +71,14 @@ def screener_sync_status():
 def screener_run(body: ScreenRunBody):
     """
     执行盘后选股扫描。
-    rules: ["breakout", "golden_cross", "volume_surge"] 中的子集。
+    rules: ["breakout", "golden_cross", "volume_surge"] 等。
     """
     from ...analyzer.screener import RULES, run_screen
     valid_rules = [r for r in body.rules if r in RULES]
     if not valid_rules:
         raise HTTPException(status_code=400, detail="请至少选择一条有效规则")
 
-    result = run_screen(valid_rules, body.params, body.scope)
+    result = run_screen(valid_rules, body.params, body.scope, body.filters)
 
     # 可选飞书推送
     if body.notify_feishu:
@@ -98,7 +99,14 @@ def screener_rules():
     """可用的选股规则列表。"""
     from ...analyzer.screener import RULES
     return {"rules": [
-        {"id": k, "name": v["name"], "desc": v["desc"], "default_params": v["default_params"]}
+        {
+            "id": k,
+            "name": v["name"],
+            "tag": v.get("tag", "量化策略"),
+            "badge": v.get("badge", ""),
+            "desc": v["desc"],
+            "default_params": v["default_params"],
+        }
         for k, v in RULES.items()
     ]}
 
@@ -108,6 +116,14 @@ def screener_runs(limit: int = Query(20, ge=1, le=100)):
     """历史选股任务列表。"""
     from ...analyzer.screener import list_runs
     return {"runs": list_runs(limit)}
+
+
+@router.delete("/screener/runs")
+def screener_clear_runs():
+    """清空历史选股归档。"""
+    from ...analyzer.screener import clear_runs
+    clear_runs()
+    return {"ok": True}
 
 
 @router.get("/screener/runs/{run_id}")

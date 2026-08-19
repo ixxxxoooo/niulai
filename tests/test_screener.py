@@ -9,7 +9,7 @@ from backend.db.daily_sync import (
     auto_sync_daily_bars_if_needed,
     daily_sync_status,
 )
-from backend.analyzer.screener import RULES, run_screen
+from backend.analyzer.screener import RULES, run_screen, clear_runs
 
 
 def test_screener_rules_list():
@@ -18,6 +18,9 @@ def test_screener_rules_list():
     assert "volume_surge" in RULES
     assert "ma_bullish" in RULES
     assert "pullback_support" in RULES
+    assert "box_breakout" in RULES
+    assert "macd_zero_cross" in RULES
+    assert "oversold_rebound" in RULES
 
 
 def test_sync_today_bars_bulk_mocked():
@@ -60,34 +63,47 @@ def test_auto_sync_daily_bars_schedule():
         mock_sync.assert_not_called()
 
 
-def test_run_screen_local_engine():
+def test_run_screen_local_engine_and_filters():
     store.init_db()
     conn = store.get_conn()
-    
-    # 构造模拟股票与 30 日模拟日 K
-    code = "600999"
-    conn.execute("INSERT OR REPLACE INTO stocks(code, name, classify) VALUES (?, ?, 'AStock')", (code, "测试牛股"))
-    
-    # 模拟均线多头上升形态且成交量/额达标（>1亿）
-    bars = []
-    base_date = datetime.date(2026, 7, 1)
-    for i in range(30):
-        d_str = (base_date + datetime.timedelta(days=i)).isoformat()
-        close = 10.0 + i * 0.2  # 稳步上升
-        vol = 10_000_000 + (20_000_000 if i == 29 else 0)
-        amount = close * vol  # > 1 亿
-        bars.append((code, d_str, close - 0.1, close + 0.2, close - 0.2, close, vol, amount))
 
+    # 构造模拟股票（主板、科创板、ST股）
+    conn.execute("INSERT OR REPLACE INTO stocks(code, name, is_st, classify) VALUES ('600999', '测试牛股', 0, 'AStock')")
+    conn.execute("INSERT OR REPLACE INTO stocks(code, name, is_st, classify) VALUES ('688001', '科创龙头', 0, 'AStock')")
+    conn.execute("INSERT OR REPLACE INTO stocks(code, name, is_st, classify) VALUES ('600000', '*ST测试', 1, 'AStock')")
+
+    def _make_bars(code, base_p=10.0):
+        bars = []
+        base_date = datetime.date(2026, 7, 1)
+        for i in range(30):
+            d_str = (base_date + datetime.timedelta(days=i)).isoformat()
+            close = base_p + i * 0.2
+            vol = 10_000_000 + (20_000_000 if i == 29 else 0)
+            amount = close * vol
+            bars.append((code, d_str, close - 0.1, close + 0.2, close - 0.2, close, vol, amount))
+        return bars
+
+    all_bars = _make_bars("600999") + _make_bars("688001") + _make_bars("600000")
     conn.executemany(
         "INSERT OR REPLACE INTO daily_bars(code, trade_date, open, high, low, close, volume, amount) VALUES (?,?,?,?,?,?,?,?)",
-        bars,
+        all_bars,
     )
     conn.commit()
 
-    # 运行选股
-    res = run_screen(["breakout", "volume_surge", "ma_bullish"], scope="all")
-    assert res["scanned"] >= 1
-    assert "hits" in res
-    assert len(res["hits"].get("breakout", [])) >= 1
-    assert len(res["hits"].get("volume_surge", [])) >= 1
-    assert len(res["hits"].get("ma_bullish", [])) >= 1
+    # 1. 默认过滤 ST，排除 600000
+    res = run_screen(["breakout", "volume_surge", "ma_bullish"], scope="all", filters={"exclude_st": True, "exclude_kcb": False})
+    hit_codes = [it["code"] for it in res.get("items", [])]
+    assert "600999" in hit_codes
+    assert "688001" in hit_codes
+    assert "600000" not in hit_codes
+
+    # 2. 开启排除科创板，排除 688001
+    res2 = run_screen(["breakout"], scope="all", filters={"exclude_st": True, "exclude_kcb": True})
+    hit_codes2 = [it["code"] for it in res2.get("items", [])]
+    assert "600999" in hit_codes2
+    assert "688001" not in hit_codes2
+
+    # 3. 测试清空归档
+    clear_runs()
+    runs_cnt = conn.execute("SELECT COUNT(*) FROM screener_runs").fetchone()[0]
+    assert runs_cnt == 0
