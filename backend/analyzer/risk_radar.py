@@ -15,14 +15,14 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 from typing import Any, Dict, List, Optional
 from ..datasource import eastmoney
 
-# 线程安全的内存诊断缓存 (code -> (timestamp, data))，财务/解禁公告缓存 30 分钟
+# 线程安全的内存诊断缓存 (code -> (timestamp, data))，财务/解禁公告缓存 24 小时（每天仅需更新一次）
 _DIAG_CACHE: Dict[str, tuple[float, Dict[str, Any]]] = {}
 _DIAG_LOCK = threading.Lock()
-_CACHE_TTL = 1800.0  # 30 分钟
+_CACHE_TTL = 86400.0  # 24 小时（财务与解禁数据为日级低频静态公告）
 
 
 def diagnose_stock_risk(code: str) -> Dict[str, Any]:
-    """单只股票智能排雷诊断（带 30 分钟内存缓存）"""
+    """单只股票智能排雷诊断（带 24 小时内存缓存）"""
     clean_code = str(code).strip()
     if "." in clean_code:
         clean_code = clean_code.split(".")[0]
