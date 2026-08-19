@@ -245,29 +245,59 @@ function clearSearch() {
   renderChart(rawItems.value)
 }
 
+// ------------------------------------------------------------- 颜色平滑渐变算法
+function hexToRgb(hex) {
+  const clean = hex.replace(/^#/, '')
+  return [
+    parseInt(clean.substring(0, 2), 16),
+    parseInt(clean.substring(2, 4), 16),
+    parseInt(clean.substring(4, 6), 16),
+  ]
+}
+
+function lerpRgb(c1, c2, t) {
+  const clamped = Math.max(0, Math.min(1, t))
+  return [
+    Math.round(c1[0] + (c2[0] - c1[0]) * clamped),
+    Math.round(c1[1] + (c2[1] - c1[1]) * clamped),
+    Math.round(c1[2] + (c2[2] - c1[2]) * clamped),
+  ]
+}
+
+const C_NEUTRAL = hexToRgb('222733')   // 0.0% 高级暗炭黑灰 (TradingView 质感)
+const C_UP_MID  = hexToRgb('a82d2d')   // +3.0% 沉稳正红
+const C_UP_MAX  = hexToRgb('e53935')   // +7.0% 鲜亮红
+const C_DOWN_MID = hexToRgb('1b5e3f')  // -3.0% 沉稳墨绿
+const C_DOWN_MAX = hexToRgb('00a676')  // -7.0% 翡翠绿
+
 /**
- * 根据涨跌幅生成 A 股标准金融红绿渐变色
+ * 根据涨跌幅连续插值生成 A 股标准金融红绿平滑色彩
  * @param {number} pct - 涨跌幅百分比
+ * @param {boolean} isDimmed - 是否因未被搜索命中而虚化
  */
 function getPctColor(pct, isDimmed = false) {
-  if (pct == null || isNaN(pct)) return isDimmed ? 'rgba(75,85,99,0.2)' : '#4b5563'
-  let hex = '#374151'
-  if (pct >= 7.0) hex = '#b91c1c'       // 极强深红 / 涨停
-  else if (pct >= 5.0) hex = '#dc2626'  // 强势红
-  else if (pct >= 3.0) hex = '#ea580c'  // 暖橙红
-  else if (pct >= 1.5) hex = '#e11d48'  // 亮红
-  else if (pct > 0.0) hex = '#f43f5e'   // 微涨红
-  else if (pct === 0.0) hex = '#374151' // 平盘暗灰
-  else if (pct > -1.5) hex = '#10b981'  // 微跌浅绿
-  else if (pct > -3.0) hex = '#059669'  // 弱势绿
-  else if (pct > -5.0) hex = '#047857'  // 强跌绿
-  else if (pct > -7.0) hex = '#065f46'  // 极深绿
-  else hex = '#064e3b'                  // 极弱深绿 / 跌停
+  if (pct == null || isNaN(pct)) return isDimmed ? 'rgba(75,85,99,0.15)' : '#222733'
+
+  let rgb = C_NEUTRAL
+  if (pct > 0) {
+    if (pct <= 3.0) {
+      rgb = lerpRgb(C_NEUTRAL, C_UP_MID, pct / 3.0)
+    } else {
+      rgb = lerpRgb(C_UP_MID, C_UP_MAX, (pct - 3.0) / 4.0)
+    }
+  } else if (pct < 0) {
+    const val = Math.abs(pct)
+    if (val <= 3.0) {
+      rgb = lerpRgb(C_NEUTRAL, C_DOWN_MID, val / 3.0)
+    } else {
+      rgb = lerpRgb(C_DOWN_MID, C_DOWN_MAX, (val - 3.0) / 4.0)
+    }
+  }
 
   if (isDimmed) {
-    return hex + '33' // 20% 不透明度
+    return `rgba(${rgb[0]}, ${rgb[1]}, ${rgb[2]}, 0.18)`
   }
-  return hex
+  return `rgb(${rgb[0]}, ${rgb[1]}, ${rgb[2]})`
 }
 
 /**
@@ -683,7 +713,7 @@ onUnmounted(() => {
   width: 140px;
   height: 10px;
   border-radius: var(--radius-pill);
-  background: linear-gradient(90deg, #047857, #10b981, #374151, #e11d48, #b91c1c);
+  background: linear-gradient(90deg, #00a676 0%, #1b5e3f 28%, #222733 50%, #a82d2d 72%, #e53935 100%);
   border: 1px solid var(--border);
 }
 
