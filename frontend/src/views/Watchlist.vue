@@ -58,7 +58,19 @@
 
       <div class="card mt12" ref="stockCard">
         <div class="card-title">
-          <span class="card-title-text">{{ currentGroupName }}（{{ watchRows.length }}）</span>
+          <div class="card-title-left">
+            <span class="card-title-text">{{ currentGroupName }}（{{ watchRows.length }}）</span>
+            <!-- 持仓快捷筛选胶囊（红框位置） -->
+            <button
+              class="hold-filter-chip"
+              :class="{ active: onlyHolding }"
+              :title="onlyHolding ? '点击显示全部标的' : '点击仅筛选当前持仓标的'"
+              @click="onlyHolding = !onlyHolding"
+            >
+              <span class="hold-filter-dot"></span>
+              <span>持仓{{ currentGroupHeldCount > 0 ? ` (${currentGroupHeldCount})` : '' }}</span>
+            </button>
+          </div>
           <div class="card-title-actions">
             <!-- 快捷添加股票组件 -->
             <div class="quick-add-wrap" ref="quickAddRef" @click.stop>
@@ -744,10 +756,22 @@ function withPos(rows) {
   })
 }
 
-const filtered = computed(() => withPos(applyListFilter(list.value)))
+// 仅看持仓快捷筛选
+const onlyHolding = ref(false)
 
-/** 自选 tab：只展示真实自选（持仓股默认已在自选里，带「持仓」标记） */
-const watchRows = computed(() => filtered.value.filter(s => watchState.codes.includes(s.code)))
+// 当前分组（或全部）内属于真实持仓的股票数量
+const currentGroupHeldCount = computed(() => {
+  return filtered.value.filter(s => watchState.codes.includes(s.code) && s.shares > 0).length
+})
+
+/** 自选 tab：展示当前分组股票；若开启「仅看持仓」，则只筛选有持仓的标的 */
+const watchRows = computed(() => {
+  const rows = filtered.value.filter(s => watchState.codes.includes(s.code))
+  if (onlyHolding.value) {
+    return rows.filter(s => s.shares > 0)
+  }
+  return rows
+})
 
 /** 持仓 tab：全部持仓（个股 / ETF 分表），按市值降序、附仓位占比 */
 const holdings = computed(() => {
@@ -1043,8 +1067,49 @@ usePolling(load, 3000)
   align-items: center;
   justify-content: space-between;
 }
+.card-title-left {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+}
 .card-title-text {
   font-weight: 600;
+}
+.hold-filter-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 3px 10px;
+  border-radius: 14px;
+  font-size: 12px;
+  font-weight: 500;
+  cursor: pointer;
+  background: var(--bg-hover);
+  border: 1px solid var(--border);
+  color: var(--text-dim);
+  transition: all .15s ease;
+  user-select: none;
+}
+.hold-filter-chip:hover {
+  background: var(--border);
+  color: var(--text);
+}
+.hold-filter-chip.active {
+  background: var(--accent-bg);
+  border-color: var(--accent);
+  color: var(--accent);
+  font-weight: 600;
+}
+.hold-filter-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--text-dim);
+  transition: background .15s ease;
+}
+.hold-filter-chip.active .hold-filter-dot {
+  background: var(--accent);
+  box-shadow: 0 0 6px var(--accent);
 }
 .card-title-actions {
   display: flex;
