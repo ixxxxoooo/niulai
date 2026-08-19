@@ -8,8 +8,12 @@ import UiCheckbox from './components/ui/UiCheckbox.vue'
 import UiRadio from './components/ui/UiRadio.vue'
 import UiTextarea from './components/ui/UiTextarea.vue'
 import UiIcon from './components/ui/UiIcon.vue'
+import { initGlobalTooltip, vTooltip } from './directives/tooltip.js'
+
+initGlobalTooltip()
 
 const app = createApp(App)
+app.directive('tooltip', vTooltip)
 app.component('UiButton', UiButton)
 app.component('UiInput', UiInput)
 app.component('UiSelect', UiSelect)

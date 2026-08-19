@@ -8,18 +8,18 @@
       </div>
       <div class="top-status-bar">
         <div class="status-kvs">
-          <span class="sk-item" title="当前本地数据库已收录的 A 股股票总数">股票池 <b>{{ syncSt.stock_count || 0 }}</b> 只</span>
+          <span class="sk-item" data-tooltip="【覆盖股票池】&#10;当前本地数据库已收录并覆盖的 A 股全市场股票总数">股票池 <b>{{ syncSt.stock_count || 0 }}</b> 只</span>
           <span class="sk-sep">/</span>
-          <span class="sk-item" title="本地日 K 线已归档至最新真实收盘交易日">收盘日期 <b class="accent">{{ syncSt.latest_date || '—' }}</b></span>
+          <span class="sk-item" data-tooltip="【最新收盘日期】&#10;本地日 K 线已归档至最新真实收盘交易日">收盘日期 <b class="accent">{{ syncSt.latest_date || '—' }}</b></span>
           <span class="sk-sep">/</span>
-          <span class="sk-item" title="本地 SQLite 数据库中存储的日 K 线总条数">本地K线 <b>{{ fmtNum(syncSt.total_bars || 0) }}</b> 条</span>
+          <span class="sk-item" data-tooltip="【本地 K 线条数】&#10;本地 SQLite 数据库中存储的 18 维高精度日 K 线数据总记录数">本地K线 <b>{{ fmtNum(syncSt.total_bars || 0) }}</b> 条</span>
         </div>
         <div class="status-actions">
           <button
             class="btn-sync-compact primary"
             :disabled="syncing"
             @click="startSyncToday"
-            title="【极速同步今日日K】&#10;调用东财全市场 clist 批量打包接口，约 1.5 秒极速拉取并归档全市场 5400+ 只股票今日收盘日 K（含 18 维全量量价、盘口、主力资金流与估值指标）"
+            data-tooltip="【⚡ 极速同步今日日K】&#10;调用东财全市场 clist 批量打包接口，约 1.5 秒极速拉取并归档全市场 5400+ 只股票今日收盘日 K（含 18 维全量量价、盘口、主力资金流与估值指标）"
           >
             <UiIcon name="flash" :size="12" />
             <span>{{ syncing && syncMode === 'today_bulk' ? '同步中…' : '⚡ 极速同步今日' }}</span>
@@ -28,7 +28,7 @@
             class="btn-sync-compact ghost"
             :disabled="syncing"
             @click="startSyncHistory"
-            title="【补齐历史K线（前120日）】&#10;并发多线程智能增量补齐均线与历史形态所需的日 K 线；系统会自动识别，已具备完整数据的标的将自动 0 秒极速跳过"
+            data-tooltip="【🔄 补齐历史K线（前120日）】&#10;并发多线程智能增量补齐均线与历史形态所需的日 K 线；系统会自动识别，已具备完整数据的标的将自动 0 秒极速跳过"
           >
             <UiIcon name="sync" :size="12" />
             <span>{{ syncing && syncMode === 'history' ? '补齐中…' : '🔄 补齐历史K线' }}</span>
@@ -57,21 +57,21 @@
           <button
             class="quick-link-btn"
             @click="selectPresetGolden"
-            title="【推荐黄金组合】&#10;一键勾选『突破前高 + 均线多头 + 主力抢筹 + 放量拉升 + 箱体突破』5 大核心主升浪战法"
+            data-tooltip="【🌟 推荐黄金组合】&#10;一键勾选『突破前高 + 均线多头 + 主力抢筹 + 放量拉升 + 箱体突破』5 大核心主升浪战法"
           >
             🌟 推荐黄金组合
           </button>
           <button
             class="quick-link-btn"
             @click="selectAllRules"
-            title="一键勾选全部 12 大量化选股策略"
+            data-tooltip="【全选策略】&#10;一键勾选全部 12 大量化选股策略"
           >
             全选
           </button>
           <button
             class="quick-link-btn"
             @click="clearAllRules"
-            title="清空当前所有策略勾选"
+            data-tooltip="【清空策略】&#10;清空当前所有策略勾选"
           >
             清空
           </button>
@@ -86,7 +86,7 @@
           class="strategy-card-item"
           :class="{ active: selectedRules.includes(r.id) }"
           @click="toggleRule(r.id)"
-          :title="`${r.name}（${r.badge || r.tag}）&#10;&#10;【策略原理与买点逻辑】：&#10;${r.desc}&#10;&#10;点击即可${selectedRules.includes(r.id) ? '取消勾选' : '加入选股组合'}`"
+          :data-tooltip="`【${r.name} · ${r.badge || r.tag}】&#10;${r.desc}&#10;&#10;👉 点击${selectedRules.includes(r.id) ? '取消勾选' : '加入选股组合'}`"
         >
           <div class="st-header">
             <div class="st-check-box">
@@ -108,7 +108,7 @@
               class="radio-pill"
               :class="{ active: scope === 'all' }"
               @click="scope = 'all'"
-              title="【扫描全 A 股市场】&#10;在沪深主板、科创板、创业板、北交所全部 5400+ 只股票中执行量化策略筛选"
+              data-tooltip="【扫描全 A 股市场】&#10;在沪深主板、科创板、创业板、北交所全部 5400+ 只股票中执行量化策略筛选"
             >
               <span class="radio-dot"></span> 全 A 股市场 (5400+只)
             </label>
@@ -116,7 +116,7 @@
               class="radio-pill"
               :class="{ active: scope === 'watchlist' }"
               @click="scope = 'watchlist'"
-              title="【仅我的自选股】&#10;仅在您个人收藏添加的自选股列表中执行量化策略筛选，秒级聚焦核心自选"
+              data-tooltip="【仅我的自选股】&#10;仅在您个人收藏添加的自选股列表中执行量化策略筛选，秒级聚焦核心自选"
             >
               <span class="radio-dot"></span> 仅我的自选股
             </label>
@@ -130,7 +130,7 @@
               class="radio-pill"
               :class="{ active: filters.match_mode === 'and' }"
               @click="filters.match_mode = 'and'"
-              title="【🎯 严格交集严选 · 默认】&#10;必须同时满足所有勾选策略的超级核心龙头才入选主榜，百里挑一，胜率极高"
+              data-tooltip="【🎯 严格交集严选 · 默认】&#10;必须同时满足所有勾选策略的超级核心龙头才入选主榜，百里挑一，胜率极高"
             >
               <span class="radio-dot"></span> 🎯 严格交集 (必须同时满足所有策略 · 默认)
             </label>
@@ -138,7 +138,7 @@
               class="radio-pill"
               :class="{ active: filters.match_mode === 'resonance' }"
               @click="filters.match_mode = 'resonance'"
-              title="【🌟 共振优选总榜】&#10;按命中策略数量降序排序，共振度越高（满足策略越多）排位越靠前，兼顾胜率与机会广度"
+              data-tooltip="【🌟 共振优选总榜】&#10;按命中策略数量降序排序，共振度越高（满足策略越多）排位越靠前，兼顾胜率与机会广度"
             >
               <span class="radio-dot"></span> 🌟 共振优选 (命中越多越优先)
             </label>
@@ -146,7 +146,7 @@
               class="radio-pill"
               :class="{ active: filters.match_mode === 'or' }"
               @click="filters.match_mode = 'or'"
-              title="【📋 广度并集总榜】&#10;只要满足任意一个勾选策略即入选展示，最大化捕捉全市场潜在异动标的"
+              data-tooltip="【📋 广度并集总榜】&#10;只要满足任意一个勾选策略即入选展示，最大化捕捉全市场潜在异动标的"
             >
               <span class="radio-dot"></span> 📋 广度并集 (满足任意策略即可)
             </label>
@@ -160,7 +160,7 @@
               class="chip-btn"
               :class="{ active: filters.exclude_st }"
               @click="filters.exclude_st = !filters.exclude_st"
-              title="【排除 ST / *ST 股】&#10;自动剔除带有风险警示的 ST 及 *ST 股票，杜绝退市与黑天鹅风险"
+              data-tooltip="【排除 ST / *ST 股】&#10;自动剔除带有风险警示的 ST 及 *ST 股票，杜绝退市与黑天鹅风险"
             >
               <UiIcon name="check" :size="11" v-if="filters.exclude_st" />
               <span>排除 ST 股</span>
@@ -170,7 +170,7 @@
               class="chip-btn"
               :class="{ active: filters.exclude_broken }"
               @click="filters.exclude_broken = !filters.exclude_broken"
-              title="【排除破位弱势股】&#10;自动剔除当日跌幅超过 3% 的破位大跌股票，规避下跌趋势中的假阳线反弹陷阱"
+              data-tooltip="【排除破位弱势股】&#10;自动剔除当日跌幅超过 3% 的破位大跌股票，规避下跌趋势中的假阳线反弹陷阱"
             >
               <UiIcon name="check" :size="11" v-if="filters.exclude_broken" />
               <span>排除破位股 (&lt;-3%)</span>
@@ -180,7 +180,7 @@
               class="chip-btn"
               :class="{ active: filters.exclude_bjs }"
               @click="filters.exclude_bjs = !filters.exclude_bjs"
-              title="【排除北交所】&#10;自动剔除 8/4/920 开头的北交所股票，仅保留流动性更强的沪深主板与双创板标的"
+              data-tooltip="【排除北交所】&#10;自动剔除 8/4/920 开头的北交所股票，仅保留流动性更强的沪深主板与双创板标的"
             >
               <UiIcon name="check" :size="11" v-if="filters.exclude_bjs" />
               <span>排除北交所</span>
@@ -190,7 +190,7 @@
               class="chip-btn"
               :class="{ active: filters.exclude_kcb }"
               @click="filters.exclude_kcb = !filters.exclude_kcb"
-              title="【排除科创板】&#10;自动剔除 688 开头的科创板股票（适合无科创板交易权限或专注主板的交易者）"
+              data-tooltip="【排除科创板】&#10;自动剔除 688 开头的科创板股票（适合无科创板交易权限或专注主板的交易者）"
             >
               <UiIcon name="check" :size="11" v-if="filters.exclude_kcb" />
               <span>排除科创板</span>
@@ -200,7 +200,7 @@
               class="chip-btn"
               :class="{ active: filters.exclude_cyb }"
               @click="filters.exclude_cyb = !filters.exclude_cyb"
-              title="【排除创业板】&#10;自动剔除 300/301 开头的创业板股票（适合专注 10cm 涨跌幅主板龙头的交易者）"
+              data-tooltip="【排除创业板】&#10;自动剔除 300/301 开头的创业板股票（适合专注 10cm 涨跌幅主板龙头的交易者）"
             >
               <UiIcon name="check" :size="11" v-if="filters.exclude_cyb" />
               <span>排除创业板</span>
@@ -210,7 +210,7 @@
               class="chip-btn"
               :class="{ active: notifyFeishu }"
               @click="notifyFeishu = !notifyFeishu"
-              title="【推送到飞书群】&#10;选股扫描完成后，自动将符合条件的强势标的及核心信号明细实时推送至飞书群机器人"
+              data-tooltip="【推送到飞书群】&#10;选股扫描完成后，自动将符合条件的强势标的及核心信号明细实时推送至飞书群机器人"
             >
               <UiIcon name="check" :size="11" v-if="notifyFeishu" />
               <span>推送到飞书</span>
@@ -225,7 +225,7 @@
           class="btn-execute-glow"
           :disabled="running || !selectedRules.length"
           @click="runScreen"
-          title="【启动量化选股】&#10;基于本地 18 维高精度日 K 数据底座，利用纯内存向量化计算引擎，毫秒级完成全市场扫描与共振计算"
+          data-tooltip="【🚀 启动量化选股】&#10;基于本地 18 维高精度日 K 数据底座，利用纯内存向量化计算引擎，毫秒级完成全市场扫描与共振计算"
         >
           <UiIcon name="search" :size="15" />
           <span>{{ running ? '量化引擎极速扫描中…' : (filters.match_mode === 'and' ? '开始量化选股 (执行严格交集严选)' : '开始量化选股 (一键多策略共振扫描)') }}</span>
@@ -239,11 +239,11 @@
         <div class="result-title-group">
           <span class="step-num">2</span>
           <span class="result-main-title">选股结果看板</span>
-          <span class="result-stat-badge" title="本次策略筛选的扫描覆盖量与命中达标量">
+          <span class="result-stat-badge" data-tooltip="【扫描统计】&#10;本次策略筛选的扫描覆盖量与命中达标量">
             扫描 <b>{{ result.scanned }}</b> 只 · 精选命中 <b>{{ result.hit_count }}</b> 只标的
           </span>
         </div>
-        <div class="result-extra-info" title="本地 SQLite 向量化纯内存计算耗时">
+        <div class="result-extra-info" data-tooltip="【计算耗时】&#10;本地 SQLite 纯内存向量化计算耗时">
           <span>耗时 <b>{{ result.elapsed_ms }}ms</b> (本地纯内存向量化计算)</span>
         </div>
       </div>
@@ -254,7 +254,7 @@
           class="tab-btn"
           :class="{ active: activeTab === 'all_aggregated' }"
           @click="activeTab = 'all_aggregated'"
-          :title="filters.match_mode === 'and' ? '查看同时满足所有勾选策略的交集精选标的' : (filters.match_mode === 'resonance' ? '查看多策略共振优选总榜' : '查看所有满足任一策略的并集总榜')"
+          :data-tooltip="filters.match_mode === 'and' ? '【严格交集精选榜】\n查看同时满足所有勾选策略的交集精选标的' : (filters.match_mode === 'resonance' ? '【共振优选总榜】\n查看多策略共振优选总榜' : '【广度并集总榜】\n查看所有满足任一策略的并集总榜')"
         >
           {{ filters.match_mode === 'and' ? '🎯 严格交集精选榜' : (filters.match_mode === 'resonance' ? '🌟 共振优选总榜' : '📋 广度并集总榜') }}
           <span class="badge-num">{{ result.items ? result.items.length : result.hit_count }}</span>
@@ -265,7 +265,7 @@
           class="tab-btn"
           :class="{ active: activeTab === r }"
           @click="activeTab = r"
-          :title="`查看符合【${getRuleName(r)}】单策略的全部标的列表`"
+          :data-tooltip="'【单策略筛选】\n查看符合『' + getRuleName(r) + '』策略的全部标的列表'"
         >
           {{ getRuleName(r) }}
           <span class="badge-num">{{ (result.hits[r] || []).length }}</span>
@@ -279,7 +279,7 @@
           class="sort-btn"
           :class="{ active: sortBy === 'resonance' }"
           @click="sortBy = 'resonance'"
-          title="【共振度优先排序】&#10;按命中的策略数量从多到少排序，多策略共同验证的最强标的排在最前"
+          data-tooltip="【🌟 共振度优先排序】&#10;按命中的策略数量从多到少排序，多策略共同验证的最强标的排在最前"
         >
           🌟 策略共振度优先
         </button>
@@ -287,7 +287,7 @@
           class="sort-btn"
           :class="{ active: sortBy === 'change_pct' }"
           @click="sortBy = 'change_pct'"
-          title="【涨跌幅优先排序】&#10;按今日收盘涨跌幅从高到低排序，强势涨停与领涨龙头排在最前"
+          data-tooltip="【📈 涨跌幅优先排序】&#10;按今日收盘涨跌幅从高到低排序，强势涨停与领涨龙头排在最前"
         >
           📈 今日涨跌幅优先
         </button>
@@ -295,7 +295,7 @@
           class="sort-btn"
           :class="{ active: sortBy === 'amount' }"
           @click="sortBy = 'amount'"
-          title="【成交额优先排序】&#10;按今日总成交金额从大到小排序，市场焦点与高流动性核心标的排在最前"
+          data-tooltip="【💰 成交额优先排序】&#10;按今日总成交金额从大到小排序，市场焦点与高流动性核心标的排在最前"
         >
           💰 成交额优先
         </button>
@@ -308,11 +308,11 @@
             <tr>
               <th style="width:85px">代码</th>
               <th style="width:105px">名称</th>
-              <th style="width:85px" class="tar" title="最新一个交易日的收盘价格">最新收盘</th>
-              <th style="width:80px" class="tar" title="最新一个交易日的收盘涨跌幅">涨跌幅</th>
-              <th style="width:95px" class="tar" title="最新一个交易日的成交总金额">成交额</th>
-              <th style="width:190px" title="该股票同时命中的所有多维量化策略">命中策略共振</th>
-              <th class="signal-th tal" style="text-align:left" title="多维策略计算得出的核心形态、买点支撑、均线数据与资金流入明细">技术形态与信号明细</th>
+              <th style="width:85px" class="tar" data-tooltip="【最新收盘】&#10;最新一个交易日的收盘价格（元）">最新收盘</th>
+              <th style="width:80px" class="tar" data-tooltip="【涨跌幅】&#10;最新一个交易日的收盘涨跌幅（%）">涨跌幅</th>
+              <th style="width:95px" class="tar" data-tooltip="【成交额】&#10;最新一个交易日的总成交金额（亿元/万元）">成交额</th>
+              <th style="width:190px" data-tooltip="【命中策略共振】&#10;该股票同时命中的所有多维量化策略">命中策略共振</th>
+              <th class="signal-th tal" style="text-align:left" data-tooltip="【技术形态与信号明细】&#10;多维策略计算得出的核心形态、买点支撑、均线数据与资金流入明细">技术形态与信号明细</th>
               <th style="width:75px" class="tac action-th">操作</th>
             </tr>
           </thead>
@@ -322,11 +322,11 @@
               :key="item.code"
               class="clickable-row"
               @click="openStockModal(item.code, item.name)"
-              title="点击查看该股票沉浸式速览"
+              data-tooltip="【点击速览】&#10;查看该股票的分时、日K形态、五档买卖盘与资金流详情"
             >
               <td class="code-col">{{ item.code }}</td>
               <td class="name-col">
-                <a @click.stop="openStockModal(item.code, item.name)" title="点击查看个股详情">{{ item.name }}</a>
+                <a @click.stop="openStockModal(item.code, item.name)">{{ item.name }}</a>
               </td>
               <td class="tar num-val">{{ item.close != null ? fmtPrice(item.close) : '—' }}</td>
               <td class="tar num-val" :class="pctClass(item.change_pct)">
@@ -340,7 +340,7 @@
                     :key="r_id"
                     class="tag-resonance"
                     :class="getRuleTagClass(r_id)"
-                    :title="`命中策略：${getRuleName(r_id)}`"
+                    :data-tooltip="'【命中策略】\n' + getRuleName(r_id)"
                   >
                     {{ getRuleName(r_id) }}
                   </span>
@@ -349,7 +349,7 @@
               <td
                 class="signal-col tal"
                 style="text-align:left"
-                :title="(item.signals && item.signals.length) ? item.signals.map(s => `【${s.name}】：${s.detail}`).join('\n') : item.detail"
+                :data-tooltip="(item.signals && item.signals.length) ? item.signals.map(s => '【' + s.name + '】\n' + s.detail).join('\n\n') : item.detail"
               >
                 {{ (item.signals && item.signals.length > 1) ? item.signals.map(s => `[${s.name}] ${s.detail}`).join(' · ') : item.detail }}
               </td>
@@ -357,7 +357,7 @@
                 <button
                   class="btn-view"
                   @click.stop="openStockModal(item.code, item.name)"
-                  title="【个股速览】&#10;无需离开当前页面，即刻在居中浮窗中查看该股票的分时走势、日K形态、五档买卖盘与主力资金流详情"
+                  data-tooltip="【🔍 个股沉浸速览】&#10;无需离开当前页面，即刻在居中浮窗中查看该股票的分时走势、日K形态、五档买卖盘与主力资金流详情"
                 >
                   速览
                 </button>
@@ -374,7 +374,7 @@
 
     <!-- 历史任务归档 -->
     <details class="card section-card history-panel" v-if="runs.length">
-      <summary class="history-summary" title="点击展开/收起历史选股任务归档记录">
+      <summary class="history-summary" data-tooltip="点击展开/收起历史选股任务归档记录">
         <div class="history-title-wrap">
           <span>📜 历史选股扫描归档 (共 {{ runs.length }} 次)</span>
         </div>
@@ -382,7 +382,7 @@
           <button
             class="btn-clear-history"
             @click.prevent.stop="clearHistory"
-            title="清空所有历史选股任务归档记录"
+            data-tooltip="清空所有历史选股任务归档记录"
           >
             <UiIcon name="trash" :size="11" /> 清空历史
           </button>
@@ -410,7 +410,7 @@
               <td>{{ r.scope === 'watchlist' ? '自选股' : '全A股' }}</td>
               <td><b class="accent">{{ r.hit_count }}</b> 只</td>
               <td>
-                <span class="action-btn" @click="loadRunDetail(r.id)" title="一键加载并回放本次历史扫描任务的完整选股结果与策略组合">回放结果</span>
+                <span class="action-btn" @click="loadRunDetail(r.id)" data-tooltip="一键加载并回放本次历史扫描任务的完整选股结果与策略组合">回放结果</span>
               </td>
             </tr>
           </tbody>

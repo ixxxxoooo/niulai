@@ -728,4 +728,33 @@ table.data-table { width: 100%; border-collapse: collapse; font-size: 13px; }
 .index-info-item { font-size: 13px; color: var(--text-dim); }
 .index-info-item b { color: var(--text); font-weight: 500; }
 
+/* 全局统一高质感金融 Tooltip 浮窗 */
+.global-ui-tooltip {
+  position: fixed;
+  z-index: 999999;
+  display: none;
+  pointer-events: none;
+  max-width: 340px;
+  padding: 8px 12px;
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  color: var(--text);
+  font-size: 12px;
+  line-height: 1.55;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.45), 0 0 1px rgba(255, 255, 255, 0.12);
+  transition: opacity 0.12s cubic-bezier(0.16, 1, 0.3, 1), transform 0.12s cubic-bezier(0.16, 1, 0.3, 1);
+  word-break: break-word;
+  backdrop-filter: blur(12px);
+}
+.global-ui-tooltip .tip-title {
+  color: var(--accent);
+  font-weight: 600;
+  display: inline-block;
+  margin-bottom: 2px;
+}
+.global-ui-tooltip b, .global-ui-tooltip strong {
+  color: var(--accent);
+}
+
 
