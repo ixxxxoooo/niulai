@@ -15,7 +15,7 @@
     <div class="card section-card">
       <div class="card-title">
         <span class="step-num">1</span>
-        <span>日 K 线数据状态</span>
+        <span>日 K 线数据底座</span>
         <span class="card-sub-info">选股依赖本地收盘日 K 线数据，1.5 秒极速全量归档</span>
       </div>
 
@@ -252,7 +252,7 @@
               <th style="width:100px" class="tar">成交额</th>
               <th style="width:180px">命中策略共振</th>
               <th>技术形态与信号明细</th>
-              <th style="width:70px" class="tac">操作</th>
+              <th style="width:80px" class="tac">操作</th>
             </tr>
           </thead>
           <tbody>
@@ -260,11 +260,11 @@
               v-for="item in sortedDisplayList"
               :key="item.code"
               class="clickable-row"
-              @click="openStockPage(item.code)"
+              @click="openStockModal(item.code, item.name)"
             >
               <td class="code-col">{{ item.code }}</td>
               <td class="name-col">
-                <a @click.stop="openStockPage(item.code)">{{ item.name }}</a>
+                <a @click.stop="openStockModal(item.code, item.name)">{{ item.name }}</a>
               </td>
               <td class="tar num-val">{{ item.close != null ? fmtPrice(item.close) : '—' }}</td>
               <td class="tar num-val" :class="pctClass(item.change_pct)">
@@ -285,7 +285,7 @@
               </td>
               <td class="signal-col">{{ item.detail }}</td>
               <td class="tac">
-                <button class="btn-view" @click.stop="openStockPage(item.code)">详情</button>
+                <button class="btn-view" @click.stop="openStockModal(item.code, item.name)">速览</button>
               </td>
             </tr>
           </tbody>
@@ -302,11 +302,16 @@
       <summary class="history-summary">
         <div class="history-title-wrap">
           <span>📜 历史选股扫描归档 (共 {{ runs.length }} 次)</span>
-          <span class="summary-hint">点击展开查看历史记录</span>
         </div>
-        <button class="btn-clear-history" @click.prevent.stop="clearHistory">
-          <UiIcon name="trash" :size="12" /> 清空历史归档
-        </button>
+        <div class="history-summary-right">
+          <button class="btn-clear-history" @click.prevent.stop="clearHistory">
+            <UiIcon name="trash" :size="12" /> 清空历史归档
+          </button>
+          <span class="chevron-indicator">
+            <span class="chevron-text">展开历史</span>
+            <span class="chevron-arrow">▾</span>
+          </span>
+        </div>
       </summary>
       <div class="history-table-wrap">
         <table class="data-table">
@@ -335,18 +340,25 @@
         </table>
       </div>
     </details>
+
+    <!-- 个股快捷居中大弹窗 -->
+    <StockQuickModal
+      :code="modalCode"
+      :name="modalName"
+      v-model:open="modalOpen"
+    />
   </div>
 </template>
 
 <script setup>
 import { ref, reactive, computed, onMounted } from 'vue'
 import { api } from '../api.js'
-import { navigate } from '../router.js'
 import { showToast } from '../composables/useToast.js'
 import { showConfirm } from '../composables/useConfirm.js'
 import { fmtPrice, fmtPct, fmtNum, fmtAmount, pctClass } from '../utils.js'
 import UiButton from '../components/ui/UiButton.vue'
 import UiIcon from '../components/ui/UiIcon.vue'
+import StockQuickModal from '../components/StockQuickModal.vue'
 
 const syncSt = ref({})
 const syncing = ref(false)
@@ -365,13 +377,24 @@ const activeTab = ref('all_aggregated')
 const sortBy = ref('resonance')
 const runs = ref([])
 
-// 排除项过滤器
+// 弹窗状态
+const modalOpen = ref(false)
+const modalCode = ref('')
+const modalName = ref('')
+
+function openStockModal(code, name = '') {
+  modalCode.value = code
+  modalName.value = name
+  modalOpen.value = true
+}
+
+// 排除项过滤器：默认排除 ST、破位、北交所、科创板、创业板
 const filters = reactive({
   exclude_st: true,
   exclude_broken: true,
   exclude_bjs: true,
-  exclude_kcb: false,
-  exclude_cyb: false,
+  exclude_kcb: true,
+  exclude_cyb: true,
 })
 
 const ruleMap = computed(() => {
@@ -415,7 +438,10 @@ function toggleRule(id) {
   }
 }
 
-const resultRules = computed(() => result.value && result.value.hits ? Object.keys(result.value.hits) : [])
+const resultRules = computed(() => {
+  if (!result.value || !result.value.hits || Array.isArray(result.value.hits)) return []
+  return Object.keys(result.value.hits)
+})
 
 const currentDisplayList = computed(() => {
   if (!result.value) return []
@@ -438,8 +464,6 @@ const sortedDisplayList = computed(() => {
   }
   return list
 })
-
-function openStockPage(code) { navigate(`/stock/${code}`) }
 
 function formatRules(json) {
   try {
@@ -551,11 +575,14 @@ async function loadRun(id) {
       items: data.items || [],
       hits: data.hits || {},
       scanned: '—',
-      hit_count: data.run?.hit_count || 0,
+      hit_count: data.run?.hit_count || (data.items ? data.items.length : 0),
       elapsed_ms: '—'
     }
     activeTab.value = 'all_aggregated'
-  } catch {}
+    showToast(`已调出第 ${id} 次历史扫描结果`)
+  } catch (e) {
+    showToast('加载历史记录失败：' + (e.message || e), 'error')
+  }
 }
 
 onMounted(async () => {
@@ -790,10 +817,11 @@ onMounted(async () => {
 
 .signal-col { font-size: 12px; color: var(--text); line-height: 1.4; }
 .btn-view {
-  padding: 2px 8px; font-size: 11px; border: 1px solid var(--border);
-  border-radius: 4px; background: transparent; color: var(--text-dim); cursor: pointer;
+  padding: 3px 10px; font-size: 12px; border: 1px solid var(--border);
+  border-radius: var(--radius-sm); background: var(--bg-hover); color: var(--accent);
+  cursor: pointer; transition: all .15s; font-weight: 500;
 }
-.btn-view:hover { color: var(--accent); border-color: var(--accent); }
+.btn-view:hover { background: var(--accent); color: #fff; border-color: var(--accent); }
 
 .empty-box {
   padding: 40px 0; text-align: center; color: var(--text-dim); font-size: 13px;
@@ -804,9 +832,17 @@ onMounted(async () => {
 .history-summary {
   cursor: pointer; user-select: none; font-size: 14px; font-weight: 600;
   color: var(--text); display: flex; align-items: center; justify-content: space-between;
+  padding: 2px 0;
 }
-.history-title-wrap { display: flex; align-items: center; gap: 8px; }
-.summary-hint { font-size: 12px; color: var(--text-dim); font-weight: normal; }
+.history-summary-right { display: flex; align-items: center; gap: 14px; margin-left: auto; }
+.chevron-indicator {
+  display: inline-flex; align-items: center; gap: 4px; font-size: 12px;
+  color: var(--text-dim); font-weight: normal;
+}
+.chevron-arrow { transition: transform .2s ease; display: inline-block; font-size: 11px; }
+details[open] .chevron-arrow { transform: rotate(180deg); }
+details[open] .chevron-text { color: var(--accent); }
+
 .btn-clear-history {
   padding: 3px 10px; font-size: 12px; border-radius: 4px; border: 1px solid var(--border);
   background: var(--kv-bg); color: var(--text-dim); cursor: pointer; display: inline-flex;

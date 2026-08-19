@@ -469,10 +469,16 @@ def get_run_hits(run_id: int) -> Dict[str, Any]:
         "SELECT * FROM screener_hits WHERE run_id = ?", (run_id,)
     ).fetchall()
 
+    hits_by_rule: Dict[str, list] = {}
     stock_map = {}
     for h in hits:
         d = dict(h)
         c = d["code"]
+        r_id = d["rule_id"]
+        if r_id not in hits_by_rule:
+            hits_by_rule[r_id] = []
+        hits_by_rule[r_id].append(d)
+
         if c not in stock_map:
             stock_map[c] = {
                 "code": c,
@@ -483,9 +489,10 @@ def get_run_hits(run_id: int) -> Dict[str, Any]:
                 "signals": [],
                 "detail": "",
             }
-        r_name = RULES.get(d["rule_id"], {}).get("name", d["rule_id"])
-        stock_map[c]["hit_rules"].append(d["rule_id"])
-        stock_map[c]["signals"].append({"rule": d["rule_id"], "name": r_name, "detail": d["detail"]})
+        r_name = RULES.get(r_id, {}).get("name", r_id)
+        if r_id not in stock_map[c]["hit_rules"]:
+            stock_map[c]["hit_rules"].append(r_id)
+            stock_map[c]["signals"].append({"rule": r_id, "name": r_name, "detail": d["detail"]})
 
     for s in stock_map.values():
         s["match_count"] = len(s["hit_rules"])
@@ -496,5 +503,5 @@ def get_run_hits(run_id: int) -> Dict[str, Any]:
     return {
         "run": dict(run),
         "items": items,
-        "hits": [dict(h) for h in hits],
+        "hits": hits_by_rule,
     }
