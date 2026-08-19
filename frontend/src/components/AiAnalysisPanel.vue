@@ -188,9 +188,9 @@ const showResult = computed(() => {
 
 const PRESET_PROMPTS = [
   { id: 'all', label: '⚡ 全面技术分析', focus: '' },
-  { id: 'flow', label: '📊 量价与主力资金', focus: '【重点聚焦】请结合近10日主力资金进出、分时均价线与量比，重点研判主力控盘动向与量价背离风险。' },
-  { id: 'trend', label: '📈 买卖点与关键位', focus: '【重点聚焦】请结合日K均线多空排列、MACD/KDJ/RSI与压力支撑位，重点给出明确买入区间、止损价与目标位。' },
-  { id: 'chip', label: '🎯 题材情绪与连板', focus: '【重点聚焦】请结合概念题材风口热度、连板情绪周期与筹码博弈，重点评估短线资金接力意愿与持续性。' },
+  { id: 'flow', label: '📊 量价与主力资金', focus: '【重点聚焦】请结合近10日主力资金进出、分时均价线与量比，重点在表格中研判主力控盘动向与量价背离风险。' },
+  { id: 'trend', label: '📈 买卖点与关键位', focus: '【重点聚焦】请结合日K均线多空排列、MACD/KDJ/RSI与压力支撑位，在表格中重点给出清晰明确的买入区间、止损价与目标位。' },
+  { id: 'chip', label: '🎯 题材情绪与连板', focus: '【重点聚焦】请结合概念题材风口热度、连板情绪周期与筹码博弈，在表格中重点评估短线资金接力意愿与持续性。' },
 ]
 
 const selectedPreset = ref('all')
@@ -390,9 +390,9 @@ function buildPrompt(data) {
   const presetObj = PRESET_PROMPTS.find(p => p.id === selectedPreset.value)
   const focusTxt = presetObj?.focus ? `\n\n${presetObj.focus}` : ''
 
-  return `对「${props.name || props.code}(${props.code})」做系统化技术分析。${focusTxt}
+  return `请对「${props.name || props.code}(${props.code})」进行系统化量化与技术研判。${focusTxt}
 
-## 盘面快照
+## 盘面实时数据
 现价${safe(snap.price)} 涨跌${safe(snap.change_pct, '%')} 今开${safe(snap.open)} 昨收${safe(snap.prev_close)} 最高${safe(snap.high)} 最低${safe(snap.low)}
 成交额${safe(snap.amount)} 换手${safe(snap.turnover, '%')} 量比${safe(snap.volume_ratio)} 振幅${safe(snap.amplitude, '%')}
 外盘${safe(snap.outer)} 内盘${safe(snap.inner)} 主力净流入${safe(snap.main_inflow)}
@@ -411,23 +411,60 @@ MACD: ${macdSummary}
 KDJ: ${kdjSummary}
 RSI: ${rsiVal != null ? rsiVal.toFixed(1) : '无'}
 
-## 今日资金流
+## 近期主力资金流
 ${flowSummary}
 
-## 关键价位
+## 压力与支撑
 压力: ${resistStr}
 支撑: ${supportStr}
 
-## 近期新闻/事件
+## 近期新闻与事件
 ${newsSummary}
 
 ---
-请严格按以下5个板块输出，每部分100-200字，重点数值用**加粗**：
-**[综合判断]** 多空方向+置信度+核心逻辑（结合量价、指标、资金面综合判断）
-**[趋势分析]** 均线形态+MACD/KDJ状态+量价配合+板块联动
-**[买卖点建议]** 具体买入价区间+目标价位+止损价位（给出明确数值）
-**[压力支撑]** 最重要的2-3个关键价位+技术含义
-**[风险提示]** 2-3个核心风险因素`
+【排版与呈现核心要求】：
+拒绝纯大段冗长文字堆砌！必须多使用【Markdown 结构化表格】直观呈现研判维度、点位区间与指标状态。重点数值一律【加粗】（如 **54.80元**、**+5.2%**、**看多**）。
+
+请严格按以下 5 个板块进行结构化输出：
+
+**[综合判断]** 
+给出明确多空结论与核心置信度，并附【量化多空评估表】：
+| 评估维度 | 当前状态 / 信号 | 评分/置信度 | 核心论据 |
+| 量价格局 | (放量/缩量/背离) | (如: 80分) | (一句话论据) |
+| 指标共振 | (多头/空头/金叉) | (如: 75分) | (一句话论据) |
+| 主力动向 | (净流入/流出/控盘) | (如: 85分) | (一句话论据) |
+| 最终策略 | (看多/谨慎/观望) | (如: ★★★★☆) | (精炼操作结论) |
+
+**[趋势分析]**
+结合均线、指标、量能与板块联动分析，并附【关键指标状态一览表】：
+| 技术指标 | 当前形态 / 数值 | 多空指向 | 趋势研判解读 |
+| 均线系统 | (如: 多头排列/跌破MA20) | 看多/看空/震荡 | (支撑与压制分析) |
+| MACD/KDJ | (如: 0轴上方金叉/超卖) | 强/弱/转折 | (动能强弱分析) |
+| 资金量能 | (如: 量比/主力资金) | 增仓/分歧 | (主力操盘意图) |
+
+**[买卖点建议]**
+给出明确具体的价格区间与仓位控制，必须使用【实战操盘点位策略表】：
+| 策略点位 | 推荐价格区间 | 对应技术依据 | 仓位与执行纪律 |
+| 激进买点 / 加仓位 | **xx.xx - xx.xx元** | (技术位依据) | (轻仓试错/分批加仓) |
+| 稳健建仓位 | **xx.xx - xx.xx元** | (强支撑依据) | (底仓配置) |
+| 第一目标位 | **xx.xx元** | (阻力位依据) | (减仓锁定利润) |
+| 第二目标位 | **xx.xx元** | (扩展目标位) | (分批止盈) |
+| 严格止损位 | **xx.xx元** | (破位依据) | (破位果断离场) |
+
+**[压力支撑]**
+分析关键阻力与防守关口，必须提供【关键价位对照表】：
+| 价位层级 | 关键价格 | 对应技术线/形态 | 突破/破位应对方案 |
+| 强压力 (第二阻力) | **xx.xx元** | (密集成交区/前期高点) | (滞涨减仓) |
+| 第一压力 | **xx.xx元** | (均线压制/跳空缺口) | (放量突破顺势做多) |
+| 第一支撑 | **xx.xx元** | (短期均线/分时均价) | (企稳可逢低关注) |
+| 强支撑 (防守底线) | **xx.xx元** | (重要均线/前期起涨底) | (有效跌破全线防守) |
+
+**[风险提示]**
+提供【潜在风险与应对预案表】：
+| 风险类型 | 风险等级 | 潜在诱因与触发信号 | 防范应对预案 |
+| 技术破位风险 | 高/中/低 | (触发信号) | (应对纪律) |
+| 主力出逃风险 | 高/中/低 | (触发信号) | (应对纪律) |
+| 市场与情绪风险 | 高/中/低 | (触发信号) | (仓位控制策略) |`
 }
 
 function parseAiResult(text) {
@@ -516,7 +553,7 @@ async function runAnalysis() {
       body: JSON.stringify({
         model: settingsState.aiModel || 'deepseek-chat',
         messages: [
-          { role: 'system', content: '你是资深A股短线技术分析师，擅长量价分析、技术指标研判和资金面解读。请基于提供的数据给出明确的操作建议。输出全程中文，使用规范的 Markdown 排版（## 标题、**加粗**、- 列表、| 表格）。如果某项数据缺失，跳过相关分析即可，不要提及数据不足。' },
+          { role: 'system', content: '你是顶级A股量化与技术分析专家，擅长将盘口、K线、资金流与指标转化为直观明了的操作研报。核心要求：拒绝纯大段冗长文字堆砌！必须多运用【Markdown 结构化表格】直观展现研判维度、点位区间与指标状态。重点数值（如价格、涨跌幅、买卖结论）一律加粗。输出全程中文。' },
           { role: 'user', content: prompt },
         ],
         temperature: 0.3,
@@ -634,7 +671,7 @@ onUnmounted(() => {
 }
 .ai-modal {
   background: var(--bg); border: 1px solid var(--border); border-radius: 12px;
-  width: 720px; max-width: 94vw; max-height: 88vh; display: flex; flex-direction: column;
+  width: 760px; max-width: 95vw; max-height: 90vh; display: flex; flex-direction: column;
   box-shadow: 0 16px 48px rgba(0, 0, 0, 0.4);
 }
 .ai-modal-head {
@@ -829,14 +866,14 @@ onUnmounted(() => {
 }
 
 .ai-stream { font-size: 13px; line-height: 1.7; color: var(--text); padding: 8px 0; }
-.ai-section { margin-bottom: 16px; }
-.ai-section-title { font-size: 13px; font-weight: 600; color: var(--accent); margin-bottom: 6px; }
+.ai-section { margin-bottom: 18px; }
+.ai-section-title { font-size: 14px; font-weight: 700; color: var(--accent); margin-bottom: 8px; }
 .ai-text { font-size: 13px; line-height: 1.7; color: var(--text); }
 .ai-disclaimer { font-size: 11px; color: var(--text-dim); padding: 10px; background: var(--kv-bg); border-radius: var(--radius-sm); margin-top: 12px; display: flex; align-items: center; gap: 5px; }
 
 /* AI 关键词着色（作用在 v-html 渲染的 Markdown 内） */
-.md :deep(.ai-num) { color: var(--accent); font-weight: 600; }
-.md :deep(.ai-price) { color: var(--yellow); font-weight: 600; }
+.md :deep(.ai-num) { color: var(--accent); font-weight: 600; font-variant-numeric: tabular-nums; }
+.md :deep(.ai-price) { color: var(--yellow); font-weight: 600; font-variant-numeric: tabular-nums; }
 .md :deep(.ai-bull) { color: var(--up); font-weight: 600; }
 .md :deep(.ai-bear) { color: var(--down); font-weight: 600; }
 .md :deep(.ai-neutral) { color: var(--text-dim); font-weight: 600; }
@@ -854,9 +891,45 @@ onUnmounted(() => {
 .md :deep(pre) { background: var(--bg-hover); padding: 10px; border-radius: 8px; overflow-x: auto; font-size: 12px; }
 .md :deep(pre code) { background: transparent; padding: 0; }
 .md :deep(blockquote) { margin: 8px 0; padding: 4px 12px; border-left: 3px solid var(--accent); color: var(--text-dim); background: var(--bg-hover); border-radius: 4px; }
-.md :deep(table) { border-collapse: collapse; margin: 8px 0; font-size: 12px; width: 100%; }
-.md :deep(th), .md :deep(td) { border: 1px solid var(--border); padding: 5px 9px; text-align: left; }
-.md :deep(th) { background: var(--bg-hover); color: var(--text-dim); font-weight: 500; }
+
+/* 结构化表格高颜值金融 UI */
+.md :deep(table) {
+  border-collapse: separate;
+  border-spacing: 0;
+  margin: 10px 0 14px;
+  font-size: 12px;
+  width: 100%;
+  border-radius: var(--radius-md);
+  overflow: hidden;
+  border: 1px solid var(--border);
+  background: var(--bg);
+}
+.md :deep(th), .md :deep(td) {
+  border-right: 1px solid var(--border);
+  border-bottom: 1px solid var(--border);
+  padding: 7px 10px;
+  text-align: left;
+  line-height: 1.5;
+}
+.md :deep(th:last-child), .md :deep(td:last-child) {
+  border-right: none;
+}
+.md :deep(tr:last-child td) {
+  border-bottom: none;
+}
+.md :deep(th) {
+  background: var(--bg-hover);
+  color: var(--accent);
+  font-weight: 600;
+  white-space: nowrap;
+}
+.md :deep(tr:nth-child(even)) {
+  background: var(--kv-bg);
+}
+.md :deep(tr:hover) {
+  background: rgba(76, 154, 255, 0.05);
+}
+
 .md :deep(a) { color: var(--accent); }
 .md :deep(hr) { border: none; border-top: 1px solid var(--border); margin: 10px 0; }
 </style>
