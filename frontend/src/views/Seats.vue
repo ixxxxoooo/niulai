@@ -279,6 +279,8 @@ import { ref, reactive, computed, onMounted, onUnmounted } from 'vue'
 import { api } from '../api.js'
 import { openStock } from '../composables/useStockMeta.js'
 import { usePageTab } from '../composables/usePageTab.js'
+import { showConfirm } from '../composables/useConfirm.js'
+import { showToast } from '../composables/useToast.js'
 
 const tab = usePageTab('seats', 'board')
 
@@ -388,8 +390,8 @@ function closeSeatEditor() { showSeatEditor.value = false }
 async function saveSeatGroup() {
   const seats = seatForm.customSeatsText.split('\n').map(s => s.trim()).filter(Boolean)
   const nick = seatForm.nickname.trim()
-  if (!nick) return alert('请填写游资名称')
-  if (!seats.length) return alert('请至少填写一个自定义席位')
+  if (!nick) return showToast('请填写游资名称', 'error')
+  if (!seats.length) return showToast('请至少填写一个自定义席位', 'error')
   seatSaving.value = true
   try {
     const body = { real_name: seatForm.real_name.trim(), tier: seatForm.tier, style: seatForm.style.trim(), premium: seatForm.premium, seats }
@@ -397,32 +399,47 @@ async function saveSeatGroup() {
     else await api.lhbSeatCreate({ nickname: nick, ...body })
     showSeatEditor.value = false
     await loadSeatGroups()
+    showToast(`游资「${nick}」保存成功`)
   } catch (e) {
-    alert('保存失败：' + (e.message || e))
+    showToast('保存失败：' + (e.message || e), 'error')
   } finally {
     seatSaving.value = false
   }
 }
 
 async function removeSeatGroup(g) {
-  if (!confirm(`确定删除游资「${g.nickname}」？`)) return
+  const confirmed = await showConfirm({
+    title: '删除游资确认',
+    message: `确定删除游资「${g.nickname}」吗？`,
+    confirmText: '确认删除',
+    variant: 'danger',
+  })
+  if (!confirmed) return
   try {
     await api.lhbSeatDelete(g.nickname)
     await loadSeatGroups()
+    showToast(`游资「${g.nickname}」已删除`)
   } catch (e) {
-    alert('删除失败：' + (e.message || e))
+    showToast('删除失败：' + (e.message || e), 'error')
   }
 }
 
 async function syncSeats() {
+  const confirmed = await showConfirm({
+    title: '恢复内置字典',
+    message: '确定恢复系统内置龙虎榜席位字典吗？（自定义席位将保留）',
+    confirmText: '立即恢复',
+    variant: 'primary',
+  })
+  if (!confirmed) return
   seatSyncing.value = true
   try {
     const res = await api.lhbSeatsSync(true)
     seatCount.value = res.count || 0
     await loadSeatGroups()
-    alert(`已恢复内置字典，共 ${seatCount.value} 条席位（保留自定义）`)
+    showToast(`已恢复内置字典，共 ${seatCount.value} 条席位`)
   } catch (e) {
-    alert('同步失败：' + (e.message || e))
+    showToast('同步失败：' + (e.message || e), 'error')
   } finally {
     seatSyncing.value = false
   }
@@ -478,15 +495,15 @@ function selectDate(d) { movesDate.value = d; loadMoves() }
 function setSide(s) { movesSide.value = s; loadMoves() }
 
 async function doMovesSync() {
-  if (!syncStart.value || !syncEnd.value) return alert('请选择同步日期范围')
-  if (syncStart.value > syncEnd.value) return alert('开始日期不能晚于结束日期')
+  if (!syncStart.value || !syncEnd.value) return showToast('请选择同步日期范围', 'error')
+  if (syncStart.value > syncEnd.value) return showToast('开始日期不能晚于结束日期', 'error')
   try {
     const res = await api.lhbMovesSync(syncStart.value, syncEnd.value)
     movesSyncing.value = true
     movesSyncMsg.value = res.message || '同步中…'
     startMovesPoll()
   } catch (e) {
-    alert('同步启动失败：' + (e.message || e))
+    showToast('同步启动失败：' + (e.message || e), 'error')
   }
 }
 
@@ -503,7 +520,8 @@ function startMovesPoll() {
         movesSyncing.value = false
         await loadDates()
         await loadMoves()
-        if (st.error) alert('同步出错：' + st.error)
+        if (st.error) showToast('同步出错：' + st.error, 'error')
+        else showToast('游资动向同步完成')
       }
     } catch (e) { /* ignore */ }
   }, 2000)

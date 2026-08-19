@@ -423,6 +423,8 @@ import { loadWatchlist, removeWatch, addWatch, isWatched, watchState, setCurrent
 import { applyListFilter } from '../composables/useListFilter.js'
 import { openStock } from '../composables/useStockMeta.js'
 import { captureElement } from '../composables/useScreenshot.js'
+import { showConfirm } from '../composables/useConfirm.js'
+import { showToast } from '../composables/useToast.js'
 import MiniTrend from '../components/MiniTrend.vue'
 import BoardBadges from '../components/BoardBadges.vue'
 import RiskModal from '../components/RiskModal.vue'
@@ -850,33 +852,65 @@ async function savePos() {
 async function clearPos() {
   const f = form.value
   if (!f) return
-  if (!confirm(`确定清空 ${f.name} 的持仓？`)) return
+  const confirmed = await showConfirm({
+    title: '清空持仓确认',
+    message: `确定清空【${f.name || f.code}】的持仓记录吗？`,
+    confirmText: '确认清空',
+    variant: 'danger',
+  })
+  if (!confirmed) return
   await api.positionDelete(f.code)
   form.value = null
+  showToast(`已清空【${f.name || f.code}】的持仓`)
   await load()
 }
 
 async function clearOne(s) {
-  if (!confirm(`确定清空 ${s.name}（${s.code}）的持仓？`)) return
+  const confirmed = await showConfirm({
+    title: '清空持仓确认',
+    message: `确定清空【${s.name}（${s.code}）】的持仓记录吗？`,
+    confirmText: '确认清空',
+    variant: 'danger',
+  })
+  if (!confirmed) return
   await api.positionDelete(s.code)
+  showToast(`已清空【${s.name}】的持仓`)
   await load()
 }
 
 async function deleteSnapshot(r) {
-  if (!confirm(`确定删除该收益记录（${r.ts} · ${kindLabel(r.kind)}）？`)) return
+  const confirmed = await showConfirm({
+    title: '删除记录确认',
+    message: `确定删除该收益记录（${r.ts} · ${kindLabel(r.kind)}）吗？`,
+    confirmText: '确认删除',
+    variant: 'danger',
+  })
+  if (!confirmed) return
   try {
     await api.positionSnapshotDelete(r.id)
     await loadSnapshots()
-  } catch (e) { alert('删除失败：' + e.message) }
+    showToast('记录已删除')
+  } catch (e) {
+    showToast('删除失败：' + e.message, 'error')
+  }
 }
 
 async function clearSnapshots() {
   if (!snapshots.length) return
-  if (!confirm('确定清空全部收益记录？此操作不可恢复。')) return
+  const confirmed = await showConfirm({
+    title: '清空收益记录确认',
+    message: '确定清空全部收益记录吗？此操作不可恢复。',
+    confirmText: '彻底清空',
+    variant: 'danger',
+  })
+  if (!confirmed) return
   try {
     await api.positionSnapshotsClear()
     snapshots.value = []
-  } catch (e) { alert('清空失败：' + e.message) }
+    showToast('全部收益记录已清空')
+  } catch (e) {
+    showToast('清空失败：' + e.message, 'error')
+  }
 }
 
 async function removeStock(s) {
@@ -886,15 +920,29 @@ async function removeStock(s) {
   if (curGid !== null) {
     const curGroup = watchState.groups.find(g => g.id === curGid)
     const gName = curGroup ? curGroup.name : '当前分组'
-    if (!confirm(`确定将【${sName || code}】移出「${gName}」分组吗？\n该股票仍会保留在自选「全部」及其他所属分组中。`)) return
+    const confirmed = await showConfirm({
+      title: '移出分组确认',
+      message: `确定将【${sName || code}】移出「${gName}」分组吗？`,
+      detail: '提示：该股票仍会保留在自选「全部」及其他所属分组中。',
+      confirmText: '确认移出',
+      variant: 'danger',
+    })
+    if (!confirmed) return
     await removeWatch(code, curGid)
   } else {
     const inGroups = stockGroupsMap.value[code] || []
-    let promptMsg = `确定从自选股中删除【${sName || code}】吗？`
+    let detail = '提示：删除后将同时从所有所属分组及持仓中彻底移除。'
     if (inGroups.length > 0) {
-      promptMsg += `\n该股票当前归属于以下分组：【${inGroups.join('】、【')}】。\n删除后将同时从所有分组及持仓中彻底移除。`
+      detail = `该股票当前归属于以下分组：【${inGroups.join('】、【')}】。\n删除后将同时从所有分组及持仓中彻底移除。`
     }
-    if (!confirm(promptMsg)) return
+    const confirmed = await showConfirm({
+      title: '删除自选确认',
+      message: `确定从全部自选中删除【${sName || code}】吗？`,
+      detail,
+      confirmText: '彻底删除',
+      variant: 'danger',
+    })
+    if (!confirmed) return
     await removeWatch(code, null)
   }
   await load()

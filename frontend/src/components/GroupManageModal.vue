@@ -128,6 +128,7 @@ import {
   reorderGroups,
   initPresetGroups,
 } from '../composables/useWatchlist.js'
+import { showConfirm } from '../composables/useConfirm.js'
 import UiButton from './ui/UiButton.vue'
 import UiInput from './ui/UiInput.vue'
 
@@ -225,7 +226,14 @@ async function saveRename(g) {
 }
 
 async function doDeleteGroup(g) {
-  if (!confirm(`确定删除分组「${g.name}」吗？\n该分组下的股票仍会保留在自选「全部」及其他所属分组中。`)) return
+  const confirmed = await showConfirm({
+    title: '删除分组确认',
+    message: `确定删除分组「${g.name}」吗？`,
+    detail: '提示：该分组下的股票仍会保留在自选「全部」及其他所属分组中。',
+    confirmText: '确认删除',
+    variant: 'danger',
+  })
+  if (!confirmed) return
   busy.value = true
   error.value = ''
   try {
@@ -289,7 +297,14 @@ function onDragEnd() {
 }
 
 async function doInitPresets() {
-  if (!confirm('确定导入/补全全部 22 大核心板块（光通信、PCB、先进封装、存储芯片、AI软件、消费电子、锂电池、电网、光伏、券商、航天、军工、能源、电力等）及其核心龙头股票吗？')) return
+  const confirmed = await showConfirm({
+    title: '导入热门预设确认',
+    message: '确定导入/补全全部 22 大核心热门赛道及头部龙头股票吗？',
+    detail: '包括：光通信、PCB、先进封装、存储芯片、半导体自主可控、AI软件、消费电子、锂电池、电网、光伏储能、券商、商业航天、国防军工、贵金属、化工、创新药、白酒、银行、能源、机器人、低空经济、ETF 等。',
+    confirmText: '立即导入',
+    variant: 'primary',
+  })
+  if (!confirmed) return
   busy.value = true
   error.value = ''
   successMsg.value = ''

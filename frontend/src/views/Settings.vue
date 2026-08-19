@@ -348,6 +348,8 @@ import { api } from '../api.js'
 import { settingsState, saveSetting, loadSettings, applyThemeMode } from '../composables/useSettings.js'
 import { watchState, clearWatch, importWatch } from '../composables/useWatchlist.js'
 import { usePageTab } from '../composables/usePageTab.js'
+import { showConfirm } from '../composables/useConfirm.js'
+import { showToast } from '../composables/useToast.js'
 
 const themeMode = ref('dark')
 const navMode = ref('top')
@@ -461,10 +463,17 @@ function setAi(key, value) {
 }
 
 async function onClearWatch() {
-  if (confirm('确定要清空全部自选股吗？')) {
-    await clearWatch()
-    watchCount.value = 0
-  }
+  const confirmed = await showConfirm({
+    title: '清空自选确认',
+    message: '确定要清空全部自选股吗？',
+    detail: '警告：此操作将清空所有自选分组中的标的，操作后无法撤销。',
+    confirmText: '确认清空',
+    variant: 'danger',
+  })
+  if (!confirmed) return
+  await clearWatch()
+  watchCount.value = 0
+  showToast('已清空全部自选股')
 }
 
 function exportWatch() {
@@ -476,6 +485,7 @@ function exportWatch() {
   a.download = 'watchlist.json'
   a.click()
   URL.revokeObjectURL(url)
+  showToast('自选股导出成功')
 }
 
 function importWatchFile(e) {
@@ -488,10 +498,10 @@ function importWatchFile(e) {
       if (Array.isArray(codes)) {
         const merged = await importWatch(codes.filter(c => /^\d{6}$/.test(c)))
         watchCount.value = merged.length
-        alert(`成功导入，当前共 ${merged.length} 只自选股`)
+        showToast(`成功导入，当前共 ${merged.length} 只自选股`)
       }
     } catch (err) {
-      alert('导入失败：文件格式不正确')
+      showToast('导入失败：文件格式不正确', 'error')
     }
   }
   reader.readAsText(file)
@@ -511,18 +521,27 @@ async function exportBackup() {
     a.download = `niulai-backup-${d.getFullYear()}${p(d.getMonth() + 1)}${p(d.getDate())}_${p(d.getHours())}${p(d.getMinutes())}.json`
     a.click()
     URL.revokeObjectURL(url)
-    alert('备份导出成功')
+    showToast('备份导出成功')
   } catch (e) {
-    alert('导出失败：' + e.message)
+    showToast('导出失败：' + e.message, 'error')
   } finally {
     backupBusy.value = false
   }
 }
 
-function importBackupFile(e) {
+async function importBackupFile(e) {
   const file = e.target.files[0]
   if (!file) return
-  if (!confirm('完整导入将覆盖本机的自选/持仓/监控/设置等数据，确定继续吗？')) { e.target.value = ''; return }
+  const confirmed = await showConfirm({
+    title: '导入备份确认',
+    message: '完整导入将覆盖本机的自选/持仓/监控/设置等数据，确定继续吗？',
+    confirmText: '确认覆盖导入',
+    variant: 'danger',
+  })
+  if (!confirmed) {
+    e.target.value = ''
+    return
+  }
   const reader = new FileReader()
   reader.onload = async () => {
     backupBusy.value = true
@@ -532,9 +551,9 @@ function importBackupFile(e) {
       const count = Object.values(res.imported || {}).reduce((a, b) => a + b, 0)
       await loadSettings()
       watchCount.value = (await api.watchlist().catch(() => ({ codes: [] }))).codes?.length || 0
-      alert(`导入成功：共恢复 ${count} 条数据`)
+      showToast(`导入成功：共恢复 ${count} 条数据`)
     } catch (err) {
-      alert('导入失败：文件格式不正确或数据版本不兼容')
+      showToast('导入失败：文件格式不正确或数据版本不兼容', 'error')
     } finally {
       backupBusy.value = false
       e.target.value = ''
@@ -559,7 +578,7 @@ async function pollSync() {
       clearInterval(syncTimer)
       syncTimer = null
       syncing.value = ''
-      if (st.error) alert('同步失败：' + st.error)
+      if (st.error) showToast('同步失败：' + st.error, 'error')
       else setTimeout(() => { if (!syncing.value) { syncMsg.value = ''; syncPct.value = 0 } }, 4000)
     }
   } catch (e) {
@@ -581,7 +600,7 @@ async function resync(scope = 'stocks') {
     pollSync()
   } catch (e) {
     syncing.value = ''
-    alert('同步失败：' + e.message)
+    showToast('同步失败：' + e.message, 'error')
   }
 }
 

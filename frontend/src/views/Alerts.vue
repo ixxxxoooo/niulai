@@ -147,6 +147,7 @@ import { api } from '../api.js'
 import { navigate } from '../router.js'
 import { openStock } from '../composables/useStockMeta.js'
 import { requestNotifyPermission } from '../composables/useAlertNotify.js'
+import { showConfirm } from '../composables/useConfirm.js'
 import SearchSuggest from '../components/SearchSuggest.vue'
 
 const rows = ref([])
@@ -294,7 +295,13 @@ async function toggle(r) {
 }
 
 async function remove(r) {
-  if (!confirm(`删除监控「${r.name || r.code}」？`)) return
+  const confirmed = await showConfirm({
+    title: '删除监控确认',
+    message: `确定删除对「${r.name || r.code}」的盯盘监控条件吗？`,
+    confirmText: '确认删除',
+    variant: 'danger',
+  })
+  if (!confirmed) return
   try {
     await api.alertDelete(r.id)
     await load()

@@ -155,6 +155,7 @@
     </div>
     <GlobalTip />
     <ToastHost />
+    <UiConfirmModal />
   </div>
 </template>
 
@@ -172,6 +173,7 @@ import SearchSuggest from './components/SearchSuggest.vue'
 import IndexTicker from './components/IndexTicker.vue'
 import GlobalTip from './components/GlobalTip.vue'
 import ToastHost from './components/ToastHost.vue'
+import UiConfirmModal from './components/UiConfirmModal.vue'
 import Overview from './views/Overview.vue'
 import Global from './views/Global.vue'
 import SectorHome from './views/SectorHome.vue'

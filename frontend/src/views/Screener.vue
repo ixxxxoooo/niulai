@@ -122,6 +122,7 @@
 import { ref, computed, onMounted } from 'vue'
 import { api } from '../api.js'
 import { navigate } from '../router.js'
+import { showToast } from '../composables/useToast.js'
 
 const syncSt = ref({})
 const syncing = ref(false)
@@ -191,7 +192,7 @@ async function runScreen() {
     if (resultRules.value.length) activeTab.value = resultRules.value[0]
     loadRuns()
   } catch (e) {
-    alert('选股失败：' + (e.message || e))
+    showToast('选股失败：' + (e.message || e), 'error')
   } finally {
     running.value = false
   }
