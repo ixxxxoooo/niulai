@@ -66,9 +66,18 @@ onUnmounted(() => {
 
 <style scoped>
 .stock-modal-mask {
-  background: rgba(0, 0, 0, 0.75);
-  backdrop-filter: blur(4px);
-  z-index: 1000;
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.78);
+  backdrop-filter: blur(6px);
+  z-index: 9999;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
 }
 
 .stock-fullview-card {
@@ -76,10 +85,10 @@ onUnmounted(() => {
   max-width: 1280px;
   height: 90vh;
   max-height: 92vh;
-  background: var(--bg-body);
+  background: var(--bg);
   border: 1px solid var(--border);
   border-radius: var(--radius-lg);
-  box-shadow: 0 24px 70px rgba(0, 0, 0, 0.65);
+  box-shadow: 0 24px 70px rgba(0, 0, 0, 0.75);
   display: flex;
   flex-direction: column;
   padding: 0 !important;
@@ -96,7 +105,7 @@ onUnmounted(() => {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 10px 20px;
+  padding: 12px 20px;
   background: var(--bg-card);
   border-bottom: 1px solid var(--border);
   flex-shrink: 0;
@@ -109,13 +118,13 @@ onUnmounted(() => {
 }
 
 .stock-quick-title {
-  font-size: 14px;
+  font-size: 15px;
   font-weight: 700;
   color: var(--text);
 }
 
 .stock-quick-code {
-  font-size: 12px;
+  font-size: 13px;
   color: var(--accent);
   background: var(--accent-bg);
   padding: 2px 8px;
@@ -179,6 +188,6 @@ onUnmounted(() => {
   flex: 1;
   overflow-y: auto;
   padding: 16px 20px 30px;
-  background: var(--bg-body);
+  background: var(--bg);
 }
 </style>

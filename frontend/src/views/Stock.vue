@@ -641,6 +641,8 @@ watch(isEtf, (v) => { if (v) loadHoldings() })
 onMounted(async () => {
   isWatched.value = codeWatched(code.value)
   hydrateLocal()
+  loadFast()
+  loadSlow()
   window.addEventListener('app-manual-refresh', onAppManualRefresh)
 })
 onUnmounted(() => {
