@@ -23,7 +23,7 @@
           <button class="modal-close" @click="close" title="关闭"><UiIcon name="close" :size="16" /></button>
         </div>
 
-        <div class="ai-modal-body">
+        <div class="ai-modal-body" ref="modalBodyRef">
           <div v-if="!hasConfig" class="ai-tip">
             请先在「设置」中开启 AI 分析并配置 API Key。
             <a href="#/settings" class="link">前往设置 <UiIcon name="arrowRight" :size="12" /></a>
@@ -49,13 +49,13 @@
               <div v-if="debugInfo" class="ai-debug">{{ debugInfo }}</div>
             </div>
 
-            <!-- 思考过程（生成中动态高亮展开，完成后自动收起） -->
+            <!-- 思考过程（生成中动态高亮展开并实时滚动最新，完成后自动收起） -->
             <div
               v-if="thinkingMd || currentReasoning || (loading && !streamText)"
               class="ai-think"
               :class="{ 'is-thinking': loading && !streamText, 'is-open': thinkOpen }"
             >
-              <button type="button" class="ai-think-toggle" @click="thinkOpen = !thinkOpen">
+              <button type="button" class="ai-think-toggle" @click="toggleThink">
                 <div class="ai-think-status-wrap">
                   <!-- 思考中动态脉冲徽标 -->
                   <span v-if="loading && !streamText" class="think-pulse-badge">
@@ -87,7 +87,7 @@
                   <span>正在构建股票盘口、分时均线与量价结构多维度上下文…</span>
                 </div>
                 <!-- 实时流式思考 Markdown 内容 + 打字光标 -->
-                <div v-else class="ai-think-text md">
+                <div v-else class="ai-think-text md" ref="thinkTextRef">
                   <div v-html="renderMd(thinkingMd || currentReasoning)"></div>
                   <span v-if="loading && !streamText" class="think-typing-cursor">▌</span>
                 </div>
@@ -99,7 +99,7 @@
               <span>正在获取数据并调用 AI 引擎…</span>
             </div>
 
-            <div v-if="streamText && !showResult" class="ai-stream md" v-html="renderMd(streamText)"></div>
+            <div v-if="streamText && !showResult" class="ai-stream md" ref="streamElRef" v-html="renderMd(streamText)"></div>
 
             <div v-if="showResult" class="ai-result">
               <div class="ai-section" v-for="sec in resultSections" :key="sec.key">
@@ -128,10 +128,10 @@
 
 <script setup>
 /**
- * 个股 AI 分析弹窗（含深度思考过程流式展示与剪贴板截图）
+ * 个股 AI 分析弹窗（含深度思考过程流式展示、自动跟随最新与剪贴板截图）
  * @author ygw
  */
-import { ref, computed, onUnmounted } from 'vue'
+import { ref, computed, nextTick, onUnmounted } from 'vue'
 import { marked } from 'marked'
 import { api } from '../api.js'
 import { settingsState } from '../composables/useSettings.js'
@@ -150,6 +150,9 @@ marked.setOptions({ breaks: true, gfm: true })
 // ── 弹窗与历史状态 ──
 const open = ref(false)
 const modalEl = ref(null)
+const modalBodyRef = ref(null)
+const thinkTextRef = ref(null)
+const streamElRef = ref(null)
 const history = ref([])
 const currentId = ref(null)
 const currentReasoning = ref('')
@@ -170,6 +173,7 @@ const thinkLiveSeconds = ref(0)
 const elapsed = ref(0)
 const freshContent = ref('')
 let liveTimerId = null
+let scrollRafId = null
 
 const hasConfig = computed(() => {
   return settingsState.aiEnabled && settingsState.aiApiKey && settingsState.aiApiKey.length > 5
@@ -225,6 +229,29 @@ function renderMd(text) {
     .replace(/<iframe[\s\S]*?<\/iframe>/gi, '')
     .replace(/\son\w+\s*=\s*("[^"]*"|'[^']*'|[^\s>]+)/gi, '')
   return mdHighlight(html)
+}
+
+/**
+ * 自动滚动追踪最新生成内容
+ */
+function autoScrollToLatest() {
+  if (scrollRafId) return
+  scrollRafId = requestAnimationFrame(() => {
+    scrollRafId = null
+    if (thinkOpen.value && thinkTextRef.value) {
+      thinkTextRef.value.scrollTop = thinkTextRef.value.scrollHeight
+    }
+    if (modalBodyRef.value) {
+      modalBodyRef.value.scrollTop = modalBodyRef.value.scrollHeight
+    }
+  })
+}
+
+function toggleThink() {
+  thinkOpen.value = !thinkOpen.value
+  if (thinkOpen.value) {
+    nextTick(autoScrollToLatest)
+  }
 }
 
 /**
@@ -530,6 +557,7 @@ async function runAnalysis() {
           if (reasonDelta) {
             reasoningText += reasonDelta
             thinkingMd.value = reasoningText
+            autoScrollToLatest()
           }
           if (contentDelta) {
             // 正文开始输出：停止思考计时器，并自动收起思考内容
@@ -542,6 +570,7 @@ async function runAnalysis() {
             }
             fullText += contentDelta
             streamText.value = fullText
+            autoScrollToLatest()
           }
         } catch (e) {
           if (e && e.message && !(e instanceof SyntaxError)) throw e
@@ -618,7 +647,13 @@ onUnmounted(() => {
   background: var(--bg); color: var(--text-dim); font-size: 12px; cursor: pointer;
   height: auto;
 }
-.ai-modal-body { padding: 16px 18px; overflow-y: auto; flex: 1; min-height: 120px; }
+.ai-modal-body {
+  padding: 16px 18px;
+  overflow-y: auto;
+  flex: 1;
+  min-height: 120px;
+  scroll-behavior: smooth;
+}
 .ai-presets {
   display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
   padding: 8px 12px; background: var(--kv-bg); border-radius: 8px; margin-bottom: 14px;
@@ -778,6 +813,7 @@ onUnmounted(() => {
   color: var(--text-dim);
   max-height: 280px;
   overflow-y: auto;
+  scroll-behavior: smooth;
 }
 
 .think-typing-cursor {
