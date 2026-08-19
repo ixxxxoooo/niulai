@@ -56,14 +56,62 @@
         </button>
       </div>
 
-      <div class="card mt12" v-if="watchRows.length" ref="stockCard">
+      <div class="card mt12" ref="stockCard">
         <div class="card-title">
-          <span>{{ currentGroupName }}（{{ watchRows.length }}）</span>
-          <button class="btn-screenshot" @click="captureElement(stockCard, `${currentGroupName}自选.png`)" title="截图">
-            <UiIcon name="screenshot" :size="14" />
-          </button>
+          <span class="card-title-text">{{ currentGroupName }}（{{ watchRows.length }}）</span>
+          <div class="card-title-actions">
+            <!-- 快捷添加股票组件 -->
+            <div class="quick-add-wrap" ref="quickAddRef">
+              <button
+                v-if="!quickAddOpen"
+                class="btn-quick-add"
+                :title="`添加股票到「${currentGroupName}」`"
+                @click="openQuickAdd"
+              >
+                <span class="plus-icon">+</span>
+              </button>
+              <div v-else class="quick-add-box">
+                <span class="quick-add-icon">🔍</span>
+                <input
+                  ref="quickAddInput"
+                  v-model="quickAddQuery"
+                  type="text"
+                  class="quick-add-input"
+                  :placeholder="`添加股票到「${currentGroupName}」…代码/拼音/名称`"
+                  @input="onQuickSearch"
+                  @keydown.down.prevent="moveSuggest(1)"
+                  @keydown.up.prevent="moveSuggest(-1)"
+                  @keydown.enter.prevent="onQuickAddEnter"
+                  @keydown.esc="closeQuickAdd"
+                />
+                <button class="quick-add-close" @click="closeQuickAdd" title="关闭">✕</button>
+
+                <!-- 搜索候选下拉浮层 -->
+                <div v-if="suggestList.length && quickAddOpen" class="quick-suggest-pop">
+                  <div
+                    v-for="(item, sIdx) in suggestList"
+                    :key="item.code"
+                    class="suggest-item"
+                    :class="{ active: suggestActiveIndex === sIdx }"
+                    @mousedown.prevent="selectSuggest(item)"
+                  >
+                    <span class="suggest-code">{{ item.code }}</span>
+                    <span class="suggest-name">{{ item.name }}</span>
+                    <span class="suggest-type">{{ item.classify === 'Fund' ? 'ETF' : (item.industry || item.board || 'A股') }}</span>
+                    <span v-if="isWatched(item.code)" class="suggest-tag">已在自选</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- 截图按钮 -->
+            <button class="btn-screenshot" @click="captureElement(stockCard, `${currentGroupName}自选.png`)" title="截图">
+              <UiIcon name="screenshot" :size="14" />
+            </button>
+          </div>
         </div>
-        <div class="table-wrap">
+
+        <div class="table-wrap" v-if="watchRows.length">
           <table class="data-table">
             <thead>
               <tr>
@@ -113,14 +161,12 @@
             </tbody>
           </table>
         </div>
-      </div>
 
-      <div class="card mt12" v-if="!watchRows.length">
-        <div class="empty">
+        <div class="empty" v-else>
           <div class="empty-title">当前分组「{{ currentGroupName }}」暂无自选标的</div>
-          <div class="empty-desc">可点击右下角「分组管理」导入预设或添加标的，或在搜索框添加。</div>
+          <div class="empty-desc">可点击右上角「+」直接搜索添加代码，或点击右下角设置按钮导入预设。</div>
           <div class="empty-actions mt12">
-            <UiButton size="sm" variant="primary" @click="showGroupManage = true">管理分组 / 导入预设</UiButton>
+            <UiButton size="sm" variant="primary" @click="openQuickAdd">+ 立即添加股票</UiButton>
             <UiButton size="sm" variant="ghost" v-if="currentGroupId !== null" @click="selectGroup(null)">查看全部自选</UiButton>
           </div>
         </div>
@@ -355,13 +401,13 @@
 <script setup>
 
 // @author ygw
-import { ref, computed, reactive } from 'vue'
+import { ref, computed, reactive, nextTick, onMounted, onUnmounted } from 'vue'
 import { api } from '../api.js'
 import { fmtAmount, fmtPrice, fmtPct, pctClass } from '../utils.js'
 import { usePolling } from '../composables/usePolling.js'
 import { useTableSort } from '../composables/useTableSort.js'
 import { usePageTab } from '../composables/usePageTab.js'
-import { loadWatchlist, removeWatch, watchState, setCurrentGroup, reorderGroups } from '../composables/useWatchlist.js'
+import { loadWatchlist, removeWatch, addWatch, isWatched, watchState, setCurrentGroup, reorderGroups } from '../composables/useWatchlist.js'
 import { applyListFilter } from '../composables/useListFilter.js'
 import { openStock } from '../composables/useStockMeta.js'
 import { captureElement } from '../composables/useScreenshot.js'
@@ -401,6 +447,106 @@ function openRisk(s) {
 const showGroupManage = ref(false)
 const showStockGroup = ref(false)
 const stockGroupTarget = ref(null)
+
+// 快速添加股票到当前分组
+const quickAddOpen = ref(false)
+const quickAddQuery = ref('')
+const quickAddRef = ref(null)
+const quickAddInput = ref(null)
+const suggestList = ref([])
+const suggestActiveIndex = ref(0)
+let searchTimer = null
+
+function openQuickAdd() {
+  quickAddOpen.value = true
+  quickAddQuery.value = ''
+  suggestList.value = []
+  suggestActiveIndex.value = 0
+  nextTick(() => {
+    quickAddInput.value?.focus()
+  })
+}
+
+function closeQuickAdd() {
+  quickAddOpen.value = false
+  quickAddQuery.value = ''
+  suggestList.value = []
+}
+
+function moveSuggest(delta) {
+  if (!suggestList.value.length) return
+  const len = suggestList.value.length
+  suggestActiveIndex.value = (suggestActiveIndex.value + delta + len) % len
+}
+
+function onQuickSearch() {
+  clearTimeout(searchTimer)
+  const q = quickAddQuery.value.trim()
+  if (!q) {
+    suggestList.value = []
+    return
+  }
+  searchTimer = setTimeout(async () => {
+    try {
+      const res = await api.search(q, 8)
+      suggestList.value = res || []
+      suggestActiveIndex.value = 0
+    } catch (e) {
+      suggestList.value = []
+    }
+  }, 120)
+}
+
+async function selectSuggest(item) {
+  if (!item || !item.code) return
+  try {
+    await addWatch(item.code, currentGroupId.value)
+    closeQuickAdd()
+    await load()
+  } catch (e) {
+    console.error('Add stock failed:', e)
+  }
+}
+
+async function onQuickAddEnter() {
+  if (suggestList.value.length > 0 && suggestList.value[suggestActiveIndex.value]) {
+    await selectSuggest(suggestList.value[suggestActiveIndex.value])
+    return
+  }
+  const q = quickAddQuery.value.trim()
+  if (q.length === 6 && /^\d{6}$/.test(q)) {
+    try {
+      await addWatch(q, currentGroupId.value)
+      closeQuickAdd()
+      await load()
+    } catch (e) {
+      console.error('Add code failed:', e)
+    }
+  } else if (q) {
+    try {
+      const res = await api.search(q, 1)
+      if (res && res.length) {
+        await selectSuggest(res[0])
+      }
+    } catch (e) {
+      console.error('Search on enter failed:', e)
+    }
+  }
+}
+
+function onWindowClick(e) {
+  if (quickAddOpen.value && quickAddRef.value && !quickAddRef.value.contains(e.target)) {
+    closeQuickAdd()
+  }
+}
+
+onMounted(() => {
+  window.addEventListener('click', onWindowClick)
+})
+
+onUnmounted(() => {
+  window.removeEventListener('click', onWindowClick)
+})
 
 const pillDragIndex = ref(null)
 const pillDragOverIndex = ref(null)
@@ -889,10 +1035,166 @@ usePolling(load, 3000)
 }
 .pos-ratio-bar.over { background: linear-gradient(90deg, var(--yellow), rgba(227, 179, 65, .55)); }
 
+/* 截图按钮与卡片顶栏操作区 */
+.card-title {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+.card-title-text {
+  font-weight: 600;
+}
+.card-title-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.quick-add-wrap {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+}
+
+.btn-quick-add {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
+  border-radius: var(--radius-sm);
+  background: var(--bg-hover);
+  border: 1px solid var(--border);
+  color: var(--text);
+  cursor: pointer;
+  transition: all .15s ease;
+}
+.btn-quick-add:hover {
+  background: var(--accent-bg);
+  border-color: var(--accent);
+  color: var(--accent);
+  transform: scale(1.08);
+}
+.plus-icon {
+  font-size: 16px;
+  line-height: 1;
+  font-weight: 600;
+  margin-top: -1px;
+}
+
+.quick-add-box {
+  display: inline-flex;
+  align-items: center;
+  background: var(--bg-card);
+  border: 1px solid var(--accent);
+  border-radius: var(--radius-sm);
+  padding: 0 6px 0 8px;
+  height: 28px;
+  box-shadow: 0 0 0 2px var(--accent-bg);
+  position: relative;
+  animation: popIn .15s ease-out;
+}
+@keyframes popIn {
+  from { opacity: 0; transform: scale(0.95); }
+  to { opacity: 1; transform: scale(1); }
+}
+.quick-add-icon {
+  font-size: 11px;
+  color: var(--text-dim);
+  margin-right: 4px;
+}
+.quick-add-input {
+  border: none;
+  background: transparent;
+  color: var(--text);
+  font-size: 12px;
+  outline: none;
+  width: 210px;
+}
+.quick-add-input::placeholder {
+  color: var(--text-dim);
+  font-size: 11px;
+}
+.quick-add-close {
+  border: none;
+  background: transparent;
+  color: var(--text-dim);
+  font-size: 11px;
+  cursor: pointer;
+  padding: 2px 4px;
+  border-radius: 2px;
+  line-height: 1;
+  margin-left: 2px;
+}
+.quick-add-close:hover {
+  color: var(--text);
+  background: var(--bg-hover);
+}
+
+.quick-suggest-pop {
+  position: absolute;
+  top: 32px;
+  right: 0;
+  width: 280px;
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, .45);
+  z-index: 100;
+  max-height: 240px;
+  overflow-y: auto;
+}
+.suggest-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 7px 10px;
+  font-size: 12px;
+  cursor: pointer;
+  border-bottom: 1px solid var(--border);
+  transition: background .1s;
+}
+.suggest-item:last-child {
+  border-bottom: none;
+}
+.suggest-item:hover, .suggest-item.active {
+  background: var(--accent-bg);
+  color: var(--accent);
+}
+.suggest-code {
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  min-width: 52px;
+}
+.suggest-name {
+  flex: 1;
+  margin: 0 6px;
+  font-weight: 500;
+  color: var(--text);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.suggest-item:hover .suggest-name, .suggest-item.active .suggest-name {
+  color: var(--accent);
+}
+.suggest-type {
+  font-size: 11px;
+  color: var(--text-dim);
+  margin-right: 4px;
+}
+.suggest-tag {
+  font-size: 10px;
+  padding: 1px 4px;
+  border-radius: 2px;
+  background: var(--bg-hover);
+  color: var(--text-dim);
+}
+
 /* 截图按钮 */
 .btn-screenshot {
   border: none; background: transparent; cursor: pointer; color: var(--text-dim);
-  padding: 2px 6px; border-radius: 4px; opacity: .7; margin-left: auto;
+  padding: 2px 6px; border-radius: 4px; opacity: .7;
 }
 .btn-screenshot:hover { opacity: 1; background: var(--bg-hover); }
 
