@@ -360,6 +360,8 @@ import UiButton from '../components/ui/UiButton.vue'
 import UiIcon from '../components/ui/UiIcon.vue'
 import StockQuickModal from '../components/StockQuickModal.vue'
 
+const STORAGE_KEY = 'niulai_screener_state_v1'
+
 const syncSt = ref({})
 const syncing = ref(false)
 const syncPct = ref(0)
@@ -396,6 +398,42 @@ const filters = reactive({
   exclude_kcb: true,
   exclude_cyb: true,
 })
+
+// 状态持久化存储
+function saveState() {
+  try {
+    const state = {
+      selectedRules: selectedRules.value,
+      scope: scope.value,
+      filters: { ...filters },
+      notifyFeishu: notifyFeishu.value,
+      sortBy: sortBy.value,
+      activeTab: activeTab.value,
+      result: result.value,
+    }
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(state))
+  } catch (e) {}
+}
+
+function loadSavedState() {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY)
+    if (!raw) return
+    const state = JSON.parse(raw)
+    if (Array.isArray(state.selectedRules)) selectedRules.value = state.selectedRules
+    if (state.scope) scope.value = state.scope
+    if (state.filters) Object.assign(filters, state.filters)
+    if (state.notifyFeishu !== undefined) notifyFeishu.value = !!state.notifyFeishu
+    if (state.sortBy) sortBy.value = state.sortBy
+    if (state.activeTab) activeTab.value = state.activeTab
+    if (state.result) result.value = state.result
+  } catch (e) {}
+}
+
+// 监听所有状态变化并即时保存
+watch([selectedRules, scope, filters, notifyFeishu, sortBy, activeTab, result], () => {
+  saveState()
+}, { deep: true })
 
 const ruleMap = computed(() => {
   const m = {}
@@ -586,6 +624,7 @@ async function loadRun(id) {
 }
 
 onMounted(async () => {
+  loadSavedState()
   loadStatus()
   try { ruleList.value = (await api.screenerRules()).rules || [] } catch {}
   loadRuns()
