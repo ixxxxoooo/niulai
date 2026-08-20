@@ -26,6 +26,7 @@
               <span class="name-cell">
                 <BoardBadges :row="row" />
                 <span class="stock-name" :class="pctClass(row.change_pct)">{{ row.name || '-' }}</span>
+                <LeaderBadge :code="row.code" />
               </span>
             </MiniTrend>
           </td>

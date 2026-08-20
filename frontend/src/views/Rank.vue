@@ -92,7 +92,7 @@
               <tr v-for="p in ztSort.sorted" :key="p.code" @click="openFromRank(p)">
                 <td class="stock-name up">
                   <MiniTrend :code="p.code" :name="p.name">
-                    <span class="name-cell"><BoardBadges :row="p" />{{ p.name }}</span>
+                    <span class="name-cell"><BoardBadges :row="p" />{{ p.name }}<LeaderBadge :code="p.code" /></span>
                   </MiniTrend>
                 </td>
                 <td>{{ p.code }}</td>
@@ -134,7 +134,7 @@
               <tr v-for="p in sort.sorted" :key="p.code" @click="openFromRank(p)">
                 <td class="stock-name down">
                   <MiniTrend :code="p.code" :name="p.name">
-                    <span class="name-cell"><BoardBadges :row="p" />{{ p.name }}</span>
+                    <span class="name-cell"><BoardBadges :row="p" />{{ p.name }}<LeaderBadge :code="p.code" /></span>
                   </MiniTrend>
                 </td>
                 <td>{{ p.code }}</td>
@@ -163,7 +163,7 @@
                 <td>{{ p.rank }}</td>
                 <td class="stock-name" :class="pctClass(p.change_pct)">
                   <MiniTrend :code="p.code" :name="p.name">
-                    <span class="name-cell"><BoardBadges :row="p" />{{ p.name }}</span>
+                    <span class="name-cell"><BoardBadges :row="p" />{{ p.name }}<LeaderBadge :code="p.code" /></span>
                   </MiniTrend>
                 </td>
                 <td>{{ p.code }}</td>
@@ -185,7 +185,7 @@
               <tr v-for="(p, i) in changesRows" :key="i" @click="openFromRank(p)">
                 <td>{{ p.time }}</td>
                 <td class="stock-name" :class="pctClass(p.change_pct)">
-                  <span class="name-cell"><BoardBadges :row="p" />{{ p.name }}</span>
+                  <span class="name-cell"><BoardBadges :row="p" />{{ p.name }}<LeaderBadge :code="p.code" /></span>
                 </td>
                 <td>{{ p.code }}</td>
                 <td><span :class="['change-tag', changeTagClass(p.type_name)]">{{ p.type_name }}</span></td>
@@ -213,7 +213,7 @@
               <tr v-for="p in lhbRows" :key="p.code" @click="openFromRank(p)">
                 <td class="stock-name" :class="pctClass(p.change_pct)">
                   <MiniTrend :code="p.code" :name="p.name">
-                    <span class="name-cell"><BoardBadges :row="p" />{{ p.name }}</span>
+                    <span class="name-cell"><BoardBadges :row="p" />{{ p.name }}<LeaderBadge :code="p.code" /></span>
                   </MiniTrend>
                 </td>
                 <td>{{ p.code }}</td>

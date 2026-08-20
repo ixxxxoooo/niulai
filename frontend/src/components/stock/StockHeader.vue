@@ -4,6 +4,7 @@
     <button v-if="nav.hasList" class="btn-nav-idx" :disabled="!nav.canPrev" @click="$emit('sibling', -1)" title="上一只"><UiIcon name="chevronLeft" :size="14" /></button>
     <BoardBadges :row="badgeRow" />
     <span class="name">{{ displayName }}</span>
+    <LeaderBadge :code="code" />
     <button v-if="nav.hasList" class="btn-nav-idx" :disabled="!nav.canNext" @click="$emit('sibling', 1)" title="下一只"><UiIcon name="chevronRight" :size="14" /></button>
     <span class="industry-tag" v-if="industry" :title="`查看行业板块：${industry}`" @click="gotoIndustry">{{ industry }}</span>
     <span class="code">{{ code }}</span>

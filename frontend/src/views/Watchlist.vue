@@ -142,6 +142,7 @@
                   <MiniTrend :code="s.code" :name="s.name">
                     <span class="name-cell">
                       <BoardBadges :row="s" />{{ s.name }}
+                      <LeaderBadge :code="s.code" />
                       <span v-if="s.shares" class="hold-tag">持仓</span>
                       <span
                         v-if="riskMap[s.code]?.badge_text"
@@ -235,6 +236,7 @@
                   <MiniTrend :code="s.code" :name="s.name">
                     <span class="name-cell" :class="pctClass(s.pnl)">
                       <BoardBadges :row="s" />{{ s.name }}
+                      <LeaderBadge :code="s.code" />
                       <span
                         v-if="riskMap[s.code]?.badge_text"
                         class="risk-pill"

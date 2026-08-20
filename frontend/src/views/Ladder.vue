@@ -30,6 +30,7 @@
               <span class="chip-name">
                 <BoardBadges :row="p" />
                 <MiniTrend :code="p.code" :name="p.name"><span>{{ p.name }}</span></MiniTrend>
+                <LeaderBadge :code="p.code" />
                 <LadderYouzi :youzi="p.youzi" />
                 <span v-if="p.zb_count" class="zb-tag">炸{{ p.zb_count }}</span>
               </span>
@@ -60,6 +61,7 @@
           <span class="chip-name">
             <BoardBadges :row="p" />
             <MiniTrend :code="p.code" :name="p.name"><span>{{ p.name }}</span></MiniTrend>
+            <LeaderBadge :code="p.code" />
             <LadderYouzi :youzi="p.youzi" />
             <span class="zb-tag">炸{{ p.zb_count || 1 }}</span>
           </span>

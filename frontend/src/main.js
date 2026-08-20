@@ -8,6 +8,7 @@ import UiCheckbox from './components/ui/UiCheckbox.vue'
 import UiRadio from './components/ui/UiRadio.vue'
 import UiTextarea from './components/ui/UiTextarea.vue'
 import UiIcon from './components/ui/UiIcon.vue'
+import LeaderBadge from './components/LeaderBadge.vue'
 import { initGlobalTooltip, vTooltip } from './directives/tooltip.js'
 
 initGlobalTooltip()
@@ -21,4 +22,5 @@ app.component('UiCheckbox', UiCheckbox)
 app.component('UiRadio', UiRadio)
 app.component('UiTextarea', UiTextarea)
 app.component('UiIcon', UiIcon)
+app.component('LeaderBadge', LeaderBadge)
 app.mount('#app')

@@ -332,6 +332,7 @@
               <td class="code-col">{{ item.code }}</td>
               <td class="name-col">
                 <a @click.stop="openStockModal(item.code, item.name)">{{ item.name }}</a>
+                <LeaderBadge :code="item.code" />
               </td>
               <td class="tar num-val">{{ item.close != null ? fmtPrice(item.close) : '—' }}</td>
               <td class="tar num-val" :class="pctClass(item.change_pct)">
