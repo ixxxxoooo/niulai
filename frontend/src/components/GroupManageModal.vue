@@ -299,8 +299,8 @@ function onDragEnd() {
 async function doInitPresets() {
   const confirmed = await showConfirm({
     title: '导入热门预设确认',
-    message: '确定导入/补全全部 22 大核心热门赛道及头部龙头股票吗？',
-    detail: '包括：光通信、PCB、先进封装、存储芯片、半导体自主可控、AI软件、消费电子、锂电池、电网、光伏储能、券商、商业航天、国防军工、贵金属、化工、创新药、白酒、银行、能源、机器人、低空经济、ETF 等。',
+    message: '确定导入/补全全部 23 大核心热门赛道及头部龙头股票吗？',
+    detail: '包括：光通信、PCB、先进封装、存储芯片、半导体自主可控、算力租赁、AI软件、消费电子、锂电池、电网、光伏储能、券商、商业航天、国防军工、贵金属、化工、创新药、白酒、银行、能源、机器人、低空经济、ETF 等。',
     confirmText: '立即导入',
     variant: 'primary',
   })
