@@ -1,5 +1,5 @@
 <template>
-  <div>
+  <div class="rank-page">
     <div class="page-title">热门股与资金流向</div>
     <div class="error-banner" v-if="error">{{ error }}</div>
 
@@ -20,24 +20,61 @@
       <div class="tab" :class="{ active: thsType === 'day' }" @click="thsType = 'day'; load()">日榜</div>
     </div>
 
-    <div class="card">
+    <div class="card" ref="rankCardRef">
+      <!-- 统一卡片头部栏（标题 + 截图操作） -->
+      <div class="rank-header-bar">
+        <div class="rank-title-group">
+          <div class="card-title" v-if="tab === 'zhangsu'">5 分钟涨速排行（捕捉盘中异动拉升）</div>
+          <div class="card-title" v-else-if="tab === 'moneyflow'">个股主力净流入排行（大单+超大单）</div>
+          <div class="card-title" v-else-if="tab === 'hot'">热门股（点击列名排序 · 再点取消）</div>
+          <div class="card-title" v-else-if="tab === 'zt'">今日涨停（{{ ztRows.length }} 家）</div>
+          <div class="card-title" v-else-if="tab === 'dt'">今日跌停（{{ rows.length }} 家）</div>
+          <div class="card-title" v-else-if="tab === 'etf'">ETF 排行（共 {{ etfTotal }} 只 · 点击列名排序）</div>
+          <div class="card-title" v-else-if="tab === 'ths'">
+            同花顺热榜 · {{ thsType === 'day' ? '日榜' : '小时榜' }}
+            <span class="sub-hint">解读来自同花顺；无正文时显示标题或概念标签</span>
+          </div>
+          <div class="card-title" v-else-if="tab === 'changes'">盘中个股异动（大笔买卖 / 急速拉升跳水 / 封板等）</div>
+          <div class="card-title" v-else-if="tab === 'lhb'">
+            <span class="lhb-title">龙虎榜{{ lhbDate ? ' · ' + lhbDate : '' }}</span>
+            <span class="lhb-date-bar">
+              <UiDatePicker
+                v-model="lhbDateInput"
+                :max="todayStr"
+                :trading-dates="lhbTradingDates"
+                @change="onLhbDateChange"
+              />
+              <button v-if="lhbDateInput" class="lhb-clear" @click="onLhbDateClear" data-tooltip="回到最近交易日">最近</button>
+            </span>
+          </div>
+        </div>
+
+        <div class="rank-header-actions">
+          <button
+            class="btn-screenshot"
+            @click="screenshotCurrentRank"
+            data-tooltip="【截图当前榜单】&#10;一键将当前榜单卡片生成高清长图并保存至本地"
+          >
+            <UiIcon name="screenshot" :size="14" />
+            <span class="btn-shot-text">截图</span>
+          </button>
+        </div>
+      </div>
+
+      <!-- 榜单数据明细 -->
       <template v-if="tab === 'zhangsu'">
-        <div class="card-title">5 分钟涨速排行（捕捉盘中异动拉升）</div>
         <StockTable :rows="rows" :columns="zhangsuCols" @row-click="openFromRank" />
       </template>
 
       <template v-else-if="tab === 'moneyflow'">
-        <div class="card-title">个股主力净流入排行（大单+超大单）</div>
         <StockTable :rows="rows" :columns="flowCols" @row-click="openFromRank" />
       </template>
 
       <template v-else-if="tab === 'hot'">
-        <div class="card-title">热门股（点击列名排序 · 再点取消）</div>
         <StockTable :rows="rows" :columns="hotCols" @row-click="openFromRank" />
       </template>
 
       <template v-else-if="tab === 'zt'">
-        <div class="card-title">今日涨停（{{ ztRows.length }} 家）</div>
         <div class="table-wrap">
           <table class="data-table">
             <thead><tr>
@@ -49,7 +86,7 @@
               <th>行业</th>
               <th class="sortable" :class="{ sorted: ztSort.sortKey === 'seal_amount' }" @click="ztSort.toggleSort('seal_amount')">封单额</th>
               <th class="sortable" :class="{ sorted: ztSort.sortKey === 'first_time' }" @click="ztSort.toggleSort('first_time')">首次封板</th>
-              <th data-tip="当日龙虎榜上榜席位中命中的知名游资（如章盟主）。红色徽章=拉萨天团，属反向指标需谨慎。">游资</th>
+              <th data-tooltip="当日龙虎榜上榜席位中命中的知名游资（如章盟主）。红色徽章=拉萨天团，属反向指标需谨慎。">游资</th>
             </tr></thead>
             <tbody>
               <tr v-for="p in ztSort.sorted" :key="p.code" @click="openFromRank(p)">
@@ -63,15 +100,15 @@
                 <td class="up">{{ fmtPct(p.change_pct) }}</td>
                 <td>
                   <span class="zt-lb-wrap">
-                    <span class="zt-lb-badge" :title="`连板数：${p.lbc}，点击查看连板梯队`" @click.stop="goLadder()">{{ lbcLabel(p.lbc) }}</span>
-                    <span v-if="p.zb_count" class="zt-zb-badge" :title="`今日炸板 ${p.zb_count} 次，点击查看连板梯队`" @click.stop="goLadder()">炸{{ p.zb_count }}</span>
+                    <span class="zt-lb-badge" :data-tooltip="`连板数：${p.lbc}，点击查看连板梯队`" @click.stop="goLadder()">{{ lbcLabel(p.lbc) }}</span>
+                    <span v-if="p.zb_count" class="zt-zb-badge" :data-tooltip="`今日炸板 ${p.zb_count} 次，点击查看连板梯队`" @click.stop="goLadder()">炸{{ p.zb_count }}</span>
                   </span>
                 </td>
                 <td><span class="rank-industry" @click.stop="gotoIndustry(p.industry)">{{ p.industry || '-' }}</span></td>
                 <td :class="pctClass(p.seal_amount)">{{ fmtAmount(p.seal_amount) }}</td>
                 <td>{{ p.first_time || '-' }}</td>
                 <td class="youzi-cell">
-                  <span v-for="y in (p.youzi || [])" :key="y" class="youzi-badge" :class="{ lhasa: y.includes('拉萨') }" :data-tip="`点击查看该游资动向`" @click.stop="goSeat(y)">{{ y }}</span>
+                  <span v-for="y in (p.youzi || [])" :key="y" class="youzi-badge" :class="{ lhasa: y.includes('拉萨') }" :data-tooltip="`点击查看该游资动向`" @click.stop="goSeat(y)">{{ y }}</span>
                   <span v-if="!(p.youzi || []).length" class="seat-no">—</span>
                 </td>
               </tr>
@@ -82,7 +119,6 @@
       </template>
 
       <template v-else-if="tab === 'dt'">
-        <div class="card-title">今日跌停（{{ rows.length }} 家）</div>
         <div class="table-wrap">
           <table class="data-table">
             <thead><tr>
@@ -115,14 +151,10 @@
       </template>
 
       <template v-else-if="tab === 'etf'">
-        <div class="card-title">ETF 排行（共 {{ etfTotal }} 只 · 点击列名排序）</div>
         <StockTable :rows="rows" :columns="etfCols" @row-click="openFromRank" />
       </template>
 
       <template v-else-if="tab === 'ths'">
-        <div class="card-title">同花顺热榜 · {{ thsType === 'day' ? '日榜' : '小时榜' }}
-          <span style="font-weight:400;color:var(--text-dim);font-size:12px">解读来自同花顺；无正文时显示标题或概念标签</span>
-        </div>
         <div class="table-wrap">
           <table class="data-table">
             <thead><tr><th>排名</th><th>名称</th><th>代码</th><th>涨跌幅</th><th>热度</th><th>解读</th></tr></thead>
@@ -146,7 +178,6 @@
       </template>
 
       <template v-else-if="tab === 'changes'">
-        <div class="card-title">盘中个股异动（大笔买卖 / 急速拉升跳水 / 封板等）</div>
         <div class="table-wrap">
           <table class="data-table">
             <thead><tr><th>时间</th><th>名称</th><th>代码</th><th>异动类型</th><th>涨跌幅</th><th>现价</th></tr></thead>
@@ -168,27 +199,15 @@
       </template>
 
       <template v-else-if="tab === 'lhb'">
-        <div class="card-title">
-          <span class="lhb-title">龙虎榜{{ lhbDate ? ' · ' + lhbDate : '' }}</span>
-          <span class="lhb-date-bar">
-            <UiDatePicker
-              v-model="lhbDateInput"
-              :max="todayStr"
-              :trading-dates="lhbTradingDates"
-              @change="onLhbDateChange"
-            />
-            <button v-if="lhbDateInput" class="lhb-clear" @click="onLhbDateClear" title="回到最近交易日">最近</button>
-          </span>
-        </div>
         <div class="table-wrap">
           <table class="data-table">
             <thead><tr>
               <th>名称</th><th>代码</th><th>现价</th><th>涨跌幅</th>
-              <th data-tip="净买额 = 当日上榜买入金额 − 卖出金额。为正说明当日买盘资金占优（抢筹强），为负说明以卖出为主（获利了结/减仓）。">净买额</th>
-              <th data-tip="买入 = 当日龙虎榜买入席位成交总额，代表游资/机构等买盘抢筹资金。数值大说明有大资金进场。">买入</th>
-              <th data-tip="卖出 = 当日龙虎榜卖出席位成交总额，代表获利了结/减仓资金。数值大说明抛压大。">卖出</th>
-              <th data-tip="上榜原因：满足龙虎榜上榜条件（日涨跌幅、换手、振幅、净买入额等）的具体触发条目。">上榜原因</th>
-              <th data-tip="当日该股上榜席位中命中的知名游资（如章盟主）。红色徽章=拉萨天团，属反向指标需谨慎。">游资</th>
+              <th data-tooltip="净买额 = 当日上榜买入金额 − 卖出金额。为正说明当日买盘资金占优（抢筹强），为负说明以卖出为主（获利了结/减仓）。">净买额</th>
+              <th data-tooltip="买入 = 当日龙虎榜买入席位成交总额，代表游资/机构等买盘抢筹资金。数值大说明有大资金进场。">买入</th>
+              <th data-tooltip="卖出 = 当日龙虎榜卖出席位成交总额，代表获利了结/减仓资金。数值大说明抛压大。">卖出</th>
+              <th data-tooltip="上榜原因：满足龙虎榜上榜条件（日涨跌幅、换手、振幅、净买入额等）的具体触发条目。">上榜原因</th>
+              <th data-tooltip="当日该股上榜席位中命中的知名游资（如章盟主）。红色徽章=拉萨天团，属反向指标需谨慎。">游资</th>
             </tr></thead>
             <tbody>
               <tr v-for="p in lhbRows" :key="p.code" @click="openFromRank(p)">
@@ -205,7 +224,7 @@
                 <td class="down">{{ fmtAmount(p.sell) }}</td>
                 <td class="analyse">{{ p.reason || '-' }}</td>
                 <td>
-                  <span v-for="y in (p.youzi || [])" :key="y.nickname" class="youzi-badge" :class="{ lhasa: y.nickname.includes('拉萨') }" :data-tip="youziTip(y)" @click.stop="goSeat(y.nickname)">{{ y.nickname }}</span>
+                  <span v-for="y in (p.youzi || [])" :key="y.nickname" class="youzi-badge" :class="{ lhasa: y.nickname.includes('拉萨') }" :data-tooltip="youziTip(y)" @click.stop="goSeat(y.nickname)">{{ y.nickname }}</span>
                   <span v-if="!(p.youzi || []).length" class="seat-no">—</span>
                 </td>
               </tr>
@@ -229,10 +248,39 @@ import { logAction } from '../composables/useActionLog.js'
 import { applyListFilter } from '../composables/useListFilter.js'
 import { useTableSort } from '../composables/useTableSort.js'
 import { openStock } from '../composables/useStockMeta.js'
+import { captureElement } from '../composables/useScreenshot.js'
 import UiDatePicker from '../components/ui/UiDatePicker.vue'
+import UiIcon from '../components/ui/UiIcon.vue'
 import StockTable from '../components/StockTable.vue'
 import MiniTrend from '../components/MiniTrend.vue'
 import BoardBadges from '../components/BoardBadges.vue'
+
+const rankCardRef = ref(null)
+
+const TAB_NAMES = {
+  zhangsu: '5分钟涨速榜',
+  moneyflow: '主力净流入榜',
+  hot: '热门股榜',
+  zt: '今日涨停池',
+  dt: '今日跌停池',
+  etf: 'ETF排行',
+  ths: '同花顺热榜',
+  lhb: '龙虎榜',
+  changes: '盘中个股异动',
+}
+
+async function screenshotCurrentRank() {
+  if (!rankCardRef.value) return
+  const baseName = TAB_NAMES[tab.value] || '热门榜单'
+  let extra = ''
+  if (tab.value === 'ths') {
+    extra = `_${thsType.value === 'day' ? '日榜' : '小时榜'}`
+  } else if (tab.value === 'lhb' && lhbDate.value) {
+    extra = `_${lhbDate.value}`
+  }
+  const dateStr = new Date().toISOString().slice(0, 10)
+  await captureElement(rankCardRef.value, `${baseName}${extra}_${dateStr}.png`)
+}
 
 /**
  * 从排行榜进入详情：在当前 Tab 列表内切换，返回当前排行页。
@@ -445,6 +493,57 @@ usePolling(load, 3000)
 </script>
 
 <style scoped>
+.rank-header-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 12px;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.rank-title-group {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.rank-title-group .card-title {
+  margin-bottom: 0;
+}
+.sub-hint {
+  font-weight: 400;
+  color: var(--text-dim);
+  font-size: 12px;
+  margin-left: 6px;
+}
+.rank-header-actions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.btn-screenshot {
+  border: 1px solid var(--border);
+  background: var(--kv-bg);
+  cursor: pointer;
+  padding: 3px 8px;
+  border-radius: var(--radius-sm);
+  color: var(--text-dim);
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 12px;
+  transition: all .15s ease;
+}
+.btn-screenshot:hover {
+  color: var(--accent);
+  border-color: var(--accent);
+  background: var(--bg-hover);
+}
+.btn-shot-text {
+  font-size: 11px;
+  font-weight: 500;
+}
+
 .lhb-title { white-space: nowrap; }
 .lhb-date-bar {
   display: inline-flex; align-items: center; gap: 6px; margin-left: 12px;
