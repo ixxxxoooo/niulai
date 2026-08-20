@@ -1,328 +1,239 @@
-<p align="center">
-  <img src="frontend/public/niulai.png" width="128" alt="牛来 niulai logo">
-</p>
+# 牛来 (niulai)
 
-<h1 align="center">牛来 niulai</h1>
+> **A 股盘中实时行情分析 · 短线情绪监控 · 游资追踪与多维量化选股平台**
+> 
+> 浏览器打开即用的一屏式金融分析看板：大盘量能概况、板块轮动、游资席位追踪、涨停连板梯队、多维量化选股（12 大经典战法 + 严格交集/共振严选）、个股深度全景与 AI 智能分析。
+> 
+> **免费公开数据源 · 纯本地 SQLite 存储 · 单端口 Docker 一键部署 · 零外部依赖**
 
-<p align="center">
-  <b>A 股盘中实时行情分析 Web 工具</b><br>
-  浏览器打开即用的一屏式 A 股行情分析平台：大盘概况、板块轮动、热门股与资金流向实时刷新，支持个股深度行情、自选持仓管理、价格监控与 AI 智能分析。
-</p>
-
-<p align="center">
-  <b>免费数据源 · 本地存储 · 单端口部署 · 零成本上手</b>
-</p>
-
-数据全部来自东方财富 / 腾讯等**免费公开行情接口**（无需账号、无需付费），业务数据存本地 SQLite，无需任何外部数据库。个人自用或作为学习 A 股行情数据接口的最佳实践参考。
+数据全部来自东方财富 / 腾讯等**免费公开行情接口**（无需账号、无需付费），业务数据与日 K 数据底座存储于本地 SQLite（WAL 模式），无需任何外部数据库或重型中间件。既可作为个人交易盯盘工具，也可作为 A 股行情分析与量化选股的最佳工程实践参考。
 
 ---
 
 ## 核心特性
 
-- **一屏看盘**：指数、情绪指标、板块涨幅 TOP、涨速榜、全球指数，盘中 3~5 秒自动刷新
-- **板块轮动**：行业 / 概念板块排行（涨幅 / 主力净流入 / 成交额），板块异动 5 分钟涨速拉升 / 跳水榜
-- **热门与资金**：涨速榜、主力净流入、热门股多维度榜、涨停池、连板梯队、同花顺热榜
-- **个股深度行情**：搜索（代码 / 名称 / 拼音首字母 / 全拼）→ 分时图、K 线、五档盘口、成交明细、资金流、龙虎榜、新闻公告、筹码分布、百度压力 / 支撑
-- **自选与持仓**：独立 Tab 管理，持仓盈亏与收益快照，录入持仓自动加自选
-- **价格监控**：价格 / 点数 / 涨跌幅 / 涨速阈值触发，浏览器桌面通知 + 飞书推送；持仓异动监控（大笔买卖、急速拉升跳水）
-- **盘后选股**：全 A 日 K 增量同步到本地，突破 / 金叉 / 放量三规则扫描，结果可推飞书
-- **AI 分析**：本地配置 API Key，聚合快照 / 分时 / K 线 / 资金流 / 压力支撑后流式分析（兼容 reasoning 输出）
-- **强容错**：东财 / 腾讯多数据源并发取数 + 故障转移 + 节点健康管理，免费接口抖动不影响页面
+- **一屏全景看盘**：主要指数行情、两市量能、涨跌分布、市场情绪指标、板块涨幅 TOP、5 分钟涨速榜、全球市场指数，盘中 3~5 秒自动刷新。
+- **板块轮动与异动**：行业 / 概念板块排行（支持按涨幅 / 主力净流入 / 成交额排序），板块 5 分钟涨速急速拉升 / 跳水异动监控。
+- **游资追踪与龙虎榜**：内置殿堂级/顶级游资席位标签库（章盟主、赵老哥、孙哥等），自动标注买卖席位动向、上榜次数统计与历史龙虎榜回溯。
+- **热门与资金流向**：实时涨速榜、主力净流入榜、热门股多维度综合榜、涨停池、炸板池、连板梯队（连板高度/晋级率）、同花顺热榜。
+- **多维量化选股引擎**：
+  - **12 大经典高胜率实战策略**：突破前高、均线多头、主力抢筹、放量拉升、箱体突破、缩量回踩、均线金叉、水上金叉、活跃换手、小盘弹性龙、阳包阴反包、超跌反弹；
+  - **3 种组合筛选模式**：🎯 **严格交集严选（默认，百里挑一核心龙头）**、🌟 **共振优选总榜（多策略共同验证）**、📋 **广度并集总榜**；
+  - **智能排雷去杂**：一键排除 ST/*ST 股、排除破位弱势股（<-3%）、排除北交所/科创板/创业板、流动性门槛过滤；
+  - **18 维高精度日 K 数据底座**：涵盖 8 维基础量价 + 6 维盘口主力流向 + 4 维估值市值指标；
+  - **极速同步架构**：全市场 5400+ 只股票收盘日 K 约 1.5 秒极速批量打包入库；历史 120 天日 K 支持 16 线程并发 + 0 秒智能跳过增量补齐；基于 `(股票代码, 交易日期)` 联合主键唯一约束，绝对不重复插入；
+  - **沉浸式速览与飞书推送**：表格左对齐展示技术形态买点明细，支持无刷新浮窗速览，一键推送扫描结果至飞书群机器人。
+- **个股深度行情全景**：快速搜索（代码 / 名称 / 拼音首字母 / 全拼）→ 分时走势、日/周/月 K 线、五档盘口、逐笔成交明细、主力资金流、龙虎榜席位、新闻公告、筹码分布、百度压力支撑位。
+- **自选与持仓多分组管理**：自选股与持仓独立 Tab 管理，支持自定义多分组与拖拽排序；持仓盈亏、收益快照与买卖流水记录；录入持仓自动同步至自选。
+- **价格监控与持仓异动告警**：价格 / 点数 / 涨跌幅 / 涨速阈值触发，浏览器桌面通知 + 飞书群实时卡片推送；持仓异动自动追踪（大笔买卖、急速拉升跳水）。
+- **AI 智能深度分析**：本地配置大模型 API Key，一键聚合个股快照、分时、K线、主力资金流、压力支撑等全维数据，进行流式深度推理分析（兼容 DeepSeek 等 reasoning 输出）。
+- **全局统一金融 Tooltip 系统**：统一暗黑磨砂质感悬浮卡片，标准舒适的防误触悬停响应，智能贴边防溢出，彻底消除浏览器自带延迟与黄色/白色原生样式冲突。
+- **多源容错与优雅降级**：东财 / 腾讯 / 百度 / 同花顺多数据源智能并发取数 + 节点冷却健康管理 + 自动故障转移，免费接口偶发抖动绝不影响前端页面使用。
 
 ---
 
 ## 快速开始
 
-### 一键启动
+### 方式一：Docker 容器运行（推荐）
 
-```bash
-./start.sh
-```
-
-首次运行会自动：创建 Python 虚拟环境 → 安装依赖 → 构建前端 → 启动服务。
-
-启动后浏览器访问：**http://127.0.0.1:8088**
-
-### 手动启动
-
-```bash
-# 1. 创建虚拟环境并安装依赖
-python3 -m venv .venv && .venv/bin/pip install -r requirements.txt
-
-# 2. 构建前端
-(cd frontend && node_modules/.bin/vite build)
-
-# 3. 启动服务
-.venv/bin/uvicorn backend.app:app --host 0.0.0.0 --port 8088
-```
-
-### Docker 运行（推荐）
-
-无需安装 Python / Node.js，一条命令启动：
+无需在本地配置 Python 或 Node.js 环境，一条命令即可启动：
 
 ```bash
 docker compose up -d --build
 ```
 
-首次构建会：构建前端 → 打包后端 → 启动服务。之后浏览器访问：**http://127.0.0.1:8088**
+服务构建完成后，浏览器直接访问：**http://127.0.0.1:8088**
 
-停止 / 查看日志 / 重启：
-
+常用运维命令：
 ```bash
-docker compose down          # 停止
-docker compose logs -f       # 查看日志
-docker compose restart       # 重启
+docker compose logs -f       # 查看实时运行日志
+docker compose restart       # 重启服务
+docker compose down          # 停止服务
 ```
 
-- **数据持久化**：`data/`（SQLite）与 `logs/` 通过卷挂载在宿主机，删除容器数据不丢失
-- **时区**：容器默认 `TZ=Asia/Shanghai`，与 A 股交易时段对齐
-- **升级**：`git pull` 后重新 `docker compose up -d --build` 即可
+- **数据持久化**：`data/`（SQLite 数据底座）与 `logs/` 目录自动挂载在宿主机，容器升级或删除数据不丢失；
+- **时区对齐**：容器内置 `TZ=Asia/Shanghai`，与 A 股交易时段精准对齐；
+- **代码更新**：执行 `git pull` 后重新运行 `docker compose up -d --build` 即可平滑热更新。
 
-### 手动启动
+---
+
+### 方式二：本地一键启动脚本
 
 ```bash
-# 1. 创建虚拟环境并安装依赖
-python3 -m venv .venv && .venv/bin/pip install -r requirements.txt
-
-# 2. 构建前端
-(cd frontend && node_modules/.bin/vite build)
-
-# 3. 启动服务
-.venv/bin/uvicorn backend.app:app --host 0.0.0.0 --port 8088
+./start.sh
 ```
 
-### 环境要求
+首次运行会自动：创建 Python 虚拟环境 → 安装后端依赖 → 构建前端产物 → 启动服务。
 
-| 方式 | 要求 |
-|---|---|
-| Docker | Docker 20.10+（含 Compose v2） |
-| 本地 | Python 3.10+；Node.js 18+（仅构建前端需要） |
+启动后浏览器访问：**http://127.0.0.1:8088**
 
 ---
 
-## 界面功能
+### 方式三：手动分步启动
 
-| 页面 | 功能 |
-|---|---|
-| **盘面总览** | 上证/深成/创业板/科创50/沪深300 指数行情；两市成交额、涨跌家数、涨停家数等情绪指标；行业/概念板块涨幅 TOP；涨速榜预览；全球指数 |
-| **板块分析** | 行业/概念板块排行（按涨幅/主力净流入/成交额排序）；点击板块展开成分股列表 |
-| **板块异动** | 5 分钟板块涨速拉升/跳水榜（约 5s 轮询） |
-| **热门与资金** | 涨速榜、个股主力净流入榜、热门股多维度榜、涨停池、连板梯队、板块资金流榜、同花顺热榜 |
-| **个股实时** | 搜索（代码/名称/拼音首字母/全拼）→ 快照、分时/K线、五档、成交明细、资金流、龙虎榜（席位标签/上榜次数）、新闻公告、百度压力支撑、筹码分布、数据源标签 |
-| **自选 / 持仓** | 自选与持仓 Tab 分离；持仓盈亏与收益快照；录入持仓自动加自选 |
-| **价格监控** | 价格 / 点数 / 涨跌幅 / 涨速阈值 + 浏览器桌面通知；持仓异动监控（大笔买卖/急速拉升跳水等，桌面 + 飞书提醒） |
-| **飞书通知** | 监控告警 / 持仓异动 / 盘后选股结果推送飞书自定义机器人卡片；设置页测试推送 |
-| **盘后选股** | 全 A 日 K 增量同步到 SQLite；突破 / 金叉 / 放量三规则扫描，结果可推飞书 |
-| **AI 分析** | 设置页配置 API Key（仅本地）；个股页流式分析（兼容 reasoning）；聚合快照/分时/K线/资金流/压力支撑后分析 |
-| **设置** | 主题、刷新间隔、分时/K线坐标、自选导入导出、股票列表/概念同步、接口/行为/数据源日志、飞书 Webhook |
+```bash
+# 1. 创建 Python 3.12 虚拟环境并安装依赖
+python3 -m venv .venv
+source .venv/bin/activate
+pip install -r requirements.txt
 
-**轮询策略**：总览/板块 5 秒，板块异动 5 秒，榜单/个股快照 3 秒，个股明细/资金流 10 秒，监控/持仓异动检查 8 秒；非交易时段自动降频。
+# 2. 构建前端产物
+(cd frontend && npm install && npm run build)
+
+# 3. 启动 FastAPI 服务
+uvicorn backend.app:app --host 0.0.0.0 --port 8088
+```
 
 ---
 
-## 技术栈
+## 界面功能概览
 
-| 层 | 技术 |
+| 核心模块 | 功能说明 |
 |---|---|
-| 后端 | Python 3 · FastAPI · Pydantic · SQLite |
-| 前端 | Vue 3 · Vite · ECharts |
-| 测试 | pytest（mock 数据源，CI 友好） |
-| 数据源 | 东方财富、腾讯、新浪、百度、同花顺（免费公开接口） |
+| **盘面总览** | 上证/深成/创业板/科创50/沪深300/北证50 指数行情；两市成交额、放缩量、涨跌家数、涨停/跌停/炸板等情绪指标；行业/概念板块涨幅 TOP；涨速榜预览；全球重要市场指数 |
+| **板块分析** | 行业与概念板块双榜排行（支持按涨幅、主力净流入、成交额排序）；点击展开板块成分股明细与资金流历史 |
+| **板块异动** | 5 分钟板块涨速急速拉升榜与跳水榜，盘中 5 秒高灵敏轮询 |
+| **榜单中心** | 涨速榜、个股主力净流入榜、多维度热门股榜、涨停池、炸板池、连板梯队（连板天数/晋级率）、同花顺热榜 |
+| **大盘云图** | 沪深全市场股票树状热力图（TreeMap），直观呈现行业板块体量与个股涨跌 |
+| **个股全景** | 智能拼音搜索 → 分时走势、日/周/月 K 线、五档盘口、逐笔成交明细、主力资金流历史、龙虎榜（游资席位/上榜次数）、新闻公告全文、百度压力支撑位、筹码分布模型 |
+| **自选 / 持仓** | 自选与持仓多 Tab 隔离；支持自选股自定义分组（如热门赛道、观察仓）与拖拽排序；持仓盈亏分析、收益快照与买卖记账流水 |
+| **价格监控** | 自定义设置价格/涨跌幅/涨速等阈值告警；持仓大单买卖与急速拉升跳水异动自动扫描；支持浏览器桌面通知与飞书群消息推送 |
+| **量化选股** | 12 大经典高胜率战法；🎯 严格交集 / 🌟 共振优选 / 📋 广度并集；智能排雷过滤；18 维日 K 底座极速同步；一键沉浸速览与飞书群推送 |
+| **AI 智能分析** | 本地配置大模型 API Key（数据完全保存在本地）；一键聚合全维行情数据，进行流式深度逻辑推理分析（兼容 reasoning 思维链输出） |
+| **系统设置** | 主题切换、轮询间隔调节、分时/K线坐标系配置、自选股导入导出、游资席位库管理、全维接口/数据源/行为日志审计、飞书 Webhook 配置 |
 
 ---
 
-## 目录结构
+## 技术架构
+
+| 分层 | 技术选型 | 说明 |
+|---|---|---|
+| **后端架构** | Python 3.12 · FastAPI · Pydantic · SQLite (WAL) | 纯内存向量化计算，单接口响应 < 100ms；零外部数据库依赖 |
+| **前端架构** | Vue 3 SFC · Composition API · Vite · ECharts | 统一暗黑金融主题，组件化解耦，原生轻量 Tooltip 系统 |
+| **部署环境** | Docker · Docker Compose · Multi-stage Build | 单端口 8088 运行，数据持久化挂载 |
+| **测试套件** | pytest (Mock + 端到端测试) | 49 项单元测试全覆盖，CI/CD 友好 |
+| **数据源群** | 东方财富、腾讯财经、百度股市通、同花顺、新浪财经 | 免费公开行情接口，FailoverClient 自动容错故障转移 |
+
+---
+
+## 项目目录结构
 
 ```
 niulai/
 ├── backend/
-│   ├── app.py                # FastAPI 入口（日志中间件 / SPA / SQLite 启动）
-│   ├── config.py             # 节点列表、缓存、交易时段、节假日配置
-│   ├── db/                   # SQLite：股票列表 / 自选 / 持仓 / 监控 / 设置 / 日志
-│   │   ├── store.py          # 建表与各领域读写
-│   │   ├── sync.py           # 全 A 名称/行业/概念标签后台同步
-│   │   ├── daily_sync.py     # 全 A 日 K 增量同步（盘后选股数据源）
-│   │   ├── lhb_seats.py      # 龙虎榜游资/机构席位标签库
-│   │   ├── pinyin.py         # 拼音首字母 / 全拼
-│   │   └── tags.py           # 板块/ST/北交徽标推断
-│   ├── datasource/
-│   │   ├── eastmoney.py      # 东财客户端：节点健康 + 请求合并 + 故障转移
-│   │   ├── tencent.py        # 腾讯客户端：五档盘口/内外盘/分时/K线降级
-│   │   ├── lhb.py            # 龙虎榜（上榜次数/席位分类/历史）
-│   │   ├── ths.py            # 同花顺热榜
-│   │   └── models.py         # 统一数据模型（Pydantic）
-│   ├── analyzer/
-│   │   ├── market.py         # 大盘概况聚合 / 量能
-│   │   ├── sector.py         # 板块排行/详情
-│   │   ├── rank.py           # 涨速/资金流/热门榜单
-│   │   ├── screener.py       # 盘后选股引擎（突破/金叉/放量）
-│   │   ├── indicators.py     # MA/MACD/KDJ/RSI/BOLL
-│   │   └── schedule.py       # 交易时段与节假日判断
-│   ├── notify/feishu.py      # 飞书自定义机器人推送
-│   └── api/routes/           # REST 按域拆分：market/stocks/watchlist/alerts/ai/meta/screener
-├── data/stock.db             # 运行时生成（不入库）
-├── Dockerfile                # 多阶段构建（前端 → 后端）
-├── docker-compose.yml        # 一键编排（卷挂载 data/logs）
-├── .dockerignore
-├── frontend/                 # Vue3 + Vite + ECharts（个股页拆为 stock/* 子组件）
-├── scripts/verify.py         # 数据链路 CLI 验证脚本
-├── tests/                    # 单元（mock）+ 端到端
-├── PERFORMANCE.md            # 性能与数据源说明
-├── 开发进度.md                # 迭代开发记录（倒序）
-├── start.sh                  # 一键启动
-└── requirements.txt
+│   ├── app.py                # FastAPI 应用主入口（SPA 静态托管 / 日志中间件）
+│   ├── config.py             # 交易时段、节假日配置、缓存与请求参数
+│   ├── db/                   # 本地 SQLite 数据层（每线程独立连接 + WAL 模式）
+│   │   ├── store.py          # 核心数据库连接管理与表结构初始化
+│   │   ├── daily_sync.py     # 18 维全 A 日 K 极速同步与历史补齐引擎
+│   │   ├── lhb_seats.py      # 龙虎榜游资/机构席位标签库与数据迁移
+│   │   ├── sync.py           # 股票代码、行业与概念板块元数据同步
+│   │   ├── pinyin.py         # 拼音首字母与全拼搜索索引生成
+│   │   └── tags.py           # 板块分类、ST 标识与徽标推断
+│   ├── datasource/           # 外部行情数据源封装（主备自动降级）
+│   │   ├── eastmoney.py      # 东财客户端：节点健康冷却 + 请求合并 + 故障转移
+│   │   ├── tencent.py        # 腾讯客户端：五档盘口 / 内外盘 / 分时 / K 线降级链路
+│   │   ├── lhb.py            # 龙虎榜数据解析与席位明细
+│   │   ├── ths.py            # 同花顺实时热榜
+│   │   └── models.py         # Pydantic 统一数据契约模型
+│   ├── analyzer/             # 核心量化算法与业务计算引擎
+│   │   ├── screener.py       # 12 大量化策略引擎（交集/共振筛选、智能排雷）
+│   │   ├── market.py         # 大盘概况聚合、量能计算与情绪指标
+│   │   ├── sector.py         # 板块轮动排行与成分股统计
+│   │   ├── rank.py           # 实时涨速、主力净流入与热门榜单计算
+│   │   ├── indicators.py     # MA / MACD / KDJ / RSI / BOLL 技术指标算法
+│   │   └── schedule.py       # A 股真实交易日历与交易时段判定
+│   ├── notify/feishu.py      # 飞书自定义机器人富文本卡片推送
+│   └── api/routes/           # REST API 路由域拆分（market/stocks/screener 等）
+├── frontend/                 # Vue 3 前端源码
+│   ├── src/
+│   │   ├── views/            # 核心页面（Screener/Overview/Stock/Watchlist 等）
+│   │   ├── components/       # 业务组件库与个股深度图表组件
+│   │   ├── directives/       # 全局指令（如统一极速响应 Tooltip）
+│   │   ├── composables/      # 组合式函数（轮询、排序记忆、Tab保持等）
+│   │   ├── api.js            # 前后端 API 请求客户端
+│   │   └── style.css         # 全局金融暗黑语义化 CSS 变量与样式库
+├── Dockerfile                # 多阶段构建镜像定义
+├── docker-compose.yml        # Docker 容器编排文件
+├── tests/                    # 单元测试与接口回归测试套件
+├── PERFORMANCE.md            # 数据源与接口性能审计文档
+├── AGENTS.md                 # 项目开发规范与 AI 编码准则
+└── requirements.txt          # Python 依赖清单
 ```
 
 ---
 
-## API 一览（REST）
+## 核心 API 接口清单
 
-启动后访问 **http://127.0.0.1:8088/docs** 查看交互式接口文档（Swagger）。
+启动服务后，可在浏览器中访问 **http://127.0.0.1:8088/docs** 体验 Swagger 交互式接口文档。
 
-**大盘与指数**
+### 1. 盘面与指数
+- `GET /api/market/overview`：大盘概况（主要指数、成交额、放缩量、涨跌家数、涨跌停数）
+- `GET /api/market/volume`：两市量能与放缩量统计
+- `GET /api/market/moneyflow`：大盘资金流向历史
+- `GET /api/market/limit-up`：当日涨停池详情
+- `GET /api/market/limit-break`：当日炸板池详情
+- `GET /api/market/stock-changes`：盘中个股异动（大笔买卖、急速拉升、跳水等）
+- `GET /api/market/lhb`：最新交易日龙虎榜总览
+- `GET /api/global/indices`：全球主要市场指数快照
 
-| 接口 | 说明 |
-|---|---|
-| `GET /api/market/overview` | 大盘概况（指数/成交额/涨跌家数/涨停数） |
-| `GET /api/market/volume` | 两市量能（放量/缩量，30s 缓存） |
-| `GET /api/market/moneyflow` | 大盘资金流向（东财 dpzjlx） |
-| `GET /api/market/limit-up` | 涨停池 |
-| `GET /api/market/limit-break` | 炸板池 |
-| `GET /api/market/stock-changes` | 盘中个股异动（大笔买卖/急速拉升跳水） |
-| `GET /api/market/lhb` | 东财龙虎榜（最近交易日） |
-| `GET /api/global/indices` | 全球指数（日韩/亚太/美股） |
-| `GET /api/global/{secid}/trends` | 全球指数分时 |
-| `GET /api/global/{secid}/kline` | 全球指数 K 线 |
-| `GET /api/indices/quote` | 单指数快照 |
-| `GET /api/indices/quotes` | 批量指数快照（导航栏） |
+### 2. 板块与热榜
+- `GET /api/sectors`：行业 / 概念板块排行（支持按涨幅、主力净流入、成交额排序）
+- `GET /api/sectors/{code}`：板块详情及成分股列表
+- `GET /api/sector-moves`：5 分钟板块涨速异动榜
+- `GET /api/rank/hot`：热门股多维度榜单（涨幅 / 换手 / 量比 / 涨速）
+- `GET /api/rank/moneyflow`：个股主力资金净流入榜
+- `GET /api/ths/hot`：同花顺实时热榜
 
-**板块与榜单**
+### 3. 个股全景
+- `GET /api/stocks/{code}`：个股实时行情（含五档盘口、内外盘、数据源标签）
+- `GET /api/stocks/{code}/trends`：当日高精度分时数据与均价线
+- `GET /api/stocks/{code}/kline`：日 / 周 / 月 K 线与常用技术指标
+- `GET /api/stocks/{code}/ticks`：当日逐笔成交明细
+- `GET /api/stocks/{code}/moneyflow`：近 N 日主力资金流向明细
+- `GET /api/stocks/{code}/lhb`：个股龙虎榜历史与游资席位明细
+- `GET /api/stocks/{code}/news`：个股最新新闻资讯
+- `GET /api/stocks/{code}/announcements`：个股最新官方公告
+- `GET /api/stocks/{code}/chip`：筹码分布与平均获利成本估算
+- `GET /api/stocks/{code}/baidu-sr`：关键压力位与支撑位
+- `GET /api/search?q=`：股票极速代码/拼音搜索
 
-| 接口 | 说明 |
-|---|---|
-| `GET /api/sectors?type=industry\|concept&sort=...` | 板块排行 |
-| `GET /api/sectors/{code}` | 板块详情（成分股） |
-| `GET /api/sectors/moneyflow` | 板块主力净流入榜 |
-| `GET /api/sectors/{code}/moneyflow-history` | 板块资金流历史 |
-| `GET /api/sector-moves` | 板块异动（涨速） |
-| `GET /api/etf/rank` | ETF 涨跌排行 |
-| `GET /api/rank/hot?by=...` | 热门股榜（涨幅/成交额/换手/量比/涨速） |
-| `GET /api/rank/zhangsu` | 涨速榜 |
-| `GET /api/rank/moneyflow` | 个股主力净流入榜 |
-| `GET /api/ths/hot` | 同花顺热榜 |
+### 4. 量化选股与日 K 同步
+- `POST /api/screener/run`：执行多维量化选股扫描（支持 12 大策略、交集/共振、多维排雷）
+- `GET /api/screener/rules`：获取支持的量化选股策略列表与参数说明
+- `POST /api/screener/sync-bars`：触发 18 维全 A 收盘日 K 批量同步或历史增量补齐
+- `GET /api/screener/sync-status`：查询日 K 数据库同步进度与 120 日完整度覆盖率
+- `GET /api/screener/runs`：获取历史选股任务归档列表
+- `GET /api/screener/runs/{id}`：回放历史选股任务结果看板
 
-**个股**
-
-| 接口 | 说明 |
-|---|---|
-| `GET /api/stocks/{code}` | 个股实时详情（含五档盘口、`data_source`） |
-| `GET /api/stocks/{code}/trends` | 分时数据 |
-| `GET /api/stocks/{code}/kline` | K 线 + 指标（百度补额/涨跌） |
-| `GET /api/stocks/{code}/ticks` | 成交明细 |
-| `GET /api/stocks/{code}/moneyflow` | 近 N 日主力资金流 |
-| `GET /api/stocks/{code}/lhb` | 个股龙虎榜（席位标签/上榜次数/历史） |
-| `GET /api/stocks/{code}/news` | 个股新闻 |
-| `GET /api/stocks/{code}/announcements` | 个股公告 |
-| `GET /api/stocks/{code}/baidu-sr` | 百度压力/支撑 |
-| `GET /api/stocks/{code}/chip` | 筹码分布（成本分布模型） |
-| `GET /api/stocks/{code}/analysis-data` | AI 分析全维度聚合数据 |
-| `GET /api/stocks/batch?codes=...` | 批量快照（自选股） |
-| `GET /api/search?q=` | 股票搜索（SQLite 优先，支持全拼） |
-
-**自选 / 持仓 / 监控**
-
-| 接口 | 说明 |
-|---|---|
-| `GET/POST/DELETE /api/watchlist` | 自选股 |
-| `GET/PUT/DELETE /api/positions*` | 持仓与盈亏摘要 / 收益快照 / 流水 |
-| `GET/POST/PUT/DELETE /api/alerts*` | 价格/涨跌幅/涨速监控 |
-| `GET /api/alerts/check` | 监控触发检查（前端轮询） |
-| `GET /api/alerts/check-changes` | 持仓异动检查（前端轮询 + 飞书推送） |
-
-**AI 与选股**
-
-| 接口 | 说明 |
-|---|---|
-| `POST /api/ai/chat` | AI 流式代理（Key 存本地设置） |
-| `POST /api/screener/sync-bars` | 触发全 A 日 K 后台同步 |
-| `GET /api/screener/sync-status` | 日 K 同步进度 |
-| `POST /api/screener/run` | 执行选股扫描 |
-| `GET /api/screener/rules` | 选股规则列表 |
-| `GET /api/screener/runs` | 历史选股任务 |
-| `GET /api/screener/runs/{id}` | 选股任务详情 |
-
-**元数据与系统**
-
-| 接口 | 说明 |
-|---|---|
-| `GET /api/meta/stocks` | 股票列表同步状态 |
-| `POST /api/meta/stocks/sync` | 手动同步全 A + ETF 列表 |
-| `POST /api/meta/tags/sync` | 后台同步概念标签 |
-| `GET /api/meta/tags/sync/status` | 标签同步进度 |
-| `GET /api/meta/lookup/{code}` | 本地股票元信息（名称/行业/概念秒出） |
-| `GET /api/logs/api` | 接口耗时日志 |
-| `GET /api/logs/actions` | 页面操作日志 |
-| `GET /api/logs/datasource` | 数据源日志 |
-| `POST /api/log/action` | 前端行为日志上报 |
-| `GET /api/crawl-article` | 代理抓取新闻/公告正文 |
-| `GET /api/trading/time` | 交易时段状态 |
-| `GET /api/health` | 健康检查 |
-| `GET/POST /api/settings` | 用户设置 |
-| `POST /api/notify/feishu/test` | 飞书推送测试 |
-| `GET /api/lhb/seats` | 龙虎榜席位标签库 |
-| `POST /api/lhb/seats/sync` | 重置/同步席位标签库 |
+### 5. 自选、持仓与监控
+- `GET/POST/DELETE /api/watchlist`：自选股添加、查询与分组管理
+- `GET/PUT/DELETE /api/positions*`：持仓管理、收益快照与买卖记账流水
+- `GET/POST/PUT/DELETE /api/alerts*`：价格/涨跌幅/涨速监控规则配置
+- `GET /api/alerts/check`：监控告警状态轮询检查
+- `GET /api/alerts/check-changes`：持仓股异动自动检测与推送
 
 ---
 
-## 测试与验证
+## 数据源与高可用设计
 
-```bash
-# 默认 mock 外部行情，不连东财（CI 友好）
-.venv/bin/python -m pytest tests/ -q
-
-# 可选：CLI 验证真实数据链路
-.venv/bin/python scripts/verify.py --stock 600519
-```
-
----
-
-## 数据源与容错设计
-
-| 数据 | 主源 | 备源/容错 |
+| 业务维度 | 首选主数据源 | 自动容错与降级机制 |
 |---|---|---|
-| 指数/板块/榜单/明细 | 东方财富 push2 节点群 | 节点健康冷却 + 请求合并 + push2delay；非交易时段缩短超时、延长缓存 |
-| 分时 | 东方财富 push2his | 失败自动降级腾讯（可推导均价线） |
-| 个股详情/五档盘口 | 东方财富快照 + 腾讯盘口 | 东财/腾讯并发；响应带 `data_source`（东财/腾讯/东财+腾讯） |
-| 涨停池 / 炸板池 / 盘中异动 | 东方财富 push2ex | 自动定位最近交易日 |
-| 龙虎榜 / 资金流明细 | 东方财富 datacenter-web | 空数据容错 + 前端「暂不可用」标签 |
-| 搜索 | 本地 SQLite（首字母+全拼） | 未命中再降级东财 searchapi |
-| K 线 | 东方财富 push2his | 腾讯 → 新浪（指数）→ TickFlow；百度补齐额/涨跌 |
-| 资金流历史 | 东方财富 push2his | 空数据容错 + datacenter 兜底 + 前端「暂不可用」标签 |
-| 压力/支撑 | 百度公开接口 | 失败回退本地 analysis-data |
-| 热榜 | 同花顺 | 部分标的无 `analyse` 正文时降级标题/概念 |
-| 新闻 / 公告 | 东方财富搜索 / 资讯流 | 公告正文走 np-cnotice 内容 API；全文经后端代理抓取 |
-| 日 K 同步（选股） | 东财 kline（复用上面的降级链） | 增量写入 SQLite `daily_bars` |
-| 通知 | 浏览器桌面通知 | 飞书自定义机器人卡片（可选） |
-
-免费接口偶有风控/抖动，以上容错保证页面不崩；接口全部不可用时返回 503 并提示。
-
----
-
-## 已知限制
-
-- **北向资金**：交易所已停止盘中披露北向资金，公开接口无实时值。
-- **跌停池**：东财对应接口曾 404，情绪指标偏涨停侧。
-- **日经/韩综分时**：腾讯不支持，依赖东财历史节点是否被风控。
-- **选股日 K 同步**：首次全 A 同步较慢（约 50~80 分钟，受免费接口限速），增量很快；`daily_bars` 的 `amount` 在腾讯降级时可能缺失，突破规则依赖成交额，可能漏命中。
-- **节假日配置**：`backend/config.py` 的 `TRADING_HOLIDAYS` 预置主要节假日，可按交易所公告增删。
+| **指数 / 板块 / 榜单** | 东方财富 push2 节点群 | 节点健康打分 + 自动冷却转移 + 请求合并；非交易时段自动降频与长缓存 |
+| **个股分时走势** | 东方财富 push2his | 遇网络风控自动平滑降级腾讯财经（自动推导分时均价线） |
+| **个股快照与盘口** | 东方财富快照 + 腾讯五档 | 双数据源并发合并，东财故障时腾讯单独兜底；界面标注 `data_source` 来源 |
+| **K 线历史数据** | 东方财富 kline | 腾讯财经 $\rightarrow$ 新浪财经（指数）；自动调用百度接口补齐缺失成交额 |
+| **日 K 同步（选股底座）** | 东财全市场批量打包 clist | 1.5 秒极速拉取 5400+ 只股票 18 维指标；历史 120 天智能跳过增量补齐 |
+| **股票搜索定位** | 本地 SQLite 拼音全拼库 | 本地毫秒级秒出，未命中时降级东财 searchapi |
+| **告警与通知** | 浏览器桌面通知 | 支持配置飞书自定义机器人 Webhook 卡片推送 |
 
 ---
 
 ## 免责声明
 
-本项目仅供个人学习与行情分析使用，**不构成任何投资建议**。股市有风险，入市需谨慎。
-
-数据版权归各数据源所有，请勿商业分发。**请勿将 `data/` 目录或含 AI Key 的明文备份提交到仓库**（`.gitignore` 已默认忽略）。
+1. 本项目仅供个人编程学习、量化策略研究与行情数据分析使用，**不构成任何投资建议或交易依据**。
+2. 股市有风险，入市需谨慎。根据本项目提供的数据或策略进行的任何投资决策，风险自负。
+3. 行情数据版权归各原数据提供商所有，请勿用于商业分发。**请勿将 `data/` 目录或包含个人 API Key 的敏感配置提交至公共仓库**。
 
 ---
 
