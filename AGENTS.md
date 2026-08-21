@@ -13,24 +13,35 @@
 
 ## 二、 工作流与修改验证规范（必须严格执行）
 
-每次代码修改完成后，必须根据修改类型执行以下闭环验证流程：
+每次代码修改完成后，必须完成以下**闭环流程**：`本地验证 → Git 提交并推送 → 容器重建部署 → 服务验证`。四步全部完成才算本次修改闭环。
 
-### 1. 只修改文档 / 配置说明
-- 直接 `git add <file>` + `git commit`，无需重建容器。
+### 1. 本地验证
+按修改类型执行：
+- 只修改文档 / 配置说明：无需构建验证，直接进入第 2 步。
+- 修改后端 Python 代码：
+  ```bash
+  pytest tests/                # 运行单元测试
+  ```
+- 修改前端 Vue / JS / CSS 代码（前端在 Docker 构建阶段打包编译，须先本地校验）：
+  ```bash
+  (cd frontend && npm run build)  # 本地构建验证前端语法与产物无误
+  ```
 
-### 2. 修改后端 Python 代码
+### 2. Git 提交并推送（每次修改后必做）
 ```bash
-pytest tests/                # 1. 运行单元测试
-docker compose up -d --build # 2. 重建并重启容器使新代码生效
-curl -s -o /dev/null -w "%{http_code}\n" http://127.0.0.1:8088/ # 3. 验证服务返回 200
+git add <file>       # 精准提交：只 add 本次修改的文件，严禁 git add -A / git add .
+git commit -m "<语义化前缀>: 简述"   # 前缀见「六、Git 提交与安全准则」
+git push             # 同步 origin 远程
 ```
 
-### 3. 修改前端 Vue / JS / CSS 代码
-前端在 Docker 构建阶段打包编译，故必须完成本地校验与容器重建：
+### 3. 容器重建部署
 ```bash
-(cd frontend && npm run build)  # 1. 本地构建验证前端语法与产物无误
-docker compose up -d --build    # 2. 重建容器（内含前端构建 + 后端挂载）
-curl -s -o /dev/null -w "%{http_code}\n" http://127.0.0.1:8088/ # 3. 验证服务返回 200
+docker compose up -d --build   # 重建并重启容器使新代码生效
+```
+
+### 4. 服务验证
+```bash
+curl -s -o /dev/null -w "%{http_code}\n" http://127.0.0.1:8088/   # 期望返回 200
 ```
 
 ---
