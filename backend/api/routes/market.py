@@ -45,7 +45,7 @@ def indices_trends():
     secids = [s for s, _ in config.INDEX_SECIDS]
     with ThreadPoolExecutor(max_workers=max(len(secids), 1)) as ex:
         futures = [ex.submit(_fetch, s) for s in secids]
-        items = [f.result() for f in futures if f.result()]
+        items = [r for r in (f.result() for f in futures) if r]
     return {"items": items}
 
 @router.get("/market/overview")
@@ -259,7 +259,7 @@ def sector_moneyflow_history(code: str, days: int = Query(5, ge=1, le=30)):
 @router.get("/market/limit-up")
 def limit_up_pool(limit: int = Query(100, ge=1, le=300)):
     """今日涨停池（共享缓存，limit 仅截断展示数量）。附带最近交易日游资徽章。"""
-    rows = cached_limit_up_pool()
+    rows = [dict(r) for r in cached_limit_up_pool()]
     attach_youzi(rows)
     return rows[:limit] if limit < len(rows) else rows
 
@@ -267,7 +267,7 @@ def limit_up_pool(limit: int = Query(100, ge=1, le=300)):
 @router.get("/market/limit-break")
 def limit_break_pool(limit: int = Query(100, ge=1, le=300)):
     """今日炸板池（共享缓存，limit 仅截断展示数量）。附带最近交易日游资徽章。"""
-    rows = cached_limit_break_pool()
+    rows = [dict(r) for r in cached_limit_break_pool()]
     attach_youzi(rows)
     return rows[:limit] if limit < len(rows) else rows
 
@@ -275,7 +275,7 @@ def limit_break_pool(limit: int = Query(100, ge=1, le=300)):
 @router.get("/market/limit-down")
 def limit_down_pool(limit: int = Query(100, ge=1, le=300)):
     """今日跌停池（共享缓存，limit 仅截断展示数量）。跌停极少时可能返回空列表。"""
-    rows = cached_limit_down_pool()
+    rows = [dict(r) for r in cached_limit_down_pool()]
     attach_youzi(rows)
     return rows[:limit] if limit < len(rows) else rows
 

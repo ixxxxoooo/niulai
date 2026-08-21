@@ -67,7 +67,7 @@
 </template>
 
 <script setup>
-import { ref, computed, watch, nextTick } from 'vue'
+import { ref, computed, watch, nextTick, onUnmounted } from 'vue'
 import { api } from '../api.js'
 import { isWatched, toggleWatch as tw } from '../composables/useWatchlist.js'
 import { logAction } from '../composables/useActionLog.js'
@@ -179,6 +179,10 @@ function select(s) {
   suggestions.value = []
   show.value = false
 }
+
+onUnmounted(() => {
+  clearTimeout(debounceTimer)
+})
 </script>
 
 <style scoped>

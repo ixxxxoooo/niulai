@@ -434,7 +434,7 @@
 </template>
 
 <script setup>
-import { ref, reactive, computed, onMounted, watch } from 'vue'
+import { ref, reactive, computed, onMounted, onUnmounted, watch } from 'vue'
 import { api } from '../api.js'
 import { showToast } from '../composables/useToast.js'
 import { showConfirm } from '../composables/useConfirm.js'
@@ -604,11 +604,11 @@ const sortedDisplayList = computed(() => {
   if (activeTab.value !== 'all_aggregated') return list
 
   if (sortBy.value === 'resonance') {
-    return list.sort((a, b) => ((b.match_count || 1) - (a.match_count || 1)) || ((b.change_pct || 0) - (a.change_pct || 0)))
+    return list.sort((a, b) => ((b.match_count || 1) - (a.match_count || 1)) || ((b.change_pct ?? 0) - (a.change_pct ?? 0)))
   } else if (sortBy.value === 'change_pct') {
-    return list.sort((a, b) => (b.change_pct || 0) - (a.change_pct || 0))
+    return list.sort((a, b) => (b.change_pct ?? 0) - (a.change_pct ?? 0))
   } else if (sortBy.value === 'amount') {
-    return list.sort((a, b) => (b.amount || 0) - (a.amount || 0))
+    return list.sort((a, b) => (b.amount ?? 0) - (a.amount ?? 0))
   }
   return list
 })
@@ -735,10 +735,9 @@ async function loadRunDetail(id) {
 async function clearHistory() {
   const ok = await showConfirm({
     title: '清空选股归档确认',
-    content: '确定要清空所有历史选股任务归档记录吗？该操作不可撤回。',
+    message: '确定要清空所有历史选股任务归档记录吗？该操作不可撤回。',
     confirmText: '确认清空',
-    cancelText: '取消',
-    danger: true,
+    variant: 'danger',
   })
   if (!ok) return
 
@@ -758,6 +757,13 @@ onMounted(async () => {
   loadRuns()
   if (!result.value) {
     runScreen()
+  }
+})
+
+onUnmounted(() => {
+  if (pollTimer) {
+    clearInterval(pollTimer)
+    pollTimer = null
   }
 })
 </script>

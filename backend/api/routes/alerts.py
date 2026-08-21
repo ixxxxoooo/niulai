@@ -48,7 +48,9 @@ def _alert_current_value(alert: dict) -> Optional[dict]:
             "zhangsu": getattr(snap, "zhangsu", None),
             "name": snap.name or alert.get("name") or "",
         }
-    except Exception:
+    except Exception as e:
+        from ...logging_config import logger
+        logger.warning("_alert_current_value 失败 code=%s: %s", code, e)
         return None
 
 
@@ -60,7 +62,8 @@ def _alert_hit(alert: dict, cur: dict) -> bool:
         val = cur.get("price")
     if val is None:
         return False
-    thr = float(alert.get("threshold") or 0)
+    thr_raw = alert.get("threshold")
+    thr = float(thr_raw if thr_raw is not None else 0)
     op = alert.get("op") or "lte"
     if op == "gte":
         return float(val) >= thr
@@ -77,7 +80,9 @@ def _in_cooldown(alert: dict) -> bool:
         t0 = datetime.strptime(last[:19], "%Y-%m-%d %H:%M:%S")
         cool = int(alert.get("cooldown_sec") or 300)
         return (datetime.now() - t0).total_seconds() < cool
-    except Exception:
+    except Exception as e:
+        from ...logging_config import logger
+        logger.warning("_in_cooldown 解析失败 alert_id=%s: %s", alert.get("id"), e)
         return False
 
 
@@ -152,8 +157,9 @@ def alerts_check():
         try:
             from ...notify.feishu import send_alert
             send_alert(item)
-        except Exception:
-            pass
+        except Exception as e:
+            from ...logging_config import logger
+            logger.warning("飞书推送失败 alert_id=%s: %s", item.get("id"), e)
 
     return {"triggered": triggered, "checked_at": time.strftime("%Y-%m-%d %H:%M:%S")}
 

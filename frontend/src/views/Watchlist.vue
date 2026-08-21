@@ -562,6 +562,10 @@ onMounted(() => {
 
 onUnmounted(() => {
   window.removeEventListener('click', onWindowClick)
+  if (searchTimer) {
+    clearTimeout(searchTimer)
+    searchTimer = null
+  }
 })
 
 const pillDragIndex = ref(null)
@@ -900,7 +904,7 @@ async function deleteSnapshot(r) {
 }
 
 async function clearSnapshots() {
-  if (!snapshots.length) return
+  if (!snapshots.value.length) return
   const confirmed = await showConfirm({
     title: '清空收益记录确认',
     message: '确定清空全部收益记录吗？此操作不可恢复。',

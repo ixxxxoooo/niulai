@@ -200,7 +200,7 @@ def positions_summary():
         price = q.get("price")
         shares = float(p.get("shares") or 0)
         cost = float(p.get("cost") or 0)
-        mv = (price or 0) * shares
+        mv = (price if price is not None else 0) * shares
         cv = cost * shares
         pnl = mv - cv if price is not None else None
         pct = (pnl / cv * 100.0) if (pnl is not None and cv) else None

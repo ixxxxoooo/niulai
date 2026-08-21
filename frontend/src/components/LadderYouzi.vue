@@ -35,7 +35,7 @@
 <script setup>
 // 连板梯队游资徽章：卡片上仅显示「游」小徽章，悬浮弹出具体游资徽章列表
 // @author ygw
-import { ref, computed } from 'vue'
+import { ref, computed, onUnmounted } from 'vue'
 import { navigate } from '../router.js'
 
 const props = defineProps({
@@ -72,6 +72,10 @@ function onLeave() {
 function goSeat(nickname) {
   navigate('/seats?nick=' + encodeURIComponent(nickname))
 }
+
+onUnmounted(() => {
+  clearTimeout(timer)
+})
 </script>
 
 <style scoped>

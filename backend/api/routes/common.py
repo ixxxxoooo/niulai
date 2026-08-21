@@ -108,6 +108,7 @@ class AlertPatchBody(BaseModel):
 # ------------------------------------------------------------------ TTL 缓存
 _cache: Dict[str, tuple] = {}
 _cache_lock = threading.Lock()
+_CACHE_MAX_SIZE = 2000
 
 
 def ttl_cache(ttl: float = config.CACHE_TTL, cache_empty: bool = False):
@@ -136,6 +137,9 @@ def ttl_cache(ttl: float = config.CACHE_TTL, cache_empty: bool = False):
             val = fn(*args, **kwargs)
             if cache_empty or val not in (None, "", [], {}):
                 with _cache_lock:
+                    if len(_cache) >= _CACHE_MAX_SIZE:
+                        oldest_key = min(_cache, key=lambda k: _cache[k][0])
+                        del _cache[oldest_key]
                     _cache[key] = (now, val)
             return val
         return wrapper

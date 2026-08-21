@@ -118,7 +118,7 @@ def stock_detail(code: str):
             pass
     # 快照 f62 偶发异常（如返回 2），用资金流当日值校正
     try:
-        if d.main_inflow is None or abs(float(d.main_inflow or 0)) < 1000:
+        if d.main_inflow is None or abs(float(d.main_inflow if d.main_inflow is not None else 0)) < 1000:
             rows = eastmoney.get_client().moneyflow_history(code, days=1)
             if rows and abs(rows[-1].main_inflow) >= 1000:
                 d.main_inflow = rows[-1].main_inflow
@@ -329,7 +329,7 @@ def stock_chip(code: str, days: int = Query(90, ge=30, le=300)):
         if vol <= 0:
             continue
         # 换手率衰减：模拟旧筹码被换出
-        turnover = p.get("turnover") or 0
+        turnover = p.get("turnover") if p.get("turnover") is not None else 0
         if turnover <= 0:
             turnover = 1.0
         decay = 1 - min(turnover / 100.0, 0.5)
