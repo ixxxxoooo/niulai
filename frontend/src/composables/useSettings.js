@@ -23,6 +23,7 @@ export const settingsState = reactive({
   aiApiKey: '',
   aiModel: 'deepseek-chat',
   aiBaseUrl: 'https://api.deepseek.com',
+  eastmoneyCookie: '',
   feishu_enabled: false,
   feishu_webhook: '',
   changes_monitor_enabled: '1',
@@ -57,6 +58,7 @@ export async function loadSettings() {
     if (items.aiApiKey) settingsState.aiApiKey = items.aiApiKey
     if (items.aiModel) settingsState.aiModel = items.aiModel
     if (items.aiBaseUrl) settingsState.aiBaseUrl = items.aiBaseUrl
+    if (items.eastmoneyCookie !== undefined) settingsState.eastmoneyCookie = items.eastmoneyCookie
     if (items.feishu_enabled !== undefined) settingsState.feishu_enabled = items.feishu_enabled === '1' || items.feishu_enabled === true
     if (items.feishu_webhook !== undefined) settingsState.feishu_webhook = items.feishu_webhook
     if (items.changes_monitor_enabled !== undefined) settingsState.changes_monitor_enabled = items.changes_monitor_enabled

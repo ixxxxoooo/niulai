@@ -6,43 +6,49 @@
       <button class="btn-screenshot" @click="onShot" title="截图"><UiIcon name="screenshot" :size="14" /></button>
     </div>
     <template v-if="flow.length">
-      <div class="flow-overview">
-        <div class="fo-main fo-single">
-          <div class="fo-single-l">
-            <div class="fo-k">当日主力净流入</div>
-            <div class="fo-v" :class="pctClass(mainFlow.total)">{{ fmtFlowVal(mainFlow.total) }}</div>
-          </div>
-          <div class="fo-single-r">
-            <div class="fo-s">
-              <span class="fo-badge" :class="pctClass(mainFlow.total)">{{ mainFlow.total >= 0 ? '净流入' : '净流出' }}</span>
-              <span>占比 {{ mainFlow.pctText }}</span>
-            </div>
-            <div class="fo-inout" v-if="mainFlow.in || mainFlow.out">
-              <span>流入 {{ fmtFlowVal(mainFlow.in) }}</span>
-              <span>流出 {{ fmtFlowVal(mainFlow.out) }}</span>
-            </div>
-          </div>
+      <div class="hist-head">
+        <span class="hist-title">资金流向</span>
+        <div class="hist-tabs">
+          <button class="hist-tab" :class="{ on: viewDays === 1 }" @click="viewDays = 1">近1日</button>
+          <button class="hist-tab" :class="{ on: viewDays === 5 }" @click="viewDays = 5">近5日</button>
+          <button class="hist-tab" :class="{ on: viewDays === 10 }" @click="viewDays = 10">近10日</button>
+          <button class="hist-tab" :class="{ on: viewDays === 20 }" @click="viewDays = 20">近20日</button>
         </div>
       </div>
-      <div ref="chartEl" class="flow-chart"></div>
-      <table class="data-table flow-table">
-        <thead><tr><th style="text-align:left">类别</th><th>净流入</th><th>净占比</th></tr></thead>
-        <tbody>
-          <tr v-for="item in flowTableRows" :key="item.label">
-            <td style="font-weight:500">{{ item.label }}</td>
-            <td :class="item.val >= 0 ? 'up' : 'down'">{{ fmtFlowVal(item.val) }}</td>
-            <td :class="item.pct >= 0 ? 'up' : 'down'">{{ item.pct >= 0 ? '+' : '' }}{{ item.pct.toFixed(2) }}%</td>
-          </tr>
-        </tbody>
-      </table>
-      <div class="flow-hist" v-if="histRows.length">
-        <div class="hist-head">
-          <span class="hist-title">近 {{ histDays }} 日资金流向</span>
-          <div class="hist-tabs">
-            <button class="hist-tab" :class="{ on: histDays === 10 }" @click="histDays = 10">10日</button>
-            <button class="hist-tab" :class="{ on: histDays === 20 }" @click="histDays = 20">20日</button>
+
+      <template v-if="viewDays === 1">
+        <div class="flow-overview">
+          <div class="fo-main fo-single">
+            <div class="fo-single-l">
+              <div class="fo-k">当日主力净流入</div>
+              <div class="fo-v" :class="pctClass(mainFlow.total)">{{ fmtFlowVal(mainFlow.total) }}</div>
+            </div>
+            <div class="fo-single-r">
+              <div class="fo-s">
+                <span class="fo-badge" :class="pctClass(mainFlow.total)">{{ mainFlow.total >= 0 ? '净流入' : '净流出' }}</span>
+                <span>占比 {{ mainFlow.pctText }}</span>
+              </div>
+              <div class="fo-inout" v-if="mainFlow.in || mainFlow.out">
+                <span>流入 {{ fmtFlowVal(mainFlow.in) }}</span>
+                <span>流出 {{ fmtFlowVal(mainFlow.out) }}</span>
+              </div>
+            </div>
           </div>
         </div>
+        <div ref="chartEl" class="flow-chart"></div>
+        <table class="data-table flow-table">
+          <thead><tr><th style="text-align:left">类别</th><th>净流入</th><th>净占比</th></tr></thead>
+          <tbody>
+            <tr v-for="item in flowTableRows" :key="item.label">
+              <td style="font-weight:500">{{ item.label }}</td>
+              <td :class="item.val >= 0 ? 'up' : 'down'">{{ fmtFlowVal(item.val) }}</td>
+              <td :class="item.pct >= 0 ? 'up' : 'down'">{{ item.pct >= 0 ? '+' : '' }}{{ item.pct.toFixed(2) }}%</td>
+            </tr>
+          </tbody>
+        </table>
+      </template>
+
+      <template v-else-if="histRows.length">
         <div ref="histChartEl" class="hist-chart"></div>
         <table class="data-table flow-table">
           <thead><tr><th style="text-align:left">日期</th><th>涨跌幅</th><th>主力净流入</th><th>主力净占比</th></tr></thead>
@@ -55,7 +61,7 @@
             </tr>
           </tbody>
         </table>
-      </div>
+      </template>
     </template>
     <div v-else style="padding:20px;text-align:center;color:var(--text-dim);font-size:13px">
       暂无资金流数据
@@ -121,14 +127,18 @@ function fmtFlowVal(v) {
   return `${sign}${abs.toFixed(0)}`
 }
 
-const histDays = ref(10)
+const viewDays = ref(1)
 const histRows = computed(() => {
   if (!props.flow.length) return []
-  return props.flow.slice(-histDays.value)
+  // 倒序：最新日期在前，方便查看最近资金流向
+  return props.flow.slice(-viewDays.value).slice().reverse()
 })
 
 function renderHistChart() {
-  if (!histChartEl.value) return
+  if (!histChartEl.value) {
+    if (histChart) { histChart.dispose(); histChart = null }
+    return
+  }
   const rows = histRows.value
   if (!rows.length) return
   if (!histChart) histChart = echarts.init(histChartEl.value)
@@ -163,7 +173,10 @@ function renderHistChart() {
 }
 
 function renderChart() {
-  if (!chartEl.value) return
+  if (!chartEl.value) {
+    if (chart) { chart.dispose(); chart = null }
+    return
+  }
   const d = props.flow[props.flow.length - 1]
   if (!d) return
   if (!chart) chart = echarts.init(chartEl.value)
@@ -211,8 +224,9 @@ watch(() => props.flow, async () => {
   renderHistChart()
 }, { deep: true })
 
-watch(histDays, async () => {
+watch(viewDays, async () => {
   await nextTick()
+  renderChart()
   renderHistChart()
 })
 
@@ -259,8 +273,7 @@ defineExpose({ rootEl, renderChart })
 .fo-badge.up { background: var(--up-bg); color: var(--up); }
 .fo-badge.down { background: var(--down-bg); color: var(--down); }
 .flow-chart { height: 132px; margin-top: 4px; }
-.flow-hist { margin-top: 14px; border-top: 1px dashed var(--border); padding-top: 12px; }
-.hist-head { display: flex; align-items: center; gap: 10px; margin-bottom: 6px; }
+.hist-head { display: flex; align-items: center; gap: 10px; margin-bottom: 8px; }
 .hist-title { font-size: 13px; font-weight: 600; color: var(--text-dim); }
 .hist-tabs { margin-left: auto; display: inline-flex; gap: 4px; }
 .hist-tab {

@@ -271,6 +271,17 @@
     </div>
 
     <div class="card mt16">
+      <div class="card-title">东财数据源</div>
+      <div class="setting-row">
+        <span class="setting-label">东财 Cookie（ct / ut）</span>
+        <UiInput type="password" v-model="eastmoneyCookie" placeholder="ct=...; ut=..." style="width:440px;max-width:70vw" @change="setAi('eastmoneyCookie', eastmoneyCookie)" />
+      </div>
+      <div class="setting-row">
+        <span class="setting-label" style="font-size:12px; color:var(--text-dim)">说明：东财数据中心对资金流历史等接口有风控，需携带浏览器 Cookie（ct 与 ut）才能返回完整数据。获取方式：浏览器打开 data.eastmoney.com 个股资金流向页 → F12 → Network → 任意请求的 Cookie 中复制 ct 与 ut 值，格式 `ct=...; ut=...` 填入。过期后需更新。</span>
+      </div>
+    </div>
+
+    <div class="card mt16">
       <div class="card-title">飞书通知</div>
       <div class="setting-row">
         <span class="setting-label">启用飞书推送</span>
@@ -368,6 +379,7 @@ const aiEnabled = ref(false)
 const aiApiKey = ref('')
 const aiModel = ref('deepseek-chat')
 const aiBaseUrl = ref('https://api.deepseek.com')
+const eastmoneyCookie = ref('')
 const showCustomModel = ref(false)
 const customModelName = ref('')
 const watchCount = ref(0)
@@ -460,6 +472,7 @@ function setAi(key, value) {
   else if (key === 'aiApiKey') { aiApiKey.value = value; saveSetting('aiApiKey', value) }
   else if (key === 'aiModel') { aiModel.value = value; saveSetting('aiModel', value) }
   else if (key === 'aiBaseUrl') { aiBaseUrl.value = value; saveSetting('aiBaseUrl', value) }
+  else if (key === 'eastmoneyCookie') { eastmoneyCookie.value = value; saveSetting('eastmoneyCookie', value) }
 }
 
 async function onClearWatch() {
@@ -671,6 +684,7 @@ onMounted(async () => {
   aiApiKey.value = settingsState.aiApiKey
   aiModel.value = settingsState.aiModel
   aiBaseUrl.value = settingsState.aiBaseUrl
+  eastmoneyCookie.value = settingsState.eastmoneyCookie
   if (aiModel.value && !['deepseek-chat', 'deepseek-reasoner', 'deepseek-v4-flash', 'gpt-4o'].includes(aiModel.value)) {
     showCustomModel.value = true
     customModelName.value = aiModel.value

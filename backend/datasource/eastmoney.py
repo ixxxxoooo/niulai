@@ -33,7 +33,8 @@ class _FailoverClient:
     - 非交易时段缩短超时，减少「全部节点不可用」时的长时间卡住
     """
 
-    def __init__(self, hosts: List[str], base_path: str = "/api/qt", cookie: str = ""):
+    def __init__(self, hosts: List[str], base_path: str = "/api/qt", cookie: str = "",
+                 cookie_key: str = ""):
         self._hosts = hosts
         self._base_path = base_path
         self._lock = threading.Lock()
@@ -41,13 +42,30 @@ class _FailoverClient:
         self._fail_until: Dict[str, float] = {}
         self._inflight: Dict[tuple, dict] = {}
         self._inflight_lock = threading.Lock()
+        self._cookie = cookie
+        self._cookie_key = cookie_key
+        self._cookie_cache: Dict[str, Any] = {"val": cookie, "ts": 0.0}
         self._headers = {
             "User-Agent": config.USER_AGENT,
             "Referer": "https://quote.eastmoney.com/",
             "Accept": "*/*",
         }
-        if cookie:
-            self._headers["Cookie"] = cookie
+
+    def _current_cookie(self) -> str:
+        """动态读取东财风控 Cookie（设置表优先，60s 缓存；环境变量兜底）。"""
+        if not self._cookie_key:
+            return self._cookie
+        now = time.monotonic()
+        if self._cookie_cache["val"] is not None and now - self._cookie_cache["ts"] < 60:
+            return self._cookie_cache["val"]
+        val = self._cookie
+        try:
+            from ..db import store as db
+            val = (db.get_setting(self._cookie_key) or "").strip() or self._cookie
+        except Exception:
+            pass
+        self._cookie_cache = {"val": val, "ts": now}
+        return val
 
     def _parse_json(self, resp: httpx.Response) -> Any:
         """解析 JSON，兼容 UTF-8 BOM（部分节点返回带 BOM 内容）"""
@@ -166,8 +184,12 @@ class _FailoverClient:
                 remaining = max(1.0, deadline - t0)
                 req_timeout = min(timeout, remaining)
                 try:
+                    headers = dict(self._headers)
+                    cookie = self._current_cookie()
+                    if cookie:
+                        headers["Cookie"] = cookie
                     resp = httpx.get(
-                        url, params=params, headers=self._headers, timeout=req_timeout,
+                        url, params=params, headers=headers, timeout=req_timeout,
                         follow_redirects=False,
                     )
                     if resp.status_code in (301, 302, 303, 307, 308):
@@ -211,8 +233,12 @@ class _FailoverClient:
                 remaining = max(1.0, deadline - t0)
                 req_timeout = min(timeout, remaining)
                 try:
+                    headers = dict(self._headers)
+                    cookie = self._current_cookie()
+                    if cookie:
+                        headers["Cookie"] = cookie
                     resp = httpx.get(
-                        url, params=params, headers=self._headers, timeout=req_timeout,
+                        url, params=params, headers=headers, timeout=req_timeout,
                         follow_redirects=False,
                     )
                     if resp.status_code in (301, 302, 303, 307, 308):
@@ -293,7 +319,7 @@ class EastMoneyClient:
         self._q = _FailoverClient(config.EASTMONEY_HOSTS)
         self._his = _FailoverClient(config.EASTMONEY_HIS_HOSTS, base_path="/api/qt")
         self._fflow = _FailoverClient(config.EASTMONEY_FFLOW_HOSTS, base_path="/api/qt",
-                                      cookie=config.EASTMONEY_COOKIE)
+                                      cookie=config.EASTMONEY_COOKIE, cookie_key="eastmoneyCookie")
         self._ex = _FailoverClient(config.EASTMONEY_EX_HOSTS, base_path="")
         self._search = _FailoverClient(config.EASTMONEY_SEARCH_HOSTS, base_path="/api")
 
