@@ -56,17 +56,14 @@
  * 新闻/公告列表与全文浮窗
  * @author ygw
  */
-import { ref, watch } from 'vue'
+import { ref } from 'vue'
 
-const props = defineProps({
+defineProps({
   news: { type: Array, default: () => [] },
   announcements: { type: Array, default: () => [] },
-  initialTab: { type: String, default: 'news' },
 })
 
-const infoTab = ref(props.initialTab)
-
-watch(() => props.initialTab, (v) => { if (v) infoTab.value = v })
+const infoTab = ref('news')
 const articleModal = ref(null)
 const articleContent = ref('')
 const articleLoading = ref(false)
