@@ -5,7 +5,8 @@
         <!-- 分时图 -->
         <div class="expand-block expand-trend">
           <div class="expand-chart-title">分时走势</div>
-          <div v-if="trendErr" class="expand-empty">{{ trendErr }}</div>
+          <div v-if="trendLoading" class="expand-empty">加载中...</div>
+          <div v-else-if="trendErr" class="expand-empty">{{ trendErr }}</div>
           <div v-else ref="trendEl" class="expand-chart"></div>
           <a class="expand-link" :href="stockUrl" target="_blank" rel="noopener">点击查看大图</a>
         </div>
@@ -13,7 +14,8 @@
         <!-- 日K线 -->
         <div class="expand-block expand-kline">
           <div class="expand-chart-title">日K线</div>
-          <div v-if="klineErr" class="expand-empty">{{ klineErr }}</div>
+          <div v-if="klineLoading" class="expand-empty">加载中...</div>
+          <div v-else-if="klineErr" class="expand-empty">{{ klineErr }}</div>
           <div v-else ref="klineEl" class="expand-chart"></div>
           <a class="expand-link" :href="stockUrl" target="_blank" rel="noopener">点击查看大图</a>
         </div>
@@ -79,10 +81,25 @@ const trendEl = ref(null)
 const klineEl = ref(null)
 const trendErr = ref('')
 const klineErr = ref('')
+const trendLoading = ref(true)
+const klineLoading = ref(true)
 const score = ref(null)
 const scoreLoading = ref(true)
 let trendChart = null
 let klineChart = null
+
+// 展开数据缓存：同一只股票重复展开/收起秒开（60s 有效期）
+const _cache = new Map()
+
+function getCached(key) {
+  const hit = _cache.get(key)
+  if (hit && Date.now() - hit.ts < 60000) return hit.data
+  return null
+}
+
+function setCached(key, data) {
+  _cache.set(key, { ts: Date.now(), data })
+}
 
 const stockUrl = `/#/stock/${props.code}`
 
@@ -113,30 +130,62 @@ const scoreColorClass = computed(() => {
 
 async function loadData() {
   const code = props.code
-  const [trendRes, klineRes, commentRes] = await Promise.allSettled([
-    api.trends(code),
-    api.kline(code, 'day', 60),
-    api.stockComment(code),
-  ])
 
-  await nextTick()
-
-  if (trendRes.status === 'fulfilled' && trendRes.value) {
-    renderTrend(trendRes.value)
+  // 三个请求独立渲染，哪个先到先出，不再等最慢的一个
+  // 分时
+  const cachedTrend = getCached('t:' + code)
+  if (cachedTrend) {
+    trendLoading.value = false
+    await nextTick()
+    renderTrend(cachedTrend)
   } else {
-    trendErr.value = '分时暂不可用'
+    api.trends(code).then(async (t) => {
+      if (t && t.points && t.points.length) {
+        setCached('t:' + code, t)
+        trendLoading.value = false
+        await nextTick()
+        renderTrend(t)
+      } else {
+        trendErr.value = '暂无分时'
+        trendLoading.value = false
+      }
+    }).catch(() => { trendErr.value = '分时暂不可用'; trendLoading.value = false })
   }
 
-  if (klineRes.status === 'fulfilled' && klineRes.value) {
-    renderKline(klineRes.value)
+  // 日K
+  const cachedKline = getCached('k:' + code)
+  if (cachedKline) {
+    klineLoading.value = false
+    await nextTick()
+    renderKline(cachedKline)
   } else {
-    klineErr.value = 'K线暂不可用'
+    api.kline(code, 'day', 60).then(async (k) => {
+      if (k && k.points && k.points.length) {
+        setCached('k:' + code, k)
+        klineLoading.value = false
+        await nextTick()
+        renderKline(k)
+      } else {
+        klineErr.value = '暂无K线'
+        klineLoading.value = false
+      }
+    }).catch(() => { klineErr.value = 'K线暂不可用'; klineLoading.value = false })
   }
 
-  if (commentRes.status === 'fulfilled' && commentRes.value && commentRes.value.total_score != null) {
-    score.value = commentRes.value
+  // 综合评分
+  const cachedScore = getCached('s:' + code)
+  if (cachedScore) {
+    score.value = cachedScore.total_score != null ? cachedScore : null
+    scoreLoading.value = false
+  } else {
+    api.stockComment(code).then((s) => {
+      if (s && s.total_score != null) {
+        setCached('s:' + code, s)
+        score.value = s
+      }
+      scoreLoading.value = false
+    }).catch(() => { scoreLoading.value = false })
   }
-  scoreLoading.value = false
 }
 
 function renderTrend(t) {
