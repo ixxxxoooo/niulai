@@ -97,7 +97,7 @@
                 <tr :class="{ 'row-expanded': expandedCode === p.code }" @click="toggleExpand(p.code)" @dblclick.stop="openFromRank(p)">
                   <td class="stock-name" :class="pctClass(p.change_pct)">
                     <MiniTrend :code="p.code" :name="p.name">
-                      <span class="name-cell"><BoardBadges :row="p" />{{ p.name }}<LeaderBadge :code="p.code" /></span>
+                      <span class="name-cell" @click.stop="openFromRank(p)" title="点击查看个股详情"><BoardBadges :row="p" />{{ p.name }}<LeaderBadge :code="p.code" /></span>
                     </MiniTrend>
                   </td>
                   <td>{{ p.code }}</td>
@@ -146,7 +146,7 @@
                 <tr :class="{ 'row-expanded': expandedCode === p.code }" @click="toggleExpand(p.code)" @dblclick.stop="openFromRank(p)">
                   <td class="stock-name down">
                     <MiniTrend :code="p.code" :name="p.name">
-                      <span class="name-cell"><BoardBadges :row="p" />{{ p.name }}<LeaderBadge :code="p.code" /></span>
+                      <span class="name-cell" @click.stop="openFromRank(p)" title="点击查看个股详情"><BoardBadges :row="p" />{{ p.name }}<LeaderBadge :code="p.code" /></span>
                     </MiniTrend>
                   </td>
                   <td>{{ p.code }}</td>
@@ -180,7 +180,7 @@
                   <td>{{ p.rank }}</td>
                   <td class="stock-name" :class="pctClass(p.change_pct)">
                     <MiniTrend :code="p.code" :name="p.name">
-                      <span class="name-cell"><BoardBadges :row="p" />{{ p.name }}<LeaderBadge :code="p.code" /></span>
+                      <span class="name-cell" @click.stop="openFromRank(p)" title="点击查看个股详情"><BoardBadges :row="p" />{{ p.name }}<LeaderBadge :code="p.code" /></span>
                     </MiniTrend>
                   </td>
                   <td>{{ p.code }}</td>
@@ -205,7 +205,7 @@
                 <tr :class="{ 'row-expanded': p.code && expandedCode === p.code }" @click="p.code && toggleExpand(p.code)" @dblclick.stop="openFromRank(p)">
                   <td>{{ p.time }}</td>
                   <td class="stock-name" :class="pctClass(p.change_pct)">
-                    <span class="name-cell"><BoardBadges :row="p" />{{ p.name }}<LeaderBadge :code="p.code" /></span>
+                    <span class="name-cell" @click.stop="openFromRank(p)" title="点击查看个股详情"><BoardBadges :row="p" />{{ p.name }}<LeaderBadge :code="p.code" /></span>
                   </td>
                   <td>{{ p.code }}</td>
                   <td><span :class="['change-tag', changeTagClass(p.type_name)]">{{ p.type_name }}</span></td>
@@ -236,7 +236,7 @@
                 <tr :class="{ 'row-expanded': expandedCode === p.code }" @click="toggleExpand(p.code)" @dblclick.stop="openFromRank(p)">
                   <td class="stock-name" :class="pctClass(p.change_pct)">
                     <MiniTrend :code="p.code" :name="p.name">
-                      <span class="name-cell"><BoardBadges :row="p" />{{ p.name }}<LeaderBadge :code="p.code" /></span>
+                      <span class="name-cell" @click.stop="openFromRank(p)" title="点击查看个股详情"><BoardBadges :row="p" />{{ p.name }}<LeaderBadge :code="p.code" /></span>
                     </MiniTrend>
                   </td>
                   <td>{{ p.code }}</td>
@@ -644,7 +644,17 @@ usePolling(load, 3000)
   text-align: left; max-width: 420px; white-space: normal;
   font-size: 12px; color: var(--text-dim);
 }
-.name-cell { display: inline-flex; align-items: center; gap: 4px; flex-wrap: wrap; }
+.name-cell {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  flex-wrap: wrap;
+  cursor: pointer;
+}
+.name-cell:hover {
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
 .change-tag { display: inline-block; font-size: 12px; padding: 1px 8px; border-radius: var(--radius-sm); white-space: nowrap; }
 .tag-up { background: var(--up-bg); color: var(--up); }
 .tag-down { background: var(--down-bg); color: var(--down); }

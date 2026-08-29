@@ -28,7 +28,7 @@
           >
             <td>
               <MiniTrend :code="row.code" :name="row.name">
-                <span class="name-cell">
+                <span class="name-cell" @click.stop="$emit('row-click', row)" title="点击查看个股详情">
                   <BoardBadges :row="row" />
                   <span class="stock-name" :class="pctClass(row.change_pct)">{{ row.name || '-' }}</span>
                   <LeaderBadge :code="row.code" />
@@ -196,7 +196,17 @@ th.sortable { cursor: pointer; user-select: none; }
 th.sortable:hover { color: var(--accent); }
 th.sorted { color: var(--accent); }
 .sort-ind { display: inline-block; margin-left: 3px; vertical-align: middle; }
-.name-cell { display: inline-flex; align-items: center; gap: 4px; flex-wrap: wrap; }
+.name-cell {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  flex-wrap: wrap;
+  cursor: pointer;
+}
+.name-cell:hover .stock-name {
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
 .vol-tag {
   display: inline-block; font-size: 10px; font-weight: 700;
   border-radius: 3px; padding: 0 4px; margin-left: 4px; vertical-align: 1px;
