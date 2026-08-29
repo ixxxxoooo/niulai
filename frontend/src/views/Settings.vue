@@ -274,10 +274,10 @@
       <div class="card-title">东财数据源</div>
       <div class="setting-row">
         <span class="setting-label">东财 Cookie（ct / ut）</span>
-        <UiInput type="password" v-model="eastmoneyCookie" placeholder="ct=...; ut=..." style="width:440px;max-width:70vw" @change="setAi('eastmoneyCookie', eastmoneyCookie)" />
+        <UiInput type="text" v-model="eastmoneyCookie" placeholder="可粘贴完整 Cookie，自动识别 ct / ut" style="width:440px;max-width:70vw" @change="setAi('eastmoneyCookie', eastmoneyCookie)" />
       </div>
       <div class="setting-row">
-        <span class="setting-label" style="font-size:12px; color:var(--text-dim)">说明：东财数据中心对资金流历史等接口有风控，需携带浏览器 Cookie（ct 与 ut）才能返回完整数据。获取方式：浏览器打开 data.eastmoney.com 个股资金流向页 → F12 → Network → 任意请求的 Cookie 中复制 ct 与 ut 值，格式 `ct=...; ut=...` 填入。过期后需更新。</span>
+        <span class="setting-label" style="font-size:12px; color:var(--text-dim)">说明：东财数据中心对资金流历史等接口有风控，需携带浏览器 Cookie 中的 ct 与 ut 才能返回完整数据。支持直接粘贴浏览器复制的完整 Cookie（含 ct=...; ut=...），系统会自动提取 ct / ut 两项。获取方式：浏览器打开 data.eastmoney.com 个股资金流向页 → F12 → Network → 任意请求的 Cookie 中复制整串填入。过期后需更新。</span>
       </div>
     </div>
 

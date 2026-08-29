@@ -25,6 +25,33 @@ class EastMoneyError(RuntimeError):
     """东方财富接口错误"""
 
 
+def _extract_ct_ut(cookie: str) -> str:
+    """从完整 Cookie 串中提取 ct 与 ut（东财风控仅需这两项），找不到则原样返回。
+
+    参数:
+        cookie: 用户粘贴的 Cookie 串（可为完整浏览器 Cookie 或仅 ct/ut）
+
+    返回:
+        仅含 ct/ut 的 Cookie 串；若未识别到则返回原始串
+    """
+    if not cookie:
+        return ""
+    found: Dict[str, str] = {}
+    for item in cookie.split(";"):
+        item = item.strip()
+        if not item or "=" not in item:
+            continue
+        k, _, v = item.partition("=")
+        k = k.strip()
+        if k == "ct":
+            found["ct"] = v.strip()
+        elif k == "ut":
+            found["ut"] = v.strip()
+    if found:
+        return "; ".join(f"{k}={found[k]}" for k in ("ct", "ut") if k in found)
+    return cookie
+
+
 class _FailoverClient:
     """多节点故障转移 HTTP 客户端
 
@@ -52,9 +79,12 @@ class _FailoverClient:
         }
 
     def _current_cookie(self) -> str:
-        """动态读取东财风控 Cookie（设置表优先，60s 缓存；环境变量兜底）。"""
+        """动态读取东财风控 Cookie（设置表优先，60s 缓存；环境变量兜底）。
+
+        支持粘贴完整浏览器 Cookie 串，自动提取 ct / ut 两项。
+        """
         if not self._cookie_key:
-            return self._cookie
+            return _extract_ct_ut(self._cookie)
         now = time.monotonic()
         if self._cookie_cache["val"] is not None and now - self._cookie_cache["ts"] < 60:
             return self._cookie_cache["val"]
@@ -64,6 +94,7 @@ class _FailoverClient:
             val = (db.get_setting(self._cookie_key) or "").strip() or self._cookie
         except Exception:
             pass
+        val = _extract_ct_ut(val)
         self._cookie_cache = {"val": val, "ts": now}
         return val
 

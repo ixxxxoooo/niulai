@@ -12,14 +12,14 @@ EASTMONEY_HOSTS = [
     "1.push2delay.eastmoney.com",
     "push2.eastmoney.com",
 ]
-# 资金流：历史数据优先 push2his（完整历史），delay 节点仅最新1条时降级兜底
+# 资金流：历史数据优先 push2his（实测带 ct/ut 可返回完整历史，push2his2 会 302 风控），delay 节点仅最新1条时降级兜底
 EASTMONEY_FFLOW_HOSTS = [
-    "push2his2.eastmoney.com",
     "push2his.eastmoney.com",
+    "push2his2.eastmoney.com",
     "push2delay.eastmoney.com",
     "1.push2delay.eastmoney.com",
 ]
-# 东财数据中心风控 Cookie（ct/ut 等，浏览器访问东财后获得）。
+# 东财数据中心风控 Cookie（ct/ut，浏览器访问东财后获得）。可填完整 Cookie 串，系统自动提取 ct/ut。
 # push2his 资金流历史接口需携带方可返回完整数据；留空则降级 delay 节点仅当日。
 EASTMONEY_COOKIE = os.environ.get("EASTMONEY_COOKIE", "")
 # 东方财富历史数据节点（push2his2 实测稳定；主节点会间歇性拒连）
