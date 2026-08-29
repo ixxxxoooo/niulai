@@ -445,7 +445,7 @@ function openFromList(row, list, label) {
 }
 
 // 页面 Tab：'watch' 自选 / 'hold' 持仓（同页刷新保持，离开重置）
-const tab = usePageTab('watchlist', 'watch')
+const tab = usePageTab('watchlist', 'hold')
 
 // 智能排雷状态
 const riskMap = ref({})
