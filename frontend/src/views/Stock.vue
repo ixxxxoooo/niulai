@@ -31,25 +31,37 @@
       :concept-list="conceptList"
     />
 
-    <div class="grid-3 mt16">
-      <StockCharts
-        ref="chartsRef"
-        :code="code"
-        :detail="detail"
-        :trend="trend"
-        :display-name="displayName"
-        :initial-kline-day="klineDay"
-        :sr-levels="srLevels"
-        @error="(msg) => error = msg"
-        @kline-day="onKlineDay"
-      />
-      <OrderBook :orderbook="detail.orderbook" :outer="detail.outer" :inner="detail.inner" />
+    <div class="card mt16">
+      <div class="tabs stock-main-tabs" style="margin:0">
+        <button class="tab" :class="{ active: mainTab === 'kline' }" @click="mainTab = 'kline'">K线</button>
+        <button class="tab" :class="{ active: mainTab === 'ticks' }" @click="mainTab = 'ticks'">成交明细</button>
+        <button class="tab" :class="{ active: mainTab === 'flow' }" @click="mainTab = 'flow'">资金流向</button>
+        <button class="tab" :class="{ active: mainTab === 'news' }" @click="mainTab = 'news'">新闻</button>
+        <button class="tab" :class="{ active: mainTab === 'ann' }" @click="mainTab = 'ann'">公告</button>
+      </div>
     </div>
 
-    <div class="grid-2 mt16">
-      <div class="card">
+    <template v-if="mainTab === 'kline'">
+      <div class="grid-3 mt16">
+        <StockCharts
+          ref="chartsRef"
+          :code="code"
+          :detail="detail"
+          :trend="trend"
+          :display-name="displayName"
+          :initial-kline-day="klineDay"
+          :sr-levels="srLevels"
+          @error="(msg) => error = msg"
+          @kline-day="onKlineDay"
+        />
+        <OrderBook :orderbook="detail.orderbook" :outer="detail.outer" :inner="detail.inner" />
+      </div>
+    </template>
+
+    <template v-else-if="mainTab === 'ticks'">
+      <div class="card mt16">
         <div class="card-title">成交明细（最近 {{ ticks.length }} 笔 · 10 秒刷新）<a class="source-link" :href="eastmoneyUrl" target="_blank" rel="noopener">东财 <UiIcon name="external" :size="11" /></a></div>
-        <div class="table-wrap" style="max-height: 380px; overflow-y: auto;">
+        <div class="table-wrap" style="max-height: 480px; overflow-y: auto;">
           <table class="data-table">
             <thead><tr><th>时间</th><th>价格</th><th>数量(手)</th><th>金额</th><th>方向</th></tr></thead>
             <tbody>
@@ -69,16 +81,28 @@
           </table>
         </div>
       </div>
+    </template>
 
-      <MoneyFlow
-        :flow="flow"
-        :display-name="displayName"
-        :data-source="flowSourceLabel"
-        :source-tip="flowSourceTip"
-        :code="code"
-        @screenshot="screenshotFlow"
-      />
-    </div>
+    <template v-else-if="mainTab === 'flow'">
+      <div class="mt16">
+        <MoneyFlow
+          :flow="flow"
+          :display-name="displayName"
+          :data-source="flowSourceLabel"
+          :source-tip="flowSourceTip"
+          :code="code"
+          @screenshot="screenshotFlow"
+        />
+      </div>
+    </template>
+
+    <template v-else-if="mainTab === 'news'">
+      <NewsAnnouncements :news="news" :announcements="announcements" initial-tab="news" />
+    </template>
+
+    <template v-else-if="mainTab === 'ann'">
+      <NewsAnnouncements :news="news" :announcements="announcements" initial-tab="ann" />
+    </template>
 
     <!-- ETF 持仓成分股（成交明细下方） -->
     <div class="card mt16" v-if="isEtf">
@@ -172,7 +196,6 @@
       </details>
     </div>
 
-    <NewsAnnouncements :news="news" :announcements="announcements" />
   </div>
 
   <AlertQuickModal
@@ -196,6 +219,7 @@ import { api } from '../api.js'
 import { fmtAmount, fmtPrice, fmtNum, fmtPct, pctClass } from '../utils.js'
 import { parseHash, navigate } from '../router.js'
 import { usePolling } from '../composables/usePolling.js'
+import { usePageTab } from '../composables/usePageTab.js'
 import { isWatched as codeWatched, toggleWatch as tw } from '../composables/useWatchlist.js'
 import { ensureIndicators } from '../chartIndicators.js'
 import { lookupMeta, peekMeta, rememberStock, openStock } from '../composables/useStockMeta.js'
@@ -212,6 +236,7 @@ import NewsAnnouncements from '../components/stock/NewsAnnouncements.vue'
 
 const props = defineProps({ code: { type: String, default: '' } })
 const code = ref(props.code || (parseHash().code || ''))
+const mainTab = usePageTab('stock_main', 'kline')
 
 const detail = reactive({})
 const trend = ref(null)
