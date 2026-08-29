@@ -77,6 +77,7 @@ export const api = {
   limitUp: (limit = 100, date = '') => get(`/market/limit-up?limit=${limit}${date ? `&date=${date}` : ''}`),
   limitBreak: (limit = 100, date = '') => get(`/market/limit-break?limit=${limit}${date ? `&date=${date}` : ''}`),
   limitDown: (limit = 100, date = '') => get(`/market/limit-down?limit=${limit}${date ? `&date=${date}` : ''}`),
+  strongPool: (limit = 100, date = '') => get(`/market/strong-pool?limit=${limit}${date ? `&date=${date}` : ''}`),
   stockLimitTag: (code) => get(`/stocks/${code}/limit-tag`),
   thsHot: (type = 'hour', limit = 50) => get(`/ths/hot?type=${type}&limit=${limit}`),
   lhb: (limit = 50, date = '') => get(`/market/lhb?limit=${limit}${date ? `&date=${date}` : ''}`),

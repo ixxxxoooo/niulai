@@ -1461,6 +1461,18 @@ class EastMoneyClient:
         """炸板池（东财官方 getTopicZBPool，与涨停板页炸板股池同源）。date 指定交易日可回看历史。"""
         return self._topic_pool("getTopicZBPool", limit, "zb", date=date)
 
+    def strong_pool(self, limit: int = 100, date: Optional[str] = None) -> List[LimitUpStock]:
+        """强势股池（东财官方 getTopicQSPool，与涨停板页强势股池同源）。
+
+        强势股 = 创 60 日新高或近期多次涨停的 A 股，sort=zdp:desc 涨幅降序。
+        该池无封板时间/封单额字段（仅涨幅/换手/连板等）。
+
+        参数:
+            limit: 返回条数
+            date: 指定交易日 YYYYMMDD 可回看历史；为空取最近交易日
+        """
+        return self._topic_pool("getTopicQSPool", limit, "qs", sort="zdp:desc", date=date)
+
     def limit_down_pool(self, limit: int = 100, date: Optional[str] = None) -> List[LimitUpStock]:
         """跌停池（东财官方 getTopicDTPool，与涨停板页跌停股池同源，sort=fund:asc 封单升序）。
 

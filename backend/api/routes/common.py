@@ -173,6 +173,16 @@ def cached_limit_break_pool() -> list:
 
 
 @ttl_cache(ttl=config.CACHE_TTL, cache_empty=False)
+def cached_strong_pool() -> list:
+    """共享强势股池缓存（固定 300 条），创 60 日新高或近期多次涨停。
+
+    @author ygw
+    返回: 已补全标签的强势股 dict 列表
+    """
+    return _enrich_rows(eastmoney.get_client().strong_pool(300))
+
+
+@ttl_cache(ttl=config.CACHE_TTL, cache_empty=False)
 def cached_limit_down_pool() -> list:
     """共享跌停池缓存（固定 300 条）。
 

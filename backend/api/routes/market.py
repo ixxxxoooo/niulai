@@ -9,7 +9,7 @@ from ...analyzer import rank as rank_an
 from ...analyzer import sector as sector_an
 from ...datasource import eastmoney
 
-from .common import ttl_cache, _calc_indicators, _enrich_rows, cached_limit_up_pool, cached_limit_break_pool, cached_limit_down_pool, attach_youzi
+from .common import ttl_cache, _calc_indicators, _enrich_rows, cached_limit_up_pool, cached_limit_break_pool, cached_limit_down_pool, cached_strong_pool, attach_youzi
 
 router = APIRouter()
 
@@ -284,6 +284,22 @@ def limit_break_pool(limit: int = Query(100, ge=1, le=300),
         rows = _enrich_rows(eastmoney.get_client().limit_break_pool(300, d))
     else:
         rows = [dict(r) for r in cached_limit_break_pool()]
+        attach_youzi(rows)
+    return rows[:limit] if limit < len(rows) else rows
+
+
+@router.get("/market/strong-pool")
+def strong_pool(limit: int = Query(100, ge=1, le=300),
+                date: str = Query("", max_length=16)):
+    """今日强势股池（创 60 日新高或近期多次涨停，共享缓存）。附带最近交易日游资徽章。
+
+    date 指定交易日（YYYY-MM-DD）可回看历史（东财官方支持）；历史回看不附加游资徽章。
+    """
+    d = date.replace("-", "") if date else None
+    if d:
+        rows = _enrich_rows(eastmoney.get_client().strong_pool(300, d))
+    else:
+        rows = [dict(r) for r in cached_strong_pool()]
         attach_youzi(rows)
     return rows[:limit] if limit < len(rows) else rows
 

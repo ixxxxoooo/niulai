@@ -8,6 +8,8 @@
       <div class="tab" :class="{ active: tab === 'moneyflow' }" @click="switchTab('moneyflow')">主力净流入</div>
       <div class="tab" :class="{ active: tab === 'hot' }" @click="switchTab('hot')">热门股</div>
       <div class="tab" :class="{ active: tab === 'zt' }" @click="switchTab('zt')">涨停池</div>
+      <div class="tab" :class="{ active: tab === 'qs' }" @click="switchTab('qs')">强势股池</div>
+      <div class="tab" :class="{ active: tab === 'zb' }" @click="switchTab('zb')">炸板池</div>
       <div class="tab" :class="{ active: tab === 'dt' }" @click="switchTab('dt')">跌停池</div>
       <div class="tab" :class="{ active: tab === 'etf' }" @click="switchTab('etf')">ETF排行</div>
       <div class="tab" :class="{ active: tab === 'ths' }" @click="switchTab('ths')">同花顺热榜</div>
@@ -27,7 +29,9 @@
           <div class="card-title" v-if="tab === 'zhangsu'">5 分钟涨速排行（捕捉盘中异动拉升）</div>
           <div class="card-title" v-else-if="tab === 'moneyflow'">个股主力净流入排行（大单+超大单）</div>
           <div class="card-title" v-else-if="tab === 'hot'">热门股（点击列名排序 · 再点取消）</div>
-          <div class="card-title" v-else-if="tab === 'zt'">今日涨停（{{ ztRows.length }} 家）</div>
+          <div class="card-title" v-else-if="tab === 'zt'">今日涨停（{{ poolRows.length }} 家）</div>
+          <div class="card-title" v-else-if="tab === 'qs'">强势股池（创 60 日新高 / 近期多次涨停 · {{ poolRows.length }} 家）</div>
+          <div class="card-title" v-else-if="tab === 'zb'">炸板股池（曾封板后打开 · {{ poolRows.length }} 家）</div>
           <div class="card-title" v-else-if="tab === 'dt'">今日跌停（{{ rows.length }} 家）</div>
           <div class="card-title" v-else-if="tab === 'etf'">ETF 排行（共 {{ etfTotal }} 只 · 点击列名排序）</div>
           <div class="card-title" v-else-if="tab === 'ths'">
@@ -68,30 +72,32 @@
         <StockTable :rows="rows" :columns="hotCols" @row-click="openFromRank" />
       </template>
 
-      <template v-else-if="tab === 'zt'">
+      <template v-if="poolTabs.includes(tab)">
         <div class="table-wrap">
           <table class="data-table">
             <thead><tr>
-              <th class="sortable" :class="{ sorted: ztSort.sortKey === 'name' }" @click="ztSort.toggleSort('name')">名称</th>
+              <th class="sortable" :class="{ sorted: poolSort.sortKey === 'name' }" @click="poolSort.toggleSort('name')">名称</th>
               <th>代码</th>
-              <th class="sortable" :class="{ sorted: ztSort.sortKey === 'price' }" @click="ztSort.toggleSort('price')">现价</th>
-              <th class="sortable" :class="{ sorted: ztSort.sortKey === 'change_pct' }" @click="ztSort.toggleSort('change_pct')">涨幅</th>
-              <th class="sortable" :class="{ sorted: ztSort.sortKey === 'lbc' }" @click="ztSort.toggleSort('lbc')">连板</th>
+              <th class="sortable" :class="{ sorted: poolSort.sortKey === 'price' }" @click="poolSort.toggleSort('price')">现价</th>
+              <th class="sortable" :class="{ sorted: poolSort.sortKey === 'change_pct' }" @click="poolSort.toggleSort('change_pct')">涨幅</th>
+              <th class="sortable" :class="{ sorted: poolSort.sortKey === 'lbc' }" @click="poolSort.toggleSort('lbc')">连板</th>
               <th>行业</th>
-              <th class="sortable" :class="{ sorted: ztSort.sortKey === 'seal_amount' }" @click="ztSort.toggleSort('seal_amount')">封单额</th>
-              <th class="sortable" :class="{ sorted: ztSort.sortKey === 'first_time' }" @click="ztSort.toggleSort('first_time')">首次封板</th>
+              <th v-if="tab === 'zt'" class="sortable" :class="{ sorted: poolSort.sortKey === 'seal_amount' }" @click="poolSort.toggleSort('seal_amount')">封单额</th>
+              <th class="sortable" :class="{ sorted: poolSort.sortKey === 'turnover' }" @click="poolSort.toggleSort('turnover')">换手率</th>
+              <th v-if="tab !== 'qs'" class="sortable" :class="{ sorted: poolSort.sortKey === 'first_time' }" @click="poolSort.toggleSort('first_time')">首次封板</th>
+              <th v-if="tab === 'zt'" class="sortable" :class="{ sorted: poolSort.sortKey === 'last_time' }" @click="poolSort.toggleSort('last_time')">最后封板</th>
               <th data-tooltip="当日龙虎榜上榜席位中命中的知名游资（如章盟主）。红色徽章=拉萨天团，属反向指标需谨慎。">游资</th>
             </tr></thead>
             <tbody>
-              <tr v-for="p in ztSort.sorted" :key="p.code" @click="openFromRank(p)">
-                <td class="stock-name up">
+              <tr v-for="p in poolSort.sorted" :key="p.code" @click="openFromRank(p)">
+                <td class="stock-name" :class="pctClass(p.change_pct)">
                   <MiniTrend :code="p.code" :name="p.name">
                     <span class="name-cell"><BoardBadges :row="p" />{{ p.name }}<LeaderBadge :code="p.code" /></span>
                   </MiniTrend>
                 </td>
                 <td>{{ p.code }}</td>
                 <td>{{ fmtPrice(p.price) }}</td>
-                <td class="up">{{ fmtPct(p.change_pct) }}</td>
+                <td :class="pctClass(p.change_pct)">{{ fmtPct(p.change_pct) }}</td>
                 <td>
                   <span class="zt-lb-wrap">
                     <span class="zt-lb-badge" :data-tooltip="`连板数：${p.lbc}，点击查看连板梯队`" @click.stop="goLadder()">{{ lbcLabel(p.lbc) }}</span>
@@ -99,14 +105,16 @@
                   </span>
                 </td>
                 <td><span class="rank-industry" @click.stop="gotoIndustry(p.industry)">{{ p.industry || '-' }}</span></td>
-                <td :class="pctClass(p.seal_amount)">{{ fmtAmount(p.seal_amount) }}</td>
-                <td>{{ p.first_time || '-' }}</td>
+                <td v-if="tab === 'zt'" :class="pctClass(p.seal_amount)">{{ fmtAmount(p.seal_amount) }}</td>
+                <td>{{ fmtPct(p.turnover) }}</td>
+                <td v-if="tab !== 'qs'">{{ p.first_time || '-' }}</td>
+                <td v-if="tab === 'zt'">{{ p.last_time || '-' }}</td>
                 <td class="youzi-cell">
                   <span v-for="y in (p.youzi || [])" :key="y" class="youzi-badge" :class="{ lhasa: y.includes('拉萨') }" :data-tooltip="`点击查看该游资动向`" @click.stop="goSeat(y)">{{ y }}</span>
                   <span v-if="!(p.youzi || []).length" class="seat-no">—</span>
                 </td>
               </tr>
-              <tr v-if="!ztSort.sorted.length"><td colspan="9" class="empty">暂无数据</td></tr>
+              <tr v-if="!poolSort.sorted.length"><td :colspan="poolColspan" class="empty">暂无数据</td></tr>
             </tbody>
           </table>
         </div>
@@ -123,6 +131,8 @@
               <th>行业</th>
               <th class="sortable" :class="{ sorted: sort.sortKey === 'amount' }" @click="sort.toggleSort('amount')">成交额</th>
               <th class="sortable" :class="{ sorted: sort.sortKey === 'turnover' }" @click="sort.toggleSort('turnover')">换手</th>
+              <th class="sortable" :class="{ sorted: sort.sortKey === 'first_time' }" @click="sort.toggleSort('first_time')">首次封板</th>
+              <th class="sortable" :class="{ sorted: sort.sortKey === 'last_time' }" @click="sort.toggleSort('last_time')">最后封板</th>
             </tr></thead>
             <tbody>
               <tr v-for="p in sort.sorted" :key="p.code" @click="openFromRank(p)">
@@ -137,8 +147,10 @@
                 <td><span class="rank-industry" @click.stop="gotoIndustry(p.industry)">{{ p.industry || '-' }}</span></td>
                 <td>{{ fmtAmount(p.amount) }}</td>
                 <td>{{ fmtPct(p.turnover) }}</td>
+                <td>{{ p.first_time || '-' }}</td>
+                <td>{{ p.last_time || '-' }}</td>
               </tr>
-              <tr v-if="!sort.sorted.length"><td colspan="7" class="empty">今日无跌停</td></tr>
+              <tr v-if="!sort.sorted.length"><td colspan="9" class="empty">今日无跌停</td></tr>
             </tbody>
           </table>
         </div>
@@ -249,13 +261,16 @@ import StockTable from '../components/StockTable.vue'
 import MiniTrend from '../components/MiniTrend.vue'
 import BoardBadges from '../components/BoardBadges.vue'
 
-const dateTabs = ['zt', 'dt', 'lhb']
+const dateTabs = ['zt', 'qs', 'zb', 'dt', 'lhb']
+const poolTabs = ['zt', 'qs', 'zb']
 
 const TAB_NAMES = {
   zhangsu: '5分钟涨速榜',
   moneyflow: '主力净流入榜',
   hot: '热门股榜',
   zt: '今日涨停池',
+  qs: '强势股池',
+  zb: '炸板股池',
   dt: '今日跌停池',
   etf: 'ETF排行',
   ths: '同花顺热榜',
@@ -286,6 +301,8 @@ const SOURCE_URLS = {
   moneyflow: 'https://data.eastmoney.com/zjlx/',
   hot: 'https://quote.eastmoney.com/center/gridlist.html#hs_a_board',
   zt: 'https://quote.eastmoney.com/ztb/detail#type=ztgc',
+  qs: 'https://quote.eastmoney.com/ztb/detail#type=qsgc',
+  zb: 'https://quote.eastmoney.com/ztb/detail#type=zbgc',
   dt: 'https://quote.eastmoney.com/ztb/detail#type=dtgc',
   etf: 'https://quote.eastmoney.com/center/gridlist.html#etf',
   ths: 'https://q.10jqka.com.cn/',
@@ -302,7 +319,7 @@ const sourceLabel = computed(() => SOURCE_LABELS[tab.value] || '东财')
  * @author ygw
  */
 function openFromRank(row) {
-  const list = tab.value === 'zt' ? ztSort.sorted.value
+  const list = poolTabs.includes(tab.value) ? poolSort.value.sorted
     : tab.value === 'ths' ? thsRows.value
     : tab.value === 'lhb' ? lhbRows.value
     : tab.value === 'changes' ? changesRows.value
@@ -315,7 +332,7 @@ function openFromRank(row) {
 }
 
 const props = defineProps({ tab: { type: String, default: '' } })
-const VALID = ['zhangsu', 'moneyflow', 'hot', 'zt', 'dt', 'etf', 'ths', 'lhb', 'changes']
+const VALID = ['zhangsu', 'moneyflow', 'hot', 'zt', 'qs', 'zb', 'dt', 'etf', 'ths', 'lhb', 'changes']
 const tab = ref(VALID.includes(props.tab) ? props.tab : 'zhangsu')
 const thsType = ref('hour')
 const PREMIUM_TEXT = { positive: '正面', neutral_positive: '偏正面', neutral: '中性', negative: '负面' }
@@ -426,11 +443,15 @@ const etfCols = [
   { key: 'volume_ratio', label: '量比', sortable: true },
 ]
 
-const ztRows = computed(() => applyListFilter(rows.value))
+const poolRows = computed(() => applyListFilter(rows.value))
 const thsRows = computed(() => applyListFilter(rows.value))
 const lhbRows = computed(() => applyListFilter(rows.value))
 const changesRows = computed(() => applyListFilter(rows.value))
-const ztSort = useTableSort(ztRows, 'rank_zt_pool')
+const ztSort = useTableSort(poolRows, 'rank_zt_pool')
+const qsSort = useTableSort(poolRows, 'rank_qs_pool')
+const zbSort = useTableSort(poolRows, 'rank_zb_pool')
+const poolSort = computed(() => tab.value === 'qs' ? qsSort : tab.value === 'zb' ? zbSort : ztSort)
+const poolColspan = computed(() => tab.value === 'zt' ? 11 : tab.value === 'zb' ? 9 : 8)
 const sort = useTableSort(rows, 'rank_dt_pool')
 
 function changeTagClass(typeName) {
@@ -470,6 +491,14 @@ async function load() {
       rows.value = r
     } else if (tab.value === 'zt') {
       const r = await api.limitUp(100, rankDateInput.value)
+      if (seq !== loadSeq) return
+      if (r.length || !rows.value.length) rows.value = r
+    } else if (tab.value === 'qs') {
+      const r = await api.strongPool(100, rankDateInput.value)
+      if (seq !== loadSeq) return
+      if (r.length || !rows.value.length) rows.value = r
+    } else if (tab.value === 'zb') {
+      const r = await api.limitBreak(100, rankDateInput.value)
       if (seq !== loadSeq) return
       if (r.length || !rows.value.length) rows.value = r
     } else if (tab.value === 'dt') {
