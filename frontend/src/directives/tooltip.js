@@ -30,14 +30,16 @@ function renderFormattedTooltip(text) {
 }
 
 function showTooltip(el, text) {
-  if (!text) return
+  if (!text || !el || !document.body.contains(el)) return
+  const rect = el.getBoundingClientRect()
+  if (rect.width === 0 && rect.height === 0) return
+
   const tip = ensureTooltipEl()
   tip.innerHTML = renderFormattedTooltip(text)
   tip.style.display = 'block'
   tip.style.opacity = '0'
   tip.style.transform = 'translateY(4px) scale(0.98)'
 
-  const rect = el.getBoundingClientRect()
   const tipRect = tip.getBoundingClientRect()
 
   // 优先在元素上方居中显示
@@ -59,6 +61,10 @@ function showTooltip(el, text) {
   tip.style.left = `${Math.round(left)}px`
 
   requestAnimationFrame(() => {
+    if (!el || !document.body.contains(el)) {
+      tip.style.display = 'none'
+      return
+    }
     tip.style.opacity = '1'
     tip.style.transform = 'translateY(0) scale(1)'
   })
@@ -100,7 +106,7 @@ export function initGlobalTooltip() {
 
     // 标准默认延迟 500ms，停顿悬停时再平滑展现，避免划过时过于灵敏频繁闪烁
     showTimer = setTimeout(() => {
-      if (activeTarget === target) {
+      if (activeTarget === target && document.body.contains(target)) {
         showTooltip(target, text)
       }
     }, 500)
@@ -114,13 +120,17 @@ export function initGlobalTooltip() {
     hideTooltip()
   }, { passive: true })
 
-  window.addEventListener('scroll', () => {
-    if (activeTarget) {
-      activeTarget = null
-      clearTimeout(showTimer)
-      hideTooltip()
-    }
-  }, { passive: true })
+  // 点击/跳转/滚动时立即隐藏浮窗并取消排队
+  const dismiss = () => {
+    activeTarget = null
+    clearTimeout(showTimer)
+    hideTooltip()
+  }
+
+  document.addEventListener('click', dismiss, { passive: true })
+  window.addEventListener('scroll', dismiss, { passive: true })
+  window.addEventListener('hashchange', dismiss, { passive: true })
+  window.addEventListener('popstate', dismiss, { passive: true })
 }
 
 export const vTooltip = {

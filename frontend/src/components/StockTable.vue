@@ -28,7 +28,7 @@
           >
             <td>
               <MiniTrend :code="row.code" :name="row.name">
-                <span class="name-cell" @click.stop="$emit('row-click', row)" title="点击查看个股详情">
+                <span class="name-cell" @click.stop="$emit('row-click', row)">
                   <BoardBadges :row="row" />
                   <span class="stock-name" :class="pctClass(row.change_pct)">{{ row.name || '-' }}</span>
                   <LeaderBadge :code="row.code" />
