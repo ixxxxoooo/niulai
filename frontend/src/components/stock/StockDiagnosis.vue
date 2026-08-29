@@ -31,6 +31,13 @@
         </button>
         <button
           class="diag-tab"
+          :class="{ active: activeTab === 'shareholders' }"
+          @click="activeTab = 'shareholders'"
+        >
+          股东筹码
+        </button>
+        <button
+          class="diag-tab"
           :class="{ active: activeTab === 'trend' }"
           @click="activeTab = 'trend'"
         >
@@ -247,7 +254,95 @@
         </div>
       </div>
 
-      <!-- 3. 趋势研判 -->
+      <!-- 3. 股东筹码（股东户数与筹码集中度） -->
+      <div v-else-if="activeTab === 'shareholders'" class="tab-pane">
+        <!-- 核心指标卡片 -->
+        <div class="sh-summary-grid" v-if="shLatest.holder_num != null">
+          <div class="sh-card">
+            <div class="sh-k">最新股东总户数</div>
+            <div class="sh-v highlight">{{ fmtNum(shLatest.holder_num, 0) }} <span class="sh-unit">户</span></div>
+            <div class="sh-sub">截至 {{ shLatest.end_date || '-' }}</div>
+          </div>
+          <div class="sh-card">
+            <div class="sh-k">较上期增减户数</div>
+            <div class="sh-v" :class="pctClass(shLatest.holder_change)">
+              {{ shLatest.holder_change != null ? (shLatest.holder_change > 0 ? '+' : '') + fmtNum(shLatest.holder_change, 0) + ' 户' : '-' }}
+            </div>
+            <div class="sh-sub" :class="pctClass(shLatest.change_ratio)">
+              变动比例 {{ shLatest.change_ratio != null ? (shLatest.change_ratio > 0 ? '+' : '') + Number(shLatest.change_ratio).toFixed(2) + '%' : '-' }}
+            </div>
+          </div>
+          <div class="sh-card">
+            <div class="sh-k">筹码集中度评级</div>
+            <div class="sh-v">
+              <span class="focus-pill" :class="focusPillClass(shLatest.hold_focus)">
+                {{ shLatest.hold_focus || '暂无评定' }}
+              </span>
+            </div>
+            <div class="sh-sub">
+              <span v-if="shLatest.change_ratio != null">
+                {{ shLatest.change_ratio < 0 ? '筹码趋于集中（主力吸筹）' : (shLatest.change_ratio > 0 ? '筹码趋于分散（散户接盘）' : '筹码保持稳定') }}
+              </span>
+              <span v-else>东财大数据评级</span>
+            </div>
+          </div>
+          <div class="sh-card">
+            <div class="sh-k">户均持股市值</div>
+            <div class="sh-v accent">{{ shLatest.avg_hold_amt != null ? fmtAmount(shLatest.avg_hold_amt) : '-' }}</div>
+            <div class="sh-sub">户均持股 {{ shLatest.avg_shares != null ? fmtNum(shLatest.avg_shares, 0) + ' 股' : '-' }}</div>
+          </div>
+        </div>
+
+        <!-- 股东户数与筹码变动历史表 -->
+        <div class="sh-history-wrap mt16" v-if="shHistory.length">
+          <div class="sh-table-title">
+            <span>近 8 期股东户数与筹码变动历史</span>
+            <span class="sh-table-tip">数据来源：上市公司定期报告与互动平台披露</span>
+          </div>
+          <div class="table-wrap">
+            <table class="data-table sh-table">
+              <thead>
+                <tr>
+                  <th>截止日期</th>
+                  <th>股东总户数</th>
+                  <th>较上期增减</th>
+                  <th>变动比例</th>
+                  <th>筹码集中度</th>
+                  <th>户均持股 (股)</th>
+                  <th>户均市值</th>
+                  <th>统计期收盘价</th>
+                  <th>公告日期</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr v-for="(h, idx) in shHistory" :key="h.end_date || idx">
+                  <td class="td-date">{{ h.end_date || '-' }}</td>
+                  <td class="td-num"><strong>{{ fmtNum(h.holder_num, 0) }}</strong> 户</td>
+                  <td :class="pctClass(h.holder_change)">
+                    {{ h.holder_change != null ? (h.holder_change > 0 ? '+' : '') + fmtNum(h.holder_change, 0) : '-' }}
+                  </td>
+                  <td :class="pctClass(h.change_ratio)">
+                    {{ h.change_ratio != null ? (h.change_ratio > 0 ? '+' : '') + Number(h.change_ratio).toFixed(2) + '%' : '-' }}
+                  </td>
+                  <td>
+                    <span class="focus-tag" :class="focusPillClass(h.hold_focus)">{{ h.hold_focus || '—' }}</span>
+                  </td>
+                  <td>{{ h.avg_shares != null ? fmtNum(h.avg_shares, 0) : '-' }}</td>
+                  <td class="accent">{{ h.avg_hold_amt != null ? fmtAmount(h.avg_hold_amt) : '-' }}</td>
+                  <td>{{ h.price != null ? fmtPrice(h.price) : '-' }}</td>
+                  <td class="td-dim">{{ h.notice_date || '-' }}</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <div v-else class="expand-empty" style="padding: 24px">
+          暂无历史股东户数数据
+        </div>
+      </div>
+
+      <!-- 4. 趋势研判 -->
       <div v-else-if="activeTab === 'trend'" class="tab-pane">
         <!-- 趋势官方点评 -->
         <div class="trend-comment-box">
@@ -325,7 +420,7 @@
         </div>
       </div>
 
-      <!-- 4. 资金动向 -->
+      <!-- 5. 资金动向 -->
       <div v-else-if="activeTab === 'flow'" class="tab-pane">
         <div class="flow-tab-content">
           <div class="flow-header-intro">
@@ -386,6 +481,9 @@ const eastmoneyCommentUrl = computed(() => {
 const evalData = computed(() => data.value?.evaluation || {})
 const mfData = computed(() => data.value?.main_force || {})
 const trendData = computed(() => data.value?.trend || {})
+const shData = computed(() => data.value?.shareholders || {})
+const shLatest = computed(() => shData.value.latest || {})
+const shHistory = computed(() => shData.value.history || [])
 
 const controlClass = computed(() => {
   const t = mfData.value.control_type || ''
@@ -395,6 +493,15 @@ const controlClass = computed(() => {
   if (t.includes('出逃') || t.includes('减持')) return 'control-out'
   return ''
 })
+
+function focusPillClass(focus) {
+  if (!focus) return ''
+  if (focus.includes('非常集中') || focus.includes('高度集中')) return 'focus-high'
+  if (focus.includes('较集中') || focus.includes('集中')) return 'focus-mid-high'
+  if (focus.includes('较分散') || focus.includes('分散')) return 'focus-mid-low'
+  if (focus.includes('非常分散')) return 'focus-low'
+  return ''
+}
 
 function priceDiffText(cost) {
   if (cost == null || props.price == null) return ''
@@ -921,4 +1028,85 @@ watch(() => props.code, () => {
   font-size: 12px;
   color: var(--text-dim);
 }
+
+/* 股东筹码 Tab */
+.sh-summary-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 12px;
+}
+@media (max-width: 768px) {
+  .sh-summary-grid { grid-template-columns: repeat(2, 1fr); }
+}
+@media (max-width: 480px) {
+  .sh-summary-grid { grid-template-columns: 1fr; }
+}
+.sh-card {
+  background: var(--kv-bg);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  padding: 14px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.sh-k { font-size: 11px; color: var(--text-dim); }
+.sh-v { font-size: 18px; font-weight: 800; font-variant-numeric: tabular-nums; }
+.sh-v.highlight { color: var(--accent); }
+.sh-v.accent { color: var(--accent); }
+.sh-unit { font-size: 12px; font-weight: 500; color: var(--text-dim); margin-left: 2px; }
+.sh-sub { font-size: 11px; color: var(--text-dim); margin-top: 2px; }
+
+.focus-pill {
+  display: inline-block;
+  font-size: 12px;
+  font-weight: 700;
+  padding: 2px 10px;
+  border-radius: var(--radius-pill);
+}
+.focus-tag {
+  display: inline-block;
+  font-size: 11px;
+  font-weight: 600;
+  padding: 1px 6px;
+  border-radius: 3px;
+}
+.focus-high { background: rgba(47, 191, 143, 0.15); color: var(--down); }
+.focus-mid-high { background: var(--accent-bg); color: var(--accent); }
+.focus-mid-low { background: rgba(227, 179, 65, 0.15); color: var(--yellow); }
+.focus-low { background: var(--up-bg); color: var(--up); }
+
+.sh-history-wrap {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  padding: 12px 14px;
+}
+.sh-table-title {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 10px;
+  font-size: 13px;
+  font-weight: 700;
+}
+.sh-table-tip {
+  font-size: 11px;
+  font-weight: 400;
+  color: var(--text-dim);
+}
+.sh-table th {
+  font-size: 11px;
+  color: var(--text-dim);
+  font-weight: 600;
+  white-space: nowrap;
+}
+.sh-table td {
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+.sh-table .td-date { font-weight: 600; color: var(--text); }
+.sh-table .td-num { font-weight: 700; }
+.sh-table .td-dim { color: var(--text-dim); }
 </style>

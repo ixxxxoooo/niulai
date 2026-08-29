@@ -1868,7 +1868,7 @@ class EastMoneyClient:
             return []
 
         from concurrent.futures import ThreadPoolExecutor
-        with ThreadPoolExecutor(max_workers=7) as executor:
+        with ThreadPoolExecutor(max_workers=8) as executor:
             fut_pk = executor.submit(_fetch, "RPT_CUSTOM_STOCK_PK")
             fut_cr = executor.submit(_fetch, "RPT_STOCK_CHANGERATE")
             fut_rk = executor.submit(_fetch, "RPT_STOCK_PK_RANK")
@@ -1876,6 +1876,7 @@ class EastMoneyClient:
             fut_qs = executor.submit(_fetch, "RPT_STOCK_TRENDVOLUME_COMMENT")
             fut_tp = executor.submit(_fetch, "RPT_STOCK_TRENDVOLUME_PK", {"pageSize": 1})
             fut_macd = executor.submit(_fetch, "PRT_STOCK_MACD_PK", {"pageSize": 1})
+            fut_holders = executor.submit(_fetch, "RPT_F10_EH_HOLDERNUM", {"pageSize": 8, "sortColumns": "END_DATE", "sortTypes": -1})
 
             pk_list = fut_pk.result()
             cr_list = fut_cr.result()
@@ -1884,8 +1885,9 @@ class EastMoneyClient:
             qs_list = fut_qs.result()
             tp_list = fut_tp.result()
             macd_list = fut_macd.result()
+            holders_list = fut_holders.result()
 
-        if not pk_list and not kp_list and not qs_list:
+        if not pk_list and not kp_list and not qs_list and not holders_list:
             return None
 
         pk = pk_list[0] if pk_list else {}
@@ -1895,6 +1897,29 @@ class EastMoneyClient:
         qs = qs_list[0] if qs_list else {}
         tp = tp_list[0] if tp_list else {}
         mc = macd_list[0] if macd_list else {}
+
+        shareholders_history = []
+        for h in holders_list:
+            end_date = str(h.get("END_DATE") or "")
+            if len(end_date) >= 10:
+                end_date = end_date[:10]
+            notice_date = str(h.get("NOTICE_DATE") or "")
+            if len(notice_date) >= 10:
+                notice_date = notice_date[:10]
+            shareholders_history.append({
+                "end_date": end_date,
+                "notice_date": notice_date,
+                "holder_num": h.get("HOLDER_TOTAL_NUM"),
+                "holder_change": h.get("HOLDER_TOTAL_NUMCHANGE"),
+                "change_ratio": h.get("TOTAL_NUM_RATIO"),
+                "hold_focus": str(h.get("HOLD_FOCUS") or ""),
+                "avg_shares": h.get("AVG_FREE_SHARES"),
+                "avg_hold_amt": h.get("AVG_HOLD_AMT"),
+                "price": h.get("PRICE"),
+                "total_hold_ratio": h.get("HOLD_RATIO_TOTAL"),
+            })
+
+        latest_holder = shareholders_history[0] if shareholders_history else None
 
         signals = [
             {
@@ -1937,7 +1962,7 @@ class EastMoneyClient:
 
         return {
             "code": clean_code,
-            "name": str(pk.get("SECURITY_NAME_ABBR") or kp.get("SECURITY_NAME_ABBR") or ""),
+            "name": str(pk.get("SECURITY_NAME_ABBR") or kp.get("SECURITY_NAME_ABBR") or (holders_list[0].get("SECURITY_NAME_ABBR") if holders_list else "") or ""),
             "diagnose_time": str(pk.get("DIAGNOSE_TIME") or kp.get("TRADE_DATE") or ""),
             "evaluation": {
                 "total_score": pk.get("TOTAL_SCORE") or cr.get("TOTAL_SCORE"),
@@ -1991,6 +2016,10 @@ class EastMoneyClient:
                     "avg_turnover": mc.get("AVGTURN"),
                 },
                 "signals": signals,
+            },
+            "shareholders": {
+                "latest": latest_holder,
+                "history": shareholders_history,
             },
         }
 
