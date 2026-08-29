@@ -32,7 +32,7 @@
           <div class="card-title" v-else-if="tab === 'zt'">今日涨停（{{ poolRows.length }} 家）</div>
           <div class="card-title" v-else-if="tab === 'qs'">强势股池（创 60 日新高 / 近期多次涨停 · {{ poolRows.length }} 家）</div>
           <div class="card-title" v-else-if="tab === 'zb'">炸板股池（曾封板后打开 · {{ poolRows.length }} 家）</div>
-          <div class="card-title" v-else-if="tab === 'dt'">今日跌停（{{ rows.length }} 家）</div>
+          <div class="card-title" v-else-if="tab === 'dt'">今日跌停（{{ poolRows.length }} 家）</div>
           <div class="card-title" v-else-if="tab === 'etf'">ETF 排行（共 {{ etfTotal }} 只 · 点击列名排序）</div>
           <div class="card-title" v-else-if="tab === 'ths'">
             同花顺热榜 · {{ thsType === 'day' ? '日榜' : '小时榜' }}
@@ -78,89 +78,52 @@
 
       <template v-if="poolTabs.includes(tab)">
         <div class="table-wrap">
-          <table class="data-table">
+          <table class="data-table pool-table">
             <thead><tr>
-              <th class="sortable" :class="{ sorted: poolSort.sortKey === 'name' }" @click="poolSort.toggleSort('name')">名称</th>
-              <th>代码</th>
-              <th class="sortable" :class="{ sorted: poolSort.sortKey === 'price' }" @click="poolSort.toggleSort('price')">现价</th>
-              <th class="sortable" :class="{ sorted: poolSort.sortKey === 'change_pct' }" @click="poolSort.toggleSort('change_pct')">涨幅</th>
-              <th class="sortable" :class="{ sorted: poolSort.sortKey === 'lbc' }" @click="poolSort.toggleSort('lbc')">连板</th>
-              <th>行业</th>
-              <th v-if="tab === 'zt'" class="sortable" :class="{ sorted: poolSort.sortKey === 'seal_amount' }" @click="poolSort.toggleSort('seal_amount')">封单额</th>
-              <th class="sortable" :class="{ sorted: poolSort.sortKey === 'turnover' }" @click="poolSort.toggleSort('turnover')">换手率</th>
-              <th v-if="tab !== 'qs'" class="sortable" :class="{ sorted: poolSort.sortKey === 'first_time' }" @click="poolSort.toggleSort('first_time')">首次封板</th>
-              <th v-if="tab === 'zt'" class="sortable" :class="{ sorted: poolSort.sortKey === 'last_time' }" @click="poolSort.toggleSort('last_time')">最后封板</th>
-              <th data-tooltip="当日龙虎榜上榜席位中命中的知名游资（如章盟主）。红色徽章=拉萨天团，属反向指标需谨慎。">游资</th>
+              <th class="sortable col-name" :class="{ sorted: poolSort.sortKey === 'name' }" @click="poolSort.toggleSort('name')">名称</th>
+              <th class="col-code">代码</th>
+              <th class="sortable col-price" :class="{ sorted: poolSort.sortKey === 'price' }" @click="poolSort.toggleSort('price')">现价</th>
+              <th class="sortable col-pct" :class="{ sorted: poolSort.sortKey === 'change_pct' }" @click="poolSort.toggleSort('change_pct')">{{ tab === 'dt' ? '跌幅' : '涨幅' }}</th>
+              <th v-if="tab !== 'dt'" class="sortable col-lbc" :class="{ sorted: poolSort.sortKey === 'lbc' }" @click="poolSort.toggleSort('lbc')">连板</th>
+              <th class="col-industry">行业</th>
+              <th v-if="tab === 'zt' || tab === 'dt'" class="sortable col-amount" :class="{ sorted: poolSort.sortKey === 'seal_amount' }" @click="poolSort.toggleSort('seal_amount')">封单额</th>
+              <th class="sortable col-turnover" :class="{ sorted: poolSort.sortKey === 'turnover' }" @click="poolSort.toggleSort('turnover')">换手率</th>
+              <th v-if="tab !== 'qs'" class="sortable col-time" :class="{ sorted: poolSort.sortKey === 'first_time' }" @click="poolSort.toggleSort('first_time')">首次封板</th>
+              <th v-if="tab === 'zt' || tab === 'dt'" class="sortable col-time" :class="{ sorted: poolSort.sortKey === 'last_time' }" @click="poolSort.toggleSort('last_time')">最后封板</th>
+              <th class="th-youzi" data-tooltip="当日龙虎榜上榜席位中命中的知名游资（如章盟主）。红色徽章=拉萨天团，属反向指标需谨慎。">游资</th>
             </tr></thead>
             <tbody>
               <template v-for="p in poolSort.sorted" :key="p.code">
                 <tr :class="{ 'row-expanded': expandedCode === p.code }" @click="toggleExpand(p.code)" @dblclick.stop="openFromRank(p)">
                   <td class="stock-name" :class="pctClass(p.change_pct)">
                     <MiniTrend :code="p.code" :name="p.name">
-                      <span class="name-cell" @click.stop="openFromRank(p)" title="点击查看个股详情"><BoardBadges :row="p" />{{ p.name }}<LeaderBadge :code="p.code" /></span>
+                      <span class="name-cell" @click.stop="openFromRank(p)"><BoardBadges :row="p" />{{ p.name }}<LeaderBadge :code="p.code" /></span>
                     </MiniTrend>
                   </td>
                   <td>{{ p.code }}</td>
                   <td>{{ fmtPrice(p.price) }}</td>
                   <td :class="pctClass(p.change_pct)">{{ fmtPct(p.change_pct) }}</td>
-                  <td>
+                  <td v-if="tab !== 'dt'">
                     <span class="zt-lb-wrap">
                       <span class="zt-lb-badge" :data-tooltip="`连板数：${p.lbc}，点击查看连板梯队`" @click.stop="goLadder()">{{ lbcLabel(p.lbc) }}</span>
                       <span v-if="p.zb_count" class="zt-zb-badge" :data-tooltip="`今日炸板 ${p.zb_count} 次，点击查看连板梯队`" @click.stop="goLadder()">炸{{ p.zb_count }}</span>
                     </span>
                   </td>
                   <td><span class="rank-industry" @click.stop="gotoIndustry(p.industry)">{{ p.industry || '-' }}</span></td>
-                  <td v-if="tab === 'zt'" :class="pctClass(p.seal_amount)">{{ fmtAmount(p.seal_amount) }}</td>
+                  <td v-if="tab === 'zt' || tab === 'dt'" :class="pctClass(p.seal_amount)">{{ fmtAmount(p.seal_amount) }}</td>
                   <td>{{ fmtPct(p.turnover) }}</td>
                   <td v-if="tab !== 'qs'">{{ p.first_time || '-' }}</td>
-                  <td v-if="tab === 'zt'">{{ p.last_time || '-' }}</td>
-                  <td class="youzi-cell">
-                    <span v-for="y in (p.youzi || [])" :key="y" class="youzi-badge" :class="{ lhasa: y.includes('拉萨') }" :data-tooltip="`点击查看该游资动向`" @click.stop="goSeat(y)">{{ y }}</span>
-                    <span v-if="!(p.youzi || []).length" class="seat-no">—</span>
+                  <td v-if="tab === 'zt' || tab === 'dt'">{{ p.last_time || '-' }}</td>
+                  <td class="td-youzi">
+                    <div class="youzi-tags">
+                      <span v-for="y in (p.youzi || [])" :key="y" class="youzi-badge" :class="{ lhasa: y.includes('拉萨') }" :data-tooltip="`点击查看该游资动向`" @click.stop="goSeat(y)">{{ y }}</span>
+                      <span v-if="!(p.youzi || []).length" class="seat-no">—</span>
+                    </div>
                   </td>
                 </tr>
                 <PoolExpandRow v-if="expandedCode === p.code" :code="p.code" :name="p.name" :colspan="poolColspan" />
               </template>
-              <tr v-if="!poolSort.sorted.length"><td :colspan="poolColspan" class="empty">暂无数据</td></tr>
-            </tbody>
-          </table>
-        </div>
-      </template>
-
-      <template v-else-if="tab === 'dt'">
-        <div class="table-wrap">
-          <table class="data-table">
-            <thead><tr>
-              <th>名称</th>
-              <th>代码</th>
-              <th>现价</th>
-              <th class="sortable" :class="{ sorted: sort.sortKey === 'change_pct' }" @click="sort.toggleSort('change_pct')">跌幅</th>
-              <th>行业</th>
-              <th class="sortable" :class="{ sorted: sort.sortKey === 'amount' }" @click="sort.toggleSort('amount')">成交额</th>
-              <th class="sortable" :class="{ sorted: sort.sortKey === 'turnover' }" @click="sort.toggleSort('turnover')">换手</th>
-              <th class="sortable" :class="{ sorted: sort.sortKey === 'first_time' }" @click="sort.toggleSort('first_time')">首次封板</th>
-              <th class="sortable" :class="{ sorted: sort.sortKey === 'last_time' }" @click="sort.toggleSort('last_time')">最后封板</th>
-            </tr></thead>
-            <tbody>
-              <template v-for="p in sort.sorted" :key="p.code">
-                <tr :class="{ 'row-expanded': expandedCode === p.code }" @click="toggleExpand(p.code)" @dblclick.stop="openFromRank(p)">
-                  <td class="stock-name down">
-                    <MiniTrend :code="p.code" :name="p.name">
-                      <span class="name-cell" @click.stop="openFromRank(p)" title="点击查看个股详情"><BoardBadges :row="p" />{{ p.name }}<LeaderBadge :code="p.code" /></span>
-                    </MiniTrend>
-                  </td>
-                  <td>{{ p.code }}</td>
-                  <td>{{ fmtPrice(p.price) }}</td>
-                  <td class="down">{{ fmtPct(p.change_pct) }}</td>
-                  <td><span class="rank-industry" @click.stop="gotoIndustry(p.industry)">{{ p.industry || '-' }}</span></td>
-                  <td>{{ fmtAmount(p.amount) }}</td>
-                  <td>{{ fmtPct(p.turnover) }}</td>
-                  <td>{{ p.first_time || '-' }}</td>
-                  <td>{{ p.last_time || '-' }}</td>
-                </tr>
-                <PoolExpandRow v-if="expandedCode === p.code" :code="p.code" :name="p.name" :colspan="9" />
-              </template>
-              <tr v-if="!sort.sorted.length"><td colspan="9" class="empty">今日无跌停</td></tr>
+              <tr v-if="!poolSort.sorted.length"><td :colspan="poolColspan" class="empty">{{ poolEmptyText }}</td></tr>
             </tbody>
           </table>
         </div>
@@ -180,7 +143,7 @@
                   <td>{{ p.rank }}</td>
                   <td class="stock-name" :class="pctClass(p.change_pct)">
                     <MiniTrend :code="p.code" :name="p.name">
-                      <span class="name-cell" @click.stop="openFromRank(p)" title="点击查看个股详情"><BoardBadges :row="p" />{{ p.name }}<LeaderBadge :code="p.code" /></span>
+                      <span class="name-cell" @click.stop="openFromRank(p)"><BoardBadges :row="p" />{{ p.name }}<LeaderBadge :code="p.code" /></span>
                     </MiniTrend>
                   </td>
                   <td>{{ p.code }}</td>
@@ -205,7 +168,7 @@
                 <tr :class="{ 'row-expanded': p.code && expandedCode === p.code }" @click="p.code && toggleExpand(p.code)" @dblclick.stop="openFromRank(p)">
                   <td>{{ p.time }}</td>
                   <td class="stock-name" :class="pctClass(p.change_pct)">
-                    <span class="name-cell" @click.stop="openFromRank(p)" title="点击查看个股详情"><BoardBadges :row="p" />{{ p.name }}<LeaderBadge :code="p.code" /></span>
+                    <span class="name-cell" @click.stop="openFromRank(p)"><BoardBadges :row="p" />{{ p.name }}<LeaderBadge :code="p.code" /></span>
                   </td>
                   <td>{{ p.code }}</td>
                   <td><span :class="['change-tag', changeTagClass(p.type_name)]">{{ p.type_name }}</span></td>
@@ -229,14 +192,14 @@
               <th data-tooltip="买入 = 当日龙虎榜买入席位成交总额，代表游资/机构等买盘抢筹资金。数值大说明有大资金进场。">买入</th>
               <th data-tooltip="卖出 = 当日龙虎榜卖出席位成交总额，代表获利了结/减仓资金。数值大说明抛压大。">卖出</th>
               <th data-tooltip="上榜原因：满足龙虎榜上榜条件（日涨跌幅、换手、振幅、净买入额等）的具体触发条目。">上榜原因</th>
-              <th data-tooltip="当日该股上榜席位中命中的知名游资（如章盟主）。红色徽章=拉萨天团，属反向指标需谨慎。">游资</th>
+              <th class="th-youzi" data-tooltip="当日该股上榜席位中命中的知名游资（如章盟主）。红色徽章=拉萨天团，属反向指标需谨慎。">游资</th>
             </tr></thead>
             <tbody>
               <template v-for="p in lhbRows" :key="p.code">
                 <tr :class="{ 'row-expanded': expandedCode === p.code }" @click="toggleExpand(p.code)" @dblclick.stop="openFromRank(p)">
                   <td class="stock-name" :class="pctClass(p.change_pct)">
                     <MiniTrend :code="p.code" :name="p.name">
-                      <span class="name-cell" @click.stop="openFromRank(p)" title="点击查看个股详情"><BoardBadges :row="p" />{{ p.name }}<LeaderBadge :code="p.code" /></span>
+                      <span class="name-cell" @click.stop="openFromRank(p)"><BoardBadges :row="p" />{{ p.name }}<LeaderBadge :code="p.code" /></span>
                     </MiniTrend>
                   </td>
                   <td>{{ p.code }}</td>
@@ -246,9 +209,11 @@
                   <td class="up">{{ fmtAmount(p.buy) }}</td>
                   <td class="down">{{ fmtAmount(p.sell) }}</td>
                   <td class="analyse">{{ p.reason || '-' }}</td>
-                  <td>
-                    <span v-for="y in (p.youzi || [])" :key="y.nickname" class="youzi-badge" :class="{ lhasa: y.nickname.includes('拉萨') }" :data-tooltip="youziTip(y)" @click.stop="goSeat(y.nickname)">{{ y.nickname }}</span>
-                    <span v-if="!(p.youzi || []).length" class="seat-no">—</span>
+                  <td class="td-youzi">
+                    <div class="youzi-tags">
+                      <span v-for="y in (p.youzi || [])" :key="y.nickname" class="youzi-badge" :class="{ lhasa: y.nickname.includes('拉萨') }" :data-tooltip="youziTip(y)" @click.stop="goSeat(y.nickname)">{{ y.nickname }}</span>
+                      <span v-if="!(p.youzi || []).length" class="seat-no">—</span>
+                    </div>
                   </td>
                 </tr>
                 <PoolExpandRow v-if="expandedCode === p.code" :code="p.code" :name="p.name" :colspan="9" />
@@ -282,7 +247,7 @@ import BoardBadges from '../components/BoardBadges.vue'
 import PoolExpandRow from '../components/PoolExpandRow.vue'
 
 const dateTabs = ['zt', 'qs', 'zb', 'dt', 'lhb']
-const poolTabs = ['zt', 'qs', 'zb']
+const poolTabs = ['zt', 'qs', 'zb', 'dt']
 
 const TAB_NAMES = {
   zhangsu: '5分钟涨速榜',
@@ -343,7 +308,7 @@ function openFromRank(row) {
     : tab.value === 'ths' ? thsRows.value
     : tab.value === 'lhb' ? lhbRows.value
     : tab.value === 'changes' ? changesRows.value
-    : sort.sorted.value
+    : rows.value
   openStock(row, {
     list,
     origin: '/rank/' + tab.value,
@@ -482,9 +447,26 @@ const changesRows = computed(() => applyListFilter(rows.value))
 const ztSort = useTableSort(poolRows, 'rank_zt_pool')
 const qsSort = useTableSort(poolRows, 'rank_qs_pool')
 const zbSort = useTableSort(poolRows, 'rank_zb_pool')
-const poolSort = computed(() => tab.value === 'qs' ? qsSort : tab.value === 'zb' ? zbSort : ztSort)
-const poolColspan = computed(() => tab.value === 'zt' ? 11 : tab.value === 'zb' ? 9 : 8)
-const sort = useTableSort(rows, 'rank_dt_pool')
+const dtSort = useTableSort(poolRows, 'rank_dt_pool')
+const poolSort = computed(() => {
+  if (tab.value === 'qs') return qsSort
+  if (tab.value === 'zb') return zbSort
+  if (tab.value === 'dt') return dtSort
+  return ztSort
+})
+const poolColspan = computed(() => {
+  if (tab.value === 'zt') return 11
+  if (tab.value === 'dt') return 10
+  if (tab.value === 'zb') return 9
+  if (tab.value === 'qs') return 8
+  return 8
+})
+const poolEmptyText = computed(() => {
+  if (tab.value === 'dt') return '今日无跌停'
+  if (tab.value === 'zb') return '暂无炸板数据'
+  if (tab.value === 'qs') return '暂无强势股数据'
+  return '暂无涨停数据'
+})
 
 const expandedCode = ref('')
 function toggleExpand(code) {
@@ -677,10 +659,33 @@ usePolling(load, 3000)
 .rank-industry {
   font-weight: 700; cursor: pointer; white-space: nowrap; color: var(--accent);
 }
-.rank-industry:hover { filter: brightness(1.15); }
-.youzi-cell {
-  display: flex; flex-wrap: wrap; gap: 2px 4px; justify-content: flex-end;
-  max-width: 260px; white-space: normal;
+.col-code { width: 75px; }
+.col-price { width: 80px; }
+.col-pct { width: 85px; }
+.col-lbc { width: 80px; text-align: center; }
+.col-industry { min-width: 90px; }
+.col-amount { width: 95px; }
+.col-turnover { width: 85px; }
+.col-time { width: 85px; }
+.th-youzi {
+  text-align: right;
+  min-width: 140px;
+  max-width: 320px;
+}
+.td-youzi {
+  text-align: right;
+  vertical-align: middle;
+  min-width: 140px;
+  max-width: 320px;
+  white-space: normal;
+}
+.youzi-tags {
+  display: inline-flex;
+  flex-wrap: wrap;
+  gap: 3px 5px;
+  justify-content: flex-end;
+  align-items: center;
+  max-width: 100%;
 }
 .row-expanded {
   background: var(--bg-hover) !important;
