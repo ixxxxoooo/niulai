@@ -70,11 +70,11 @@ const _poolRowCache = new Map()
 import { ref, computed, onMounted, onUnmounted, nextTick, watch } from 'vue'
 import * as echarts from 'echarts'
 import { api } from '../api.js'
-import { themeColors } from '../utils.js'
+import { isLightTheme, themeColors, fmtAmount, fmtPrice, fmtNum, fmtPct } from '../utils.js'
 import { calcTrendYRange } from '../utils/chartScale.js'
 import { settingsState } from '../composables/useSettings.js'
 import { ensureIndicators } from '../chartIndicators.js'
-import { calcMA } from './stock/chartCommon.js'
+import { calcMA, formatKlineTooltip } from './stock/chartCommon.js'
 
 const props = defineProps({
   code: { type: String, required: true },
@@ -197,34 +197,66 @@ function renderTrend(t) {
   }
   if (!trendChart) trendChart = echarts.init(trendEl.value)
   const tc = themeColors()
+  const light = isLightTheme()
   const times = t.points.map(p => p.time)
   const prices = t.points.map(p => p.price)
   const vols = t.points.map(p => p.volume || 0)
   const pre = t.pre_close || prices[0]
   const last = prices[prices.length - 1]
   const color = last >= pre ? tc.up : tc.down
-  const { yMin, yMax } = calcTrendYRange({
+  const { yMin, yMax, pctMin, pctMax } = calcTrendYRange({
     mode: settingsState.trendYScale || 'normal',
     prices,
     preClose: pre,
   })
+
+  const tooltipBg = light ? 'rgba(255, 255, 255, 0.96)' : 'rgba(22, 24, 32, 0.96)'
+  const tooltipBorder = light ? 'rgba(0, 0, 0, 0.12)' : 'rgba(255, 255, 255, 0.15)'
+  const tooltipText = light ? '#1f2328' : '#e6edf3'
+  const tooltipLabel = light ? '#6e7781' : '#8b949e'
+
   trendChart.setOption({
     animation: false,
     grid: [
-      { left: 42, right: 8, top: 20, bottom: 56 },
-      { left: 42, right: 8, top: '75%', bottom: 14 },
+      { left: 44, right: 48, top: 16, bottom: 46 },
+      { left: 44, right: 48, top: '78%', bottom: 10 },
     ],
     xAxis: [
-      { type: 'category', data: times, gridIndex: 0, axisLabel: { show: false }, axisTick: { show: false }, axisLine: { lineStyle: { color: tc.split } } },
-      { type: 'category', data: times, gridIndex: 1, axisLabel: { fontSize: 10, color: tc.dim }, axisTick: { show: false }, axisLine: { lineStyle: { color: tc.split } } },
+      {
+        type: 'category', data: times, gridIndex: 0,
+        axisLabel: { show: false }, axisTick: { show: false },
+        axisLine: { lineStyle: { color: tc.split } },
+      },
+      {
+        type: 'category', data: times, gridIndex: 1,
+        axisLabel: { fontSize: 9, color: tc.axis }, axisTick: { show: false },
+        axisLine: { lineStyle: { color: tc.split } },
+      },
     ],
     yAxis: [
-      { type: 'value', min: yMin, max: yMax, gridIndex: 0, splitLine: { lineStyle: { color: tc.split } }, axisLabel: { fontSize: 10, color: tc.dim } },
-      { type: 'value', gridIndex: 1, splitLine: { show: false }, axisLabel: { show: false } },
+      {
+        type: 'value', min: yMin, max: yMax, gridIndex: 0,
+        splitLine: { lineStyle: { color: tc.split } },
+        axisLabel: { fontSize: 10, color: tc.axis, formatter: v => Number(v).toFixed(2) },
+        axisLine: { show: false }, axisTick: { show: false },
+      },
+      {
+        type: 'value', min: pctMin, max: pctMax, position: 'right', gridIndex: 0,
+        splitLine: { show: false },
+        axisLabel: {
+          fontSize: 10,
+          color: (v) => v > 0 ? tc.up : v < 0 ? tc.down : tc.axis,
+          formatter: v => (v > 0 ? '+' : '') + Number(v).toFixed(1) + '%',
+        },
+        axisLine: { show: false }, axisTick: { show: false },
+      },
+      {
+        type: 'value', gridIndex: 1, splitLine: { show: false }, axisLabel: { show: false },
+      },
     ],
     series: [
       {
-        type: 'line', data: prices, xAxisIndex: 0, yAxisIndex: 0,
+        name: '价格', type: 'line', data: prices, xAxisIndex: 0, yAxisIndex: 0,
         showSymbol: false, lineStyle: { width: 1.2, color },
         areaStyle: { color: color + '22' },
         markLine: {
@@ -235,26 +267,51 @@ function renderTrend(t) {
         },
       },
       {
-        type: 'bar', data: vols.map((v, i) => ({
+        name: '量', type: 'bar', data: vols.map((v, i) => ({
           value: v,
           itemStyle: { color: prices[i] >= (prices[i - 1] || pre) ? tc.up + '88' : tc.down + '88' },
         })),
-        xAxisIndex: 1, yAxisIndex: 1,
-        barMaxWidth: 2,
+        xAxisIndex: 1, yAxisIndex: 2,
+        barMaxWidth: 3,
       },
     ],
     tooltip: {
       trigger: 'axis',
-      backgroundColor: tc.tooltipBg || 'rgba(20,21,25,0.9)',
-      borderColor: tc.split,
-      textStyle: { color: tc.text, fontSize: 11 },
+      axisPointer: { type: 'cross', lineStyle: { color: tc.axis, type: 'dashed' } },
+      backgroundColor: tooltipBg,
+      borderColor: tooltipBorder,
+      borderWidth: 1,
+      padding: [8, 10],
+      textStyle: { color: tooltipText, fontSize: 11 },
+      extraCssText: 'box-shadow: 0 6px 20px rgba(0,0,0,0.22); border-radius: 8px;',
       formatter(params) {
         const p = params[0]
         if (!p) return ''
         const idx = p.dataIndex
         const price = prices[idx]
-        const chg = ((price - pre) / pre * 100).toFixed(2)
-        return `<b>${times[idx]}</b><br/>价格: ${price.toFixed(2)}<br/>涨跌: ${chg}%`
+        if (price == null) return ''
+        const chg = ((price - pre) / pre * 100)
+        const chgColor = chg > 0 ? tc.up : chg < 0 ? tc.down : tc.axis
+        const amt = vols[idx] * price * 100
+        return `
+          <div style="min-width:130px;font-size:11px;font-family:sans-serif">
+            <div style="display:flex;justify-content:space-between;gap:16px;line-height:1.6;margin-bottom:2px">
+              <span style="color:${tooltipLabel}">时间</span><b style="color:${tooltipText}">${times[idx]}</b>
+            </div>
+            <div style="display:flex;justify-content:space-between;gap:16px;line-height:1.6">
+              <span style="color:${tooltipLabel}">价格</span><b style="color:${chgColor}">${fmtPrice(price)}</b>
+            </div>
+            <div style="display:flex;justify-content:space-between;gap:16px;line-height:1.6">
+              <span style="color:${tooltipLabel}">涨跌幅</span><b style="color:${chgColor}">${chg > 0 ? '+' : ''}${chg.toFixed(2)}%</b>
+            </div>
+            <div style="display:flex;justify-content:space-between;gap:16px;line-height:1.6">
+              <span style="color:${tooltipLabel}">成交量</span><span style="color:${tooltipText}">${fmtNum(vols[idx], 0)}手</span>
+            </div>
+            <div style="display:flex;justify-content:space-between;gap:16px;line-height:1.6">
+              <span style="color:${tooltipLabel}">成交额</span><span style="color:${tooltipText}">${fmtAmount(amt)}</span>
+            </div>
+          </div>
+        `
       },
     },
   }, true)
@@ -267,6 +324,7 @@ function renderKline(k) {
   }
   if (!klineChart) klineChart = echarts.init(klineEl.value)
   const tc = themeColors()
+  const light = isLightTheme()
   const pts = k.points
   const ind = ensureIndicators(pts, k.indicators)
   const dates = pts.map(p => p.date)
@@ -275,41 +333,73 @@ function renderKline(k) {
   const ma5 = ind.ma5 || calcMA(pts, 5)
   const ma10 = ind.ma10 || calcMA(pts, 10)
 
+  const tooltipBg = light ? 'rgba(255, 255, 255, 0.96)' : 'rgba(22, 24, 32, 0.96)'
+  const tooltipBorder = light ? 'rgba(0, 0, 0, 0.12)' : 'rgba(255, 255, 255, 0.15)'
+  const tooltipText = light ? '#1f2328' : '#e6edf3'
+
   klineChart.setOption({
     animation: false,
     grid: [
-      { left: 42, right: 8, top: 20, bottom: 56 },
-      { left: 42, right: 8, top: '75%', bottom: 14 },
+      { left: 44, right: 12, top: 16, bottom: 46 },
+      { left: 44, right: 12, top: '78%', bottom: 10 },
     ],
     xAxis: [
-      { type: 'category', data: dates, gridIndex: 0, axisLabel: { show: false }, axisTick: { show: false }, axisLine: { lineStyle: { color: tc.split } } },
-      { type: 'category', data: dates, gridIndex: 1, axisLabel: { fontSize: 10, color: tc.dim }, axisTick: { show: false }, axisLine: { lineStyle: { color: tc.split } } },
+      {
+        type: 'category', data: dates, gridIndex: 0,
+        axisLabel: { show: false }, axisTick: { show: false },
+        axisLine: { lineStyle: { color: tc.split } },
+      },
+      {
+        type: 'category', data: dates, gridIndex: 1,
+        axisLabel: { fontSize: 9, color: tc.axis }, axisTick: { show: false },
+        axisLine: { lineStyle: { color: tc.split } },
+      },
     ],
     yAxis: [
-      { type: 'value', gridIndex: 0, scale: true, splitLine: { lineStyle: { color: tc.split } }, axisLabel: { fontSize: 10, color: tc.dim } },
-      { type: 'value', gridIndex: 1, splitLine: { show: false }, axisLabel: { show: false } },
+      {
+        type: 'value', gridIndex: 0, scale: true,
+        splitLine: { lineStyle: { color: tc.split } },
+        axisLabel: { fontSize: 10, color: tc.axis, formatter: v => Number(v).toFixed(2) },
+        axisLine: { show: false }, axisTick: { show: false },
+      },
+      {
+        type: 'value', gridIndex: 1, splitLine: { show: false }, axisLabel: { show: false },
+      },
     ],
     series: [
       {
-        type: 'candlestick', data: kdata, xAxisIndex: 0, yAxisIndex: 0,
+        name: 'K线', type: 'candlestick', data: kdata, xAxisIndex: 0, yAxisIndex: 0,
         itemStyle: { color: tc.up, color0: tc.down, borderColor: tc.up, borderColor0: tc.down },
       },
-      { type: 'line', data: ma5, xAxisIndex: 0, yAxisIndex: 0, showSymbol: false, lineStyle: { width: 1, color: '#e8a634' } },
-      { type: 'line', data: ma10, xAxisIndex: 0, yAxisIndex: 0, showSymbol: false, lineStyle: { width: 1, color: '#4c9aff' } },
+      { name: 'MA5', type: 'line', data: ma5, xAxisIndex: 0, yAxisIndex: 0, showSymbol: false, lineStyle: { width: 1, color: '#e8a634' } },
+      { name: 'MA10', type: 'line', data: ma10, xAxisIndex: 0, yAxisIndex: 0, showSymbol: false, lineStyle: { width: 1, color: '#4c9aff' } },
       {
-        type: 'bar', data: vols.map((v, i) => ({
+        name: '量', type: 'bar', data: vols.map((v, i) => ({
           value: v,
           itemStyle: { color: (pts[i]?.close >= pts[i]?.open) ? tc.up + '88' : tc.down + '88' },
         })),
         xAxisIndex: 1, yAxisIndex: 1,
-        barMaxWidth: 4,
+        barMaxWidth: 3,
       },
     ],
     tooltip: {
       trigger: 'axis',
-      backgroundColor: tc.tooltipBg || 'rgba(20,21,25,0.9)',
-      borderColor: tc.split,
-      textStyle: { color: tc.text, fontSize: 11 },
+      axisPointer: { type: 'cross', lineStyle: { color: tc.axis, type: 'dashed' } },
+      backgroundColor: tooltipBg,
+      borderColor: tooltipBorder,
+      borderWidth: 1,
+      padding: [8, 10],
+      textStyle: { color: tooltipText, fontSize: 11 },
+      extraCssText: 'box-shadow: 0 6px 20px rgba(0,0,0,0.22); border-radius: 8px;',
+      formatter(params) {
+        const p = params[0]
+        if (!p) return ''
+        const idx = p.dataIndex
+        const pt = pts[idx]
+        const prev = pts[idx - 1]
+        const lastClose = pts[pts.length - 1]?.close ?? null
+        return formatKlineTooltip(pt, prev, tc, null, lastClose)
+      },
     },
   }, true)
 }
