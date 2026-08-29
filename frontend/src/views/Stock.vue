@@ -80,14 +80,6 @@
       />
     </div>
 
-    <!-- 智能诊股与综合研判（综合评价、主力控盘、趋势研判、资金动向） -->
-    <StockDiagnosis
-      v-if="!isEtf"
-      :code="detail.code || code"
-      :display-name="displayName"
-      :price="detail.price"
-    />
-
     <!-- ETF 持仓成分股（成交明细下方） -->
     <div class="card mt16" v-if="isEtf">
       <div class="card-title">
@@ -179,6 +171,14 @@
         </div>
       </details>
     </div>
+
+    <!-- 智能诊股与综合研判（综合评价、主力控盘、趋势研判、资金动向） -->
+    <StockDiagnosis
+      v-if="!isEtf"
+      :code="detail.code || code"
+      :display-name="displayName"
+      :price="detail.price"
+    />
 
     <NewsAnnouncements :news="news" :announcements="announcements" />
   </div>
