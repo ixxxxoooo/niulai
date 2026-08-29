@@ -8,10 +8,13 @@
 
     <template v-if="tab === 'ladder'">
       <div class="error-banner" v-if="error">{{ error }}</div>
-      <div class="card">
+      <div class="card" ref="ladderCard">
       <div class="card-title" style="display:flex;align-items:center;justify-content:space-between">
         <span>按连板数分层（上高下低 · 共 {{ filtered.length }} 家涨停）</span>
-        <a class="source-link" href="https://quote.eastmoney.com/ztb/detail#type=ztgc" target="_blank" rel="noopener">东财 <UiIcon name="external" :size="11" /></a>
+        <span style="display:flex;align-items:center;gap:8px">
+          <a class="source-link" href="https://quote.eastmoney.com/ztb/detail#type=ztgc" target="_blank" rel="noopener">东财 <UiIcon name="external" :size="11" /></a>
+          <button class="btn-screenshot" @click="doScreenshotLadder" title="截图连板梯队"><UiIcon name="screenshot" :size="14" /></button>
+        </span>
       </div>
       <div class="floor-wrap">
         <div v-for="g in floors" :key="g.lbc" class="floor">
@@ -46,10 +49,13 @@
       </div>
     </div>
 
-    <div class="card mt16">
+    <div class="card mt16" ref="zbCard">
       <div class="card-title" style="display:flex;align-items:center;justify-content:space-between">
         <span>今日炸板（{{ zbFiltered.length }} 家 · 曾封板后打开）</span>
-        <a class="source-link" href="https://quote.eastmoney.com/ztb/detail#type=zbgc" target="_blank" rel="noopener">东财 <UiIcon name="external" :size="11" /></a>
+        <span style="display:flex;align-items:center;gap:8px">
+          <a class="source-link" href="https://quote.eastmoney.com/ztb/detail#type=zbgc" target="_blank" rel="noopener">东财 <UiIcon name="external" :size="11" /></a>
+          <button class="btn-screenshot" @click="doScreenshotZb" title="截图今日炸板"><UiIcon name="screenshot" :size="14" /></button>
+        </span>
       </div>
       <div class="floor-chips" style="padding: 4px 0 8px">
         <span
@@ -132,6 +138,7 @@ import { openStock } from '../composables/useStockMeta.js'
 import MiniTrend from '../components/MiniTrend.vue'
 import BoardBadges from '../components/BoardBadges.vue'
 import LadderYouzi from '../components/LadderYouzi.vue'
+import { captureElement } from '../composables/useScreenshot.js'
 
 const tab = usePageTab('ladder', 'ladder')
 
@@ -200,6 +207,8 @@ function openFromZb(p) {
 const rows = ref([])
 const zbRows = ref([])
 const error = ref('')
+const ladderCard = ref(null)
+const zbCard = ref(null)
 const filtered = computed(() => applyListFilter(rows.value))
 const zbFiltered = computed(() => applyListFilter(zbRows.value))
 
@@ -229,6 +238,14 @@ async function load() {
   } catch (e) {
     error.value = '连板梯队加载失败：' + e.message
   }
+}
+
+async function doScreenshotLadder() {
+  await captureElement(ladderCard, '连板梯队.png')
+}
+
+async function doScreenshotZb() {
+  await captureElement(zbCard, '今日炸板.png')
 }
 
 usePolling(load, 5000)
@@ -269,6 +286,11 @@ watch(tab, (t) => { if (t === 'reason') loadKpl() })
   font-size: 10px; font-weight: 700; color: var(--yellow);
   background: rgba(227, 179, 65, 0.16); border-radius: 3px; padding: 0 4px;
 }
+.btn-screenshot {
+  border: none; background: transparent; cursor: pointer; color: var(--text-dim);
+  padding: 2px 6px; border-radius: 4px; opacity: .7;
+}
+.btn-screenshot:hover { opacity: 1; background: var(--bg-hover); }
 
 /* 页签导航 */
 .settings-nav {

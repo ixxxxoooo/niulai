@@ -20,8 +20,8 @@
       <div class="tab" :class="{ active: thsType === 'day' }" @click="thsType = 'day'; load()">日榜</div>
     </div>
 
-    <div class="card">
-      <!-- 统一卡片头部栏（标题 + 日期选择 + 数据来源） -->
+    <div class="card" ref="rankCardRef">
+      <!-- 统一卡片头部栏（标题 + 日期选择 + 数据来源 + 截图） -->
       <div class="rank-header-bar">
         <div class="rank-title-group">
           <div class="card-title" v-if="tab === 'zhangsu'">5 分钟涨速排行（捕捉盘中异动拉升）</div>
@@ -51,6 +51,7 @@
             <button v-if="rankDateInput" class="lhb-clear" @click="onRankDateClear" data-tooltip="回到最近交易日">最近</button>
           </template>
           <a class="source-link" :href="sourceUrl" target="_blank" rel="noopener">{{ sourceLabel }} <UiIcon name="external" :size="11" /></a>
+          <button class="btn-screenshot" @click="screenshotCurrentRank" title="截图当前榜单"><UiIcon name="screenshot" :size="14" /></button>
         </div>
       </div>
 
@@ -241,6 +242,7 @@ import { logAction } from '../composables/useActionLog.js'
 import { applyListFilter } from '../composables/useListFilter.js'
 import { useTableSort } from '../composables/useTableSort.js'
 import { openStock } from '../composables/useStockMeta.js'
+import { captureElement } from '../composables/useScreenshot.js'
 import UiDatePicker from '../components/ui/UiDatePicker.vue'
 import UiIcon from '../components/ui/UiIcon.vue'
 import StockTable from '../components/StockTable.vue'
@@ -248,6 +250,35 @@ import MiniTrend from '../components/MiniTrend.vue'
 import BoardBadges from '../components/BoardBadges.vue'
 
 const dateTabs = ['zt', 'dt', 'lhb']
+
+const TAB_NAMES = {
+  zhangsu: '5分钟涨速榜',
+  moneyflow: '主力净流入榜',
+  hot: '热门股榜',
+  zt: '今日涨停池',
+  dt: '今日跌停池',
+  etf: 'ETF排行',
+  ths: '同花顺热榜',
+  lhb: '龙虎榜',
+  changes: '盘中个股异动',
+}
+
+const rankCardRef = ref(null)
+
+async function screenshotCurrentRank() {
+  if (!rankCardRef.value) return
+  const baseName = TAB_NAMES[tab.value] || '热门榜单'
+  let extra = ''
+  if (tab.value === 'ths') {
+    extra = `_${thsType.value === 'day' ? '日榜' : '小时榜'}`
+  } else if (tab.value === 'lhb' && lhbDate.value) {
+    extra = `_${lhbDate.value}`
+  } else if (rankDateInput.value) {
+    extra = `_${rankDateInput.value}`
+  }
+  const dateStr = new Date().toISOString().slice(0, 10)
+  await captureElement(rankCardRef.value, `${baseName}${extra}_${dateStr}.png`)
+}
 
 // 各榜单数据来源跳转链接
 const SOURCE_URLS = {
@@ -503,6 +534,24 @@ usePolling(load, 3000)
   display: flex;
   align-items: center;
   gap: 6px;
+}
+.btn-screenshot {
+  border: 1px solid var(--border);
+  background: var(--kv-bg);
+  cursor: pointer;
+  padding: 3px 8px;
+  border-radius: var(--radius-sm);
+  color: var(--text-dim);
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 12px;
+  transition: all .15s ease;
+}
+.btn-screenshot:hover {
+  color: var(--accent);
+  border-color: var(--accent);
+  background: var(--bg-hover);
 }
 
 .lhb-title { white-space: nowrap; }
