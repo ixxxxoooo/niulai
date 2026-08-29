@@ -77,38 +77,79 @@ def _dc_paged(report: str, columns: str, filt: str, page_size: int = 500) -> Lis
     return out
 
 
-# 东财可转债板块（118/123/127 等，龙虎榜常上榜且不在本地股票池）
+# 东财可转债板块（118/123/127 等）与北交所（920 等），均不在本地股票池
 _CB_FS = "b:MK0354"
+_BJ_FS = "m:0+t:81+s:2048"
 _CB_CACHE: Dict[str, Any] = {"ts": 0.0, "map": {}}
+_BJ_CACHE: Dict[str, Any] = {"ts": 0.0, "map": {}}
 
 
-def _cb_name_map() -> Dict[str, str]:
-    """可转债板块名称映射（东财 b:MK0354），模块级缓存 6 小时。
+def _sector_name_map(fs: str, cache: Dict[str, Any], label: str) -> Dict[str, str]:
+    """东财板块列表名称映射（一次拉全），模块级缓存 6 小时。
 
     用途:
-        龙虎榜可转债不在本地股票池 stocks 表，名称会存空导致前端退显代码，
-        此处用板块列表一次性拉全补名。
+        龙虎榜上榜的可转债/北交所等证券不在本地股票池 stocks 表，
+        名称会存空导致前端退显代码，此处用板块列表批量补名。
+
+    参数:
+        fs: 东财 clist 板块筛选参数
+        cache: 模块级缓存（{"ts": float, "map": dict}）
+        label: 日志标签
 
     返回:
-        code -> 名称（如 {"118064": "联瑞转债"}）
+        code -> 名称（如 {"118064": "联瑞转债", "920059": "双英集团"}）
     """
     now = time.monotonic()
-    if _CB_CACHE["map"] and now - _CB_CACHE["ts"] < 6 * 3600:
-        return _CB_CACHE["map"]
+    if cache["map"] and now - cache["ts"] < 6 * 3600:
+        return cache["map"]
     out: Dict[str, str] = {}
     try:
         from ..datasource import eastmoney
-        items = eastmoney.get_client()._clist_all_pages(_CB_FS, "f12,f14", max_pages=5)
+        items = eastmoney.get_client()._clist_all_pages(fs, "f12,f14", max_pages=5)
         for it in items:
             code = str(it.get("f12") or "")
             name = it.get("f14") or ""
             if code and name:
                 out[code] = name
         if out:
-            _CB_CACHE.update({"ts": now, "map": out})
-            logger.info("可转债板块名称映射已刷新: %d 只", len(out))
+            cache.update({"ts": now, "map": out})
+            logger.info("%s名称映射已刷新: %d 只", label, len(out))
     except Exception:
-        logger.debug("可转债板块名称拉取失败", exc_info=True)
+        logger.debug("%s名称拉取失败", label, exc_info=True)
+    return out
+
+
+def _cb_name_map() -> Dict[str, str]:
+    """可转债板块名称映射（东财 b:MK0354），缓存 6 小时。"""
+    return _sector_name_map(_CB_FS, _CB_CACHE, "可转债板块")
+
+
+def _bj_name_map() -> Dict[str, str]:
+    """北交所板块名称映射（东财 m:0+t:81+s:2048），缓存 6 小时。"""
+    return _sector_name_map(_BJ_FS, _BJ_CACHE, "北交所")
+
+
+def _ulist_name_map(codes: List[str]) -> Dict[str, str]:
+    """对本地股票池查不到的代码用东财 ulist 批量补名（B股等）。
+
+    参数:
+        codes: 待补名代码列表
+
+    返回:
+        code -> 名称（如 {"200521": "虹美菱B"}）
+    """
+    codes = [c for c in codes if c]
+    if not codes:
+        return {}
+    out: Dict[str, str] = {}
+    try:
+        from ..datasource import eastmoney
+        briefs = eastmoney.get_client().ulist_briefs(codes, {})
+        for b in briefs:
+            if b.code and b.name:
+                out[b.code] = b.name
+    except Exception:
+        logger.debug("龙虎榜 ulist 补名失败", exc_info=True)
     return out
 
 
@@ -160,11 +201,16 @@ def sync_records_for_dates(dates: List[str], progress: Optional[Any] = None) -> 
 
         codes = {r[1] for r in rows if r[1]}
         name_map = store.get_stocks_map(list(codes))
-        cb_map = _cb_name_map()  # 可转债不在本地股票池，用板块列表兜底补名
+        cb_map = _cb_name_map()   # 可转债不在本地股票池，板块列表兜底补名
+        bj_map = _bj_name_map()   # 北交所不在本地股票池，板块列表兜底补名
+        missing = [c for c in codes
+                   if not (name_map.get(c, {}).get("name") or cb_map.get(c) or bj_map.get(c))]
+        ul_map = _ulist_name_map(missing)  # B股等其他证券批量补名
         conn = store.get_conn()
         with store._lock:
             for r in rows:
-                nm = (name_map.get(r[1], {}).get("name") or cb_map.get(r[1]) or "")
+                nm = (name_map.get(r[1], {}).get("name") or cb_map.get(r[1])
+                      or bj_map.get(r[1]) or ul_map.get(r[1]) or "")
                 try:
                     conn.execute(
                         "INSERT OR REPLACE INTO lhb_records"
