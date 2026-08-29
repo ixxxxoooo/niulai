@@ -257,26 +257,50 @@ def sector_moneyflow_history(code: str, days: int = Query(5, ge=1, le=30)):
 
 
 @router.get("/market/limit-up")
-def limit_up_pool(limit: int = Query(100, ge=1, le=300)):
-    """今日涨停池（共享缓存，limit 仅截断展示数量）。附带最近交易日游资徽章。"""
-    rows = [dict(r) for r in cached_limit_up_pool()]
-    attach_youzi(rows)
+def limit_up_pool(limit: int = Query(100, ge=1, le=300),
+                  date: str = Query("", max_length=16)):
+    """今日涨停池（共享缓存，limit 仅截断展示数量）。附带最近交易日游资徽章。
+
+    date 指定交易日（YYYY-MM-DD）可回看历史（东财官方支持）；历史回看不附加游资徽章。
+    """
+    d = date.replace("-", "") if date else None
+    if d:
+        rows = _enrich_rows(eastmoney.get_client().limit_up_pool(300, d))
+    else:
+        rows = [dict(r) for r in cached_limit_up_pool()]
+        attach_youzi(rows)
     return rows[:limit] if limit < len(rows) else rows
 
 
 @router.get("/market/limit-break")
-def limit_break_pool(limit: int = Query(100, ge=1, le=300)):
-    """今日炸板池（共享缓存，limit 仅截断展示数量）。附带最近交易日游资徽章。"""
-    rows = [dict(r) for r in cached_limit_break_pool()]
-    attach_youzi(rows)
+def limit_break_pool(limit: int = Query(100, ge=1, le=300),
+                     date: str = Query("", max_length=16)):
+    """今日炸板池（共享缓存，limit 仅截断展示数量）。附带最近交易日游资徽章。
+
+    date 指定交易日（YYYY-MM-DD）可回看历史（东财官方支持）；历史回看不附加游资徽章。
+    """
+    d = date.replace("-", "") if date else None
+    if d:
+        rows = _enrich_rows(eastmoney.get_client().limit_break_pool(300, d))
+    else:
+        rows = [dict(r) for r in cached_limit_break_pool()]
+        attach_youzi(rows)
     return rows[:limit] if limit < len(rows) else rows
 
 
 @router.get("/market/limit-down")
-def limit_down_pool(limit: int = Query(100, ge=1, le=300)):
-    """今日跌停池（共享缓存，limit 仅截断展示数量）。跌停极少时可能返回空列表。"""
-    rows = [dict(r) for r in cached_limit_down_pool()]
-    attach_youzi(rows)
+def limit_down_pool(limit: int = Query(100, ge=1, le=300),
+                    date: str = Query("", max_length=16)):
+    """今日跌停池（共享缓存，limit 仅截断展示数量）。跌停极少时可能返回空列表。
+
+    date 指定交易日（YYYY-MM-DD）可回看历史（东财官方支持）；历史回看不附加游资徽章。
+    """
+    d = date.replace("-", "") if date else None
+    if d:
+        rows = _enrich_rows(eastmoney.get_client().limit_down_pool(300, d))
+    else:
+        rows = [dict(r) for r in cached_limit_down_pool()]
+        attach_youzi(rows)
     return rows[:limit] if limit < len(rows) else rows
 
 

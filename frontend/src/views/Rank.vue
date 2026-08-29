@@ -20,8 +20,8 @@
       <div class="tab" :class="{ active: thsType === 'day' }" @click="thsType = 'day'; load()">日榜</div>
     </div>
 
-    <div class="card" ref="rankCardRef">
-      <!-- 统一卡片头部栏（标题 + 截图操作） -->
+    <div class="card">
+      <!-- 统一卡片头部栏（标题 + 日期选择 + 数据来源） -->
       <div class="rank-header-bar">
         <div class="rank-title-group">
           <div class="card-title" v-if="tab === 'zhangsu'">5 分钟涨速排行（捕捉盘中异动拉升）</div>
@@ -37,27 +37,20 @@
           <div class="card-title" v-else-if="tab === 'changes'">盘中个股异动（大笔买卖 / 急速拉升跳水 / 封板等）</div>
           <div class="card-title" v-else-if="tab === 'lhb'">
             <span class="lhb-title">龙虎榜{{ lhbDate ? ' · ' + lhbDate : '' }}</span>
-            <span class="lhb-date-bar">
-              <UiDatePicker
-                v-model="lhbDateInput"
-                :max="todayStr"
-                :trading-dates="lhbTradingDates"
-                @change="onLhbDateChange"
-              />
-              <button v-if="lhbDateInput" class="lhb-clear" @click="onLhbDateClear" data-tooltip="回到最近交易日">最近</button>
-            </span>
           </div>
         </div>
 
         <div class="rank-header-actions">
-          <button
-            class="btn-screenshot"
-            @click="screenshotCurrentRank"
-            data-tooltip="【截图当前榜单】&#10;一键将当前榜单卡片生成高清长图并保存至本地"
-          >
-            <UiIcon name="screenshot" :size="14" />
-            <span class="btn-shot-text">截图</span>
-          </button>
+          <template v-if="dateTabs.includes(tab)">
+            <UiDatePicker
+              v-model="rankDateInput"
+              :max="todayStr"
+              :trading-dates="tradingDates"
+              @change="onRankDateChange"
+            />
+            <button v-if="rankDateInput" class="lhb-clear" @click="onRankDateClear" data-tooltip="回到最近交易日">最近</button>
+          </template>
+          <a class="source-link" :href="sourceUrl" target="_blank" rel="noopener">{{ sourceLabel }} <UiIcon name="external" :size="11" /></a>
         </div>
       </div>
 
@@ -248,39 +241,29 @@ import { logAction } from '../composables/useActionLog.js'
 import { applyListFilter } from '../composables/useListFilter.js'
 import { useTableSort } from '../composables/useTableSort.js'
 import { openStock } from '../composables/useStockMeta.js'
-import { captureElement } from '../composables/useScreenshot.js'
 import UiDatePicker from '../components/ui/UiDatePicker.vue'
 import UiIcon from '../components/ui/UiIcon.vue'
 import StockTable from '../components/StockTable.vue'
 import MiniTrend from '../components/MiniTrend.vue'
 import BoardBadges from '../components/BoardBadges.vue'
 
-const rankCardRef = ref(null)
+const dateTabs = ['zt', 'dt', 'lhb']
 
-const TAB_NAMES = {
-  zhangsu: '5分钟涨速榜',
-  moneyflow: '主力净流入榜',
-  hot: '热门股榜',
-  zt: '今日涨停池',
-  dt: '今日跌停池',
-  etf: 'ETF排行',
-  ths: '同花顺热榜',
-  lhb: '龙虎榜',
-  changes: '盘中个股异动',
+// 各榜单数据来源跳转链接
+const SOURCE_URLS = {
+  zhangsu: 'https://quote.eastmoney.com/center/gridlist.html#hs_a_board',
+  moneyflow: 'https://data.eastmoney.com/zjlx/',
+  hot: 'https://quote.eastmoney.com/center/gridlist.html#hs_a_board',
+  zt: 'https://quote.eastmoney.com/ztb/detail#type=ztgc',
+  dt: 'https://quote.eastmoney.com/ztb/detail#type=dtgc',
+  etf: 'https://quote.eastmoney.com/center/gridlist.html#etf',
+  ths: 'https://q.10jqka.com.cn/',
+  lhb: 'https://data.eastmoney.com/stock/lhb/',
+  changes: 'https://quote.eastmoney.com/changes/',
 }
-
-async function screenshotCurrentRank() {
-  if (!rankCardRef.value) return
-  const baseName = TAB_NAMES[tab.value] || '热门榜单'
-  let extra = ''
-  if (tab.value === 'ths') {
-    extra = `_${thsType.value === 'day' ? '日榜' : '小时榜'}`
-  } else if (tab.value === 'lhb' && lhbDate.value) {
-    extra = `_${lhbDate.value}`
-  }
-  const dateStr = new Date().toISOString().slice(0, 10)
-  await captureElement(rankCardRef.value, `${baseName}${extra}_${dateStr}.png`)
-}
+const SOURCE_LABELS = { ths: '同花顺' }
+const sourceUrl = computed(() => SOURCE_URLS[tab.value] || '')
+const sourceLabel = computed(() => SOURCE_LABELS[tab.value] || '东财')
 
 /**
  * 从排行榜进入详情：在当前 Tab 列表内切换，返回当前排行页。
@@ -337,11 +320,11 @@ async function gotoIndustry(name) {
 const rows = ref([])
 const etfTotal = ref(0)
 const lhbDate = ref('')
-const lhbDateInput = ref('')
+const rankDateInput = ref('')
 const todayStr = new Date().toISOString().slice(0, 10)
 const error = ref('')
 
-const lhbTradingDates = computed(() => {
+const tradingDates = computed(() => {
   const out = []
   const d = new Date()
   while (out.length < 30) {
@@ -353,13 +336,13 @@ const lhbTradingDates = computed(() => {
   return out
 })
 
-function onLhbDateChange() {
-  logAction('lhb_date', lhbDateInput.value)
+function onRankDateChange() {
+  logAction('rank_date', rankDateInput.value)
   load()
 }
 
-function onLhbDateClear() {
-  lhbDateInput.value = ''
+function onRankDateClear() {
+  rankDateInput.value = ''
   load()
 }
 
@@ -455,11 +438,11 @@ async function load() {
       if (seq !== loadSeq) return
       rows.value = r
     } else if (tab.value === 'zt') {
-      const r = await api.limitUp(100)
+      const r = await api.limitUp(100, rankDateInput.value)
       if (seq !== loadSeq) return
       if (r.length || !rows.value.length) rows.value = r
     } else if (tab.value === 'dt') {
-      const r = await api.limitDown(100)
+      const r = await api.limitDown(100, rankDateInput.value)
       if (seq !== loadSeq) return
       if (r.length || !rows.value.length) rows.value = r
     } else if (tab.value === 'etf') {
@@ -472,7 +455,7 @@ async function load() {
       if (seq !== loadSeq) return
       rows.value = r
     } else if (tab.value === 'lhb') {
-      const r = await api.lhb(80, lhbDateInput.value)
+      const r = await api.lhb(80, rankDateInput.value)
       if (seq !== loadSeq) return
       lhbDate.value = r.date || ''
       rows.value = r.items || []
@@ -521,34 +504,8 @@ usePolling(load, 3000)
   align-items: center;
   gap: 6px;
 }
-.btn-screenshot {
-  border: 1px solid var(--border);
-  background: var(--kv-bg);
-  cursor: pointer;
-  padding: 3px 8px;
-  border-radius: var(--radius-sm);
-  color: var(--text-dim);
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-  font-size: 12px;
-  transition: all .15s ease;
-}
-.btn-screenshot:hover {
-  color: var(--accent);
-  border-color: var(--accent);
-  background: var(--bg-hover);
-}
-.btn-shot-text {
-  font-size: 11px;
-  font-weight: 500;
-}
 
 .lhb-title { white-space: nowrap; }
-.lhb-date-bar {
-  display: inline-flex; align-items: center; gap: 6px; margin-left: 12px;
-  flex-wrap: wrap; row-gap: 4px;
-}
 .lhb-clear {
   background: var(--accent-bg); color: var(--accent); border: 1px solid var(--accent);
   border-radius: 6px; padding: 2px 10px; font-size: 12px; cursor: pointer;
