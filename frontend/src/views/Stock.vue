@@ -571,7 +571,7 @@ async function loadSlow() {
   try {
     const [tk, f, kd, lb, sr, nw, ann] = await Promise.all([
       api.ticks(code.value, 80),
-      api.moneyflowHistory(code.value, 1),
+      api.moneyflowHistory(code.value, 20),
       api.kline(code.value, 'day', 120).catch(() => null),
       api.stockLhb(code.value).catch(() => null),
       api.baiduSr(code.value, 'day').catch(() => null),

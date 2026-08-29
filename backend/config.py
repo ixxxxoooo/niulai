@@ -11,8 +11,10 @@ EASTMONEY_HOSTS = [
     "1.push2delay.eastmoney.com",
     "push2.eastmoney.com",
 ]
-# 资金流：push2 主节点常被掐，delay 节点实测可用
+# 资金流：历史数据优先 push2his（完整历史），delay 节点仅最新1条时降级兜底
 EASTMONEY_FFLOW_HOSTS = [
+    "push2his2.eastmoney.com",
+    "push2his.eastmoney.com",
     "push2delay.eastmoney.com",
     "1.push2delay.eastmoney.com",
 ]

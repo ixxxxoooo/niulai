@@ -35,6 +35,27 @@
           </tr>
         </tbody>
       </table>
+      <div class="flow-hist" v-if="histRows.length">
+        <div class="hist-head">
+          <span class="hist-title">近 {{ histDays }} 日资金流向</span>
+          <div class="hist-tabs">
+            <button class="hist-tab" :class="{ on: histDays === 10 }" @click="histDays = 10">10日</button>
+            <button class="hist-tab" :class="{ on: histDays === 20 }" @click="histDays = 20">20日</button>
+          </div>
+        </div>
+        <div ref="histChartEl" class="hist-chart"></div>
+        <table class="data-table flow-table">
+          <thead><tr><th style="text-align:left">日期</th><th>涨跌幅</th><th>主力净流入</th><th>主力净占比</th></tr></thead>
+          <tbody>
+            <tr v-for="d in histRows" :key="d.date">
+              <td style="text-align:left;font-variant-numeric:tabular-nums">{{ d.date.slice(5) }}</td>
+              <td :class="pctClass(d.change_pct)">{{ fmtPct(d.change_pct) }}</td>
+              <td :class="d.main_inflow >= 0 ? 'up' : 'down'">{{ fmtFlowVal(d.main_inflow) }}</td>
+              <td :class="d.main_pct >= 0 ? 'up' : 'down'">{{ fmtPct(d.main_pct) }}</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
     </template>
     <div v-else style="padding:20px;text-align:center;color:var(--text-dim);font-size:13px">
       暂无资金流数据
@@ -50,7 +71,7 @@
  */
 import { ref, computed, watch, onMounted, onUnmounted, nextTick } from 'vue'
 import * as echarts from 'echarts'
-import { pctClass, themeColors } from '../../utils.js'
+import { pctClass, themeColors, fmtPct } from '../../utils.js'
 
 const props = defineProps({
   flow: { type: Array, default: () => [] },
@@ -63,7 +84,9 @@ const props = defineProps({
 const emit = defineEmits(['screenshot'])
 const rootEl = ref(null)
 const chartEl = ref(null)
+const histChartEl = ref(null)
 let chart = null
+let histChart = null
 
 const flowUrl = computed(() => (props.code ? `https://data.eastmoney.com/zjlx/${props.code}.html` : ''))
 
@@ -96,6 +119,47 @@ function fmtFlowVal(v) {
   if (abs >= 1e8) return `${sign}${(abs / 1e8).toFixed(2)}亿`
   if (abs >= 1e4) return `${sign}${(abs / 1e4).toFixed(2)}万`
   return `${sign}${abs.toFixed(0)}`
+}
+
+const histDays = ref(10)
+const histRows = computed(() => {
+  if (!props.flow.length) return []
+  return props.flow.slice(-histDays.value)
+})
+
+function renderHistChart() {
+  if (!histChartEl.value) return
+  const rows = histRows.value
+  if (!rows.length) return
+  if (!histChart) histChart = echarts.init(histChartEl.value)
+  const tc = themeColors()
+  const dates = rows.map(r => r.date.slice(5))
+  const vals = rows.map(r => r.main_inflow || 0)
+  histChart.setOption({
+    animation: false,
+    grid: { left: 10, right: 48, top: 14, bottom: 4, containLabel: true },
+    tooltip: {
+      trigger: 'axis', axisPointer: { type: 'shadow' },
+      formatter: (ps) => {
+        const d = rows[ps[0].dataIndex]
+        if (!d) return ''
+        return `${d.date}<br/>主力净流入 <b style="color:${d.main_inflow >= 0 ? tc.up : tc.down}">${fmtFlowVal(d.main_inflow)}</b><br/>净占比 ${fmtPct(d.main_pct)}<br/>涨跌幅 ${fmtPct(d.change_pct)}`
+      },
+    },
+    xAxis: {
+      type: 'category', data: dates, axisLine: { show: false },
+      axisTick: { show: false }, axisLabel: { color: tc.axis, fontSize: 10 },
+    },
+    yAxis: {
+      type: 'value', splitLine: { lineStyle: { color: 'rgba(128,128,128,0.12)' } },
+      axisLabel: { color: tc.axis, fontSize: 10, formatter: (v) => fmtFlowVal(v) },
+    },
+    series: [{
+      type: 'bar', barMaxWidth: 16,
+      data: vals.map(v => ({ value: v, itemStyle: { color: v >= 0 ? tc.up : tc.down, borderRadius: 2 } })),
+    }],
+  }, true)
+  histChart.resize()
 }
 
 function renderChart() {
@@ -138,23 +202,30 @@ function renderChart() {
 }
 
 function onShot() { emit('screenshot', rootEl.value) }
-function onResize() { chart && chart.resize() }
-function onTheme() { renderChart() }
+function onResize() { chart && chart.resize(); histChart && histChart.resize() }
+function onTheme() { renderChart(); renderHistChart() }
 
 watch(() => props.flow, async () => {
   await nextTick()
   renderChart()
+  renderHistChart()
 }, { deep: true })
+
+watch(histDays, async () => {
+  await nextTick()
+  renderHistChart()
+})
 
 onMounted(() => {
   window.addEventListener('resize', onResize)
   window.addEventListener('theme-change', onTheme)
-  nextTick(() => renderChart())
+  nextTick(() => { renderChart(); renderHistChart() })
 })
 onUnmounted(() => {
   window.removeEventListener('resize', onResize)
   window.removeEventListener('theme-change', onTheme)
   chart && chart.dispose()
+  histChart && histChart.dispose()
 })
 
 defineExpose({ rootEl, renderChart })
@@ -188,6 +259,17 @@ defineExpose({ rootEl, renderChart })
 .fo-badge.up { background: var(--up-bg); color: var(--up); }
 .fo-badge.down { background: var(--down-bg); color: var(--down); }
 .flow-chart { height: 132px; margin-top: 4px; }
+.flow-hist { margin-top: 14px; border-top: 1px dashed var(--border); padding-top: 12px; }
+.hist-head { display: flex; align-items: center; gap: 10px; margin-bottom: 6px; }
+.hist-title { font-size: 13px; font-weight: 600; color: var(--text-dim); }
+.hist-tabs { margin-left: auto; display: inline-flex; gap: 4px; }
+.hist-tab {
+  border: 1px solid var(--border); background: var(--kv-bg); color: var(--text-dim);
+  font-size: 11px; padding: 2px 10px; border-radius: var(--radius-sm); cursor: pointer;
+  transition: all .15s;
+}
+.hist-tab.on { background: var(--accent-bg); color: var(--accent); border-color: var(--accent); font-weight: 600; }
+.hist-chart { height: 168px; margin-bottom: 6px; }
 .btn-screenshot {
   border: none; background: transparent; cursor: pointer; font-size: 16px;
   padding: 2px 6px; border-radius: 4px; opacity: .7; transition: opacity .2s;

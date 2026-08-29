@@ -149,6 +149,7 @@ class MoneyFlowDay(BaseModel):
     large: float
     extra_large: float
     main_pct: float = 0.0                   # 主力净占比(%)
+    change_pct: float = 0.0                 # 当日涨跌幅(%)
     small_pct: float = 0.0
     medium_pct: float = 0.0
     large_pct: float = 0.0

@@ -1319,13 +1319,15 @@ class EastMoneyClient:
                 large=_num(parts[4]) or 0.0,
                 extra_large=_num(parts[5]) or 0.0,
             )
-            # CSV: 日期,主力,小单,中单,大单,超大单,主力占比,小单占比,中单占比,大单占比,超大单占比
+            # CSV: 日期,主力,小单,中单,大单,超大单,主力占比,小单占比,中单占比,大单占比,超大单占比,收盘价,涨跌幅
             if len(parts) >= 11:
                 day.main_pct = _num(parts[6]) or 0.0
                 day.small_pct = _num(parts[7]) or 0.0
                 day.medium_pct = _num(parts[8]) or 0.0
                 day.large_pct = _num(parts[9]) or 0.0
                 day.extra_large_pct = _num(parts[10]) or 0.0
+            if len(parts) >= 13:
+                day.change_pct = _num(parts[12]) or 0.0
             out.append(day)
         return out
 
