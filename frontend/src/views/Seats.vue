@@ -287,7 +287,7 @@ import { usePageTab } from '../composables/usePageTab.js'
 import { showConfirm } from '../composables/useConfirm.js'
 import { showToast } from '../composables/useToast.js'
 
-const tab = usePageTab('seats', 'board')
+const tab = usePageTab('seats', 'moves')
 
 // ── 游资榜单 ──
 const seatCount = ref(0)
