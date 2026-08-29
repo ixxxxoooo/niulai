@@ -23,6 +23,7 @@
         <a :class="{ active: route.name === 'watchlist' }" @click="go('/watchlist')">自选股</a>
         <a :class="{ active: route.name === 'heatmap' }" @click="go('/heatmap')">云图</a>
         <a :class="{ active: route.name === 'alerts' }" @click="go('/alerts')">监控</a>
+        <a :class="{ active: route.name === 'telegraph' }" @click="go('/telegraph')">电报</a>
         <a :class="{ active: route.name === 'seats' }" @click="go('/seats')">游资</a>
         <a :class="{ active: route.name === 'screener' }" @click="go('/screener')">选股</a>
         <a :class="{ active: route.name === 'calendar' }" @click="go('/calendar')">日历</a>
@@ -93,6 +94,7 @@
         <a :class="{ active: route.name === 'watchlist' }" @click="go('/watchlist')">自选股</a>
         <a :class="{ active: route.name === 'heatmap' }" @click="go('/heatmap')">云图</a>
         <a :class="{ active: route.name === 'alerts' }" @click="go('/alerts')">监控</a>
+        <a :class="{ active: route.name === 'telegraph' }" @click="go('/telegraph')">电报</a>
         <a :class="{ active: route.name === 'seats' }" @click="go('/seats')">游资</a>
         <a :class="{ active: route.name === 'screener' }" @click="go('/screener')">选股</a>
         <a :class="{ active: route.name === 'calendar' }" @click="go('/calendar')">日历</a>
@@ -106,6 +108,7 @@
         <a :class="{ active: route.name === 'watchlist' }" @click="go('/watchlist')" title="自选股">自</a>
         <a :class="{ active: route.name === 'heatmap' }" @click="go('/heatmap')" title="大盘云图">云</a>
         <a :class="{ active: route.name === 'alerts' }" @click="go('/alerts')" title="监控">监</a>
+        <a :class="{ active: route.name === 'telegraph' }" @click="go('/telegraph')" title="实时电报">电</a>
         <a :class="{ active: route.name === 'seats' }" @click="go('/seats')" title="游资">游</a>
         <a :class="{ active: route.name === 'screener' }" @click="go('/screener')" title="选股">选</a>
         <a :class="{ active: route.name === 'calendar' }" @click="go('/calendar')" title="日历">历</a>
@@ -193,6 +196,7 @@ import Settings from './views/Settings.vue'
 import Screener from './views/Screener.vue'
 import Calendar from './views/Calendar.vue'
 import Heatmap from './views/Heatmap.vue'
+import Telegraph from './views/Telegraph.vue'
 import { startAlertWatcher, stopAlertWatcher } from './composables/useAlertNotify.js'
 
 const route = ref(parseHash())
@@ -209,7 +213,7 @@ const views = {
   index: IndexDetail,
   rank: Rank, ladder: Ladder, stock: Stock, watchlist: Watchlist,
   alerts: Alerts, settings: Settings, screener: Screener,
-  seats: Seats, calendar: Calendar, heatmap: Heatmap,
+  seats: Seats, calendar: Calendar, heatmap: Heatmap, telegraph: Telegraph,
 }
 const viewComp = shallowRef(views[route.value.name] || Overview)
 

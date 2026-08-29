@@ -161,6 +161,13 @@ export const api = {
   stockRiskDiagnosis: (code) => get(`/stocks/${code}/risk-diagnosis`),
   batchStockRisk: (codes) => send('POST', '/stocks/batch-risk', { codes }),
 
+  // 7x24 实时财经电报与快讯
+  telegraph: (category = 'all', last_time = null, rn = 30) => {
+    const p = new URLSearchParams({ category, rn })
+    if (last_time) p.set('last_time', last_time)
+    return get(`/telegraph?${p.toString()}`)
+  },
+
 
 
   // 龙虎榜席位
