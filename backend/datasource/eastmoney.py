@@ -1416,8 +1416,15 @@ class EastMoneyClient:
             is_st=is_st,
         )
 
-    def _topic_pool(self, path: str, limit: int, kind: str) -> List[LimitUpStock]:
-        """涨停/炸板池通用拉取。"""
+    def _topic_pool(self, path: str, limit: int, kind: str, sort: str = "fbt:asc") -> List[LimitUpStock]:
+        """涨停/炸板/跌停池通用拉取（与东财涨停板页 push2ex 接口同源）。
+
+        参数:
+            path: 东财专题池接口名（getTopicZTPool/getTopicZBPool/getTopicDTPool）
+            limit: 返回条数
+            kind: 池类型（zt/zb/dt）
+            sort: 排序字段，与东财涨停板页各池默认一致：zt/zb 用 fbt:asc，dt 用 fund:asc
+        """
         out: List[LimitUpStock] = []
         url = f"https://push2ex.eastmoney.com/{path}"
         for day in self._recent_trading_dates():
@@ -1425,7 +1432,7 @@ class EastMoneyClient:
                 "ut": "7eea3edcaed734bea9cbfc24409ed989",
                 "dpt": "wz.ztzt",
                 "Pageindex": 0, "pagesize": limit,
-                "sort": "fbt:asc", "date": day,
+                "sort": sort, "date": day,
             })
             d = (data or {}).get("data") or {}
             pool = d.get("pool") or []
@@ -1436,16 +1443,45 @@ class EastMoneyClient:
         return out
 
     def limit_up_pool(self, limit: int = 100) -> List[LimitUpStock]:
-        """涨停池。date 为空时东财返回 null，需传最近交易日日期。"""
+        """涨停池（东财官方 getTopicZTPool，与涨停板页涨停股池同源）。date 为空时东财返回 null，需传最近交易日日期。"""
         return self._topic_pool("getTopicZTPool", limit, "zt")
 
     def limit_break_pool(self, limit: int = 100) -> List[LimitUpStock]:
-        """炸板池（曾涨停后打开）。"""
+        """炸板池（东财官方 getTopicZBPool，与涨停板页炸板股池同源）。"""
         return self._topic_pool("getTopicZBPool", limit, "zb")
 
     def limit_down_pool(self, limit: int = 100) -> List[LimitUpStock]:
-        """跌停池（东财 getTopicDTPool，tc 为跌停总数；跌停极少时 pool 可能为空）。"""
-        return self._topic_pool("getTopicDTPool", limit, "dt")
+        """跌停池（东财官方 getTopicDTPool，与涨停板页跌停股池同源，sort=fund:asc 封单升序）。
+
+        涨停板专题官方口径不含 ST 与科创板；若官方接口不可用（全部节点失败/无响应），
+        降级 clist 全市场跌幅阈值筛选，确保界面有数据展示。
+
+        返回:
+            已解析的跌停股列表（官方 tc=0 时返回空，表示当日确无跌停）
+        """
+        out: List[LimitUpStock] = []
+        ok = False
+        url = "https://push2ex.eastmoney.com/getTopicDTPool"
+        for day in self._recent_trading_dates():
+            try:
+                data = self._ex.get_raw(url, {
+                    "ut": "7eea3edcaed734bea9cbfc24409ed989",
+                    "dpt": "wz.ztzt",
+                    "Pageindex": 0, "pagesize": limit,
+                    "sort": "fund:asc", "date": day,
+                })
+            except Exception:
+                break  # 全部节点不可用，走 clist 降级
+            d = (data or {}).get("data") or {}
+            pool = d.get("pool") or []
+            if pool or d.get("tc") is not None:
+                ok = True
+                for p in pool:
+                    out.append(self._parse_zt_item(p, "dt"))
+                break
+        if ok:
+            return out
+        return self.limit_down_list(limit)
 
     def limit_down_list(self, limit: int = 100) -> List[LimitUpStock]:
         """跌停池（clist 全市场按跌停阈值筛选，可靠稳定）。

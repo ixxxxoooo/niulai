@@ -176,13 +176,13 @@ def cached_limit_break_pool() -> list:
 def cached_limit_down_pool() -> list:
     """共享跌停池缓存（固定 300 条）。
 
-    数据源用 clist 全市场筛选跌停（东财 getTopicDTPool 的 pool 在跌停极少时常为空），
-    与大盘涨跌家数统计口径一致。
+    数据源：东财官方 getTopicDTPool（与涨停板页跌停股池同源），口径准确（仅真跌停）；
+    官方接口不可用时内部自动降级 clist 跌幅阈值筛选。
 
     @author ygw
     返回: 已补全标签的跌停股 dict 列表
     """
-    return _enrich_rows(eastmoney.get_client().limit_down_list(300))
+    return _enrich_rows(eastmoney.get_client().limit_down_pool(300))
 
 
 # 最近交易日游资动向缓存（复用龙虎榜游资徽章逻辑，避免每次查库）
