@@ -47,7 +47,12 @@ def create_app() -> FastAPI:
         start = time.perf_counter()
         try:
             response = await call_next(request)
-        except Exception:
+        except Exception as e:
+            dur_ms = (time.perf_counter() - start) * 1000
+            path = request.url.path
+            if path.startswith("/api") and not any(path.startswith(p) for p in _SKIP_SQLITE_LOG):
+                qs = str(request.url.query or "")
+                db.log_api(request.method, path, qs, 500, dur_ms, 0, str(e)[:300])
             logger.exception("API %s %s 异常", request.method, request.url.path)
             raise
         dur_ms = (time.perf_counter() - start) * 1000

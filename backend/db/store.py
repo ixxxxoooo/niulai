@@ -252,6 +252,73 @@ def _migrate_watchlist_schema(conn: sqlite3.Connection) -> None:
     conn.execute("CREATE INDEX IF NOT EXISTS idx_watchlist_code ON watchlist(code)")
 
 
+_LOG_TABLE_SCHEMAS = {
+    "api_logs": """
+        CREATE TABLE IF NOT EXISTS api_logs (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            ts TEXT,
+            method TEXT,
+            path TEXT,
+            query TEXT,
+            status INTEGER,
+            duration_ms REAL,
+            size_bytes INTEGER,
+            detail TEXT
+        );
+    """,
+    "user_actions": """
+        CREATE TABLE IF NOT EXISTS user_actions (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            ts TEXT,
+            action TEXT,
+            target TEXT,
+            detail TEXT
+        );
+    """,
+    "ds_logs": """
+        CREATE TABLE IF NOT EXISTS ds_logs (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            ts TEXT,
+            source TEXT,
+            host TEXT,
+            path TEXT,
+            ok INTEGER,
+            duration_ms REAL,
+            error TEXT
+        );
+    """,
+}
+
+
+def _repair_log_table(table_name: str) -> None:
+    """自愈损坏或缺失的日志表，避免阻断服务与后台线程。"""
+    schema = _LOG_TABLE_SCHEMAS.get(table_name)
+    if not schema:
+        return
+    try:
+        conn = get_conn()
+        with _lock:
+            conn.execute(f"DROP TABLE IF EXISTS {table_name}")
+            conn.executescript(schema)
+            conn.commit()
+    except Exception:
+        pass
+
+
+def _check_log_tables(conn: sqlite3.Connection) -> None:
+    """启动时检查日志表完整性，如有损坏则自动重置。"""
+    for table, schema in _LOG_TABLE_SCHEMAS.items():
+        try:
+            conn.execute(f"SELECT COUNT(*) FROM {table}").fetchone()
+        except sqlite3.DatabaseError:
+            try:
+                conn.execute(f"DROP TABLE IF EXISTS {table}")
+                conn.executescript(schema)
+                conn.commit()
+            except Exception:
+                pass
+
+
 def init_db() -> None:
     """建表并启动异步日志写入线程。"""
     global _writer_started
@@ -259,6 +326,7 @@ def init_db() -> None:
         conn = get_conn()
         # 先建表；全拼索引放在迁移里，避免旧库尚无 pinyin_full 列时 CREATE INDEX 失败
         conn.executescript(_SCHEMA)
+        _check_log_tables(conn)
         _migrate_stock_columns(conn)
         _migrate_watchlist_schema(conn)
         _init_preset_groups_if_needed(conn)
@@ -285,52 +353,87 @@ def _wal_checkpointer() -> None:
 
 
 def _log_writer() -> None:
-    """后台批量写入日志，避免阻塞请求线程。"""
+    """后台批量写入日志，带有顶级异常保护，避免守护线程崩溃。"""
     buf: List[tuple] = []
     last_flush = time.monotonic()
+    last_cleanup = time.monotonic()
     while True:
         try:
-            item = _log_q.get(timeout=1.0)
-            buf.append(item)
-        except queue.Empty:
-            item = None
-        now = time.monotonic()
-        if buf and (len(buf) >= 20 or now - last_flush >= 1.0 or item is None):
-            _flush_logs(buf)
-            buf = []
-            last_flush = now
+            try:
+                item = _log_q.get(timeout=1.0)
+                buf.append(item)
+            except queue.Empty:
+                item = None
+            now = time.monotonic()
+            if buf and (len(buf) >= 20 or now - last_flush >= 1.0 or item is None):
+                _flush_logs(buf)
+                buf = []
+                last_flush = now
+            # 定期清理（每 120 秒），避免高频执行 DELETE 子查询造成的锁竞争
+            if now - last_cleanup >= 120.0:
+                _cleanup_old_logs()
+                last_cleanup = now
+        except Exception:
+            time.sleep(0.5)
 
 
 def _flush_logs(items: List[tuple]) -> None:
+    if not items:
+        return
     conn = get_conn()
     with _lock:
-        for kind, payload in items:
+        try:
+            for kind, payload in items:
+                try:
+                    if kind == "api":
+                        conn.execute(
+                            "INSERT INTO api_logs(ts,method,path,query,status,duration_ms,size_bytes,detail) "
+                            "VALUES (?,?,?,?,?,?,?,?)",
+                            payload,
+                        )
+                    elif kind == "action":
+                        conn.execute(
+                            "INSERT INTO user_actions(ts,action,target,detail) VALUES (?,?,?,?)",
+                            payload,
+                        )
+                    elif kind == "ds":
+                        conn.execute(
+                            "INSERT INTO ds_logs(ts,source,host,path,ok,duration_ms,error) VALUES (?,?,?,?,?,?,?)",
+                            payload,
+                        )
+                except sqlite3.DatabaseError:
+                    if kind == "api":
+                        _repair_log_table("api_logs")
+                    elif kind == "action":
+                        _repair_log_table("user_actions")
+                    elif kind == "ds":
+                        _repair_log_table("ds_logs")
+                except sqlite3.Error:
+                    continue
+            conn.commit()
+        except sqlite3.DatabaseError:
             try:
-                if kind == "api":
-                    conn.execute(
-                        "INSERT INTO api_logs(ts,method,path,query,status,duration_ms,size_bytes,detail) "
-                        "VALUES (?,?,?,?,?,?,?,?)",
-                        payload,
-                    )
-                elif kind == "action":
-                    conn.execute(
-                        "INSERT INTO user_actions(ts,action,target,detail) VALUES (?,?,?,?)",
-                        payload,
-                    )
-                elif kind == "ds":
-                    conn.execute(
-                        "INSERT INTO ds_logs(ts,source,host,path,ok,duration_ms,error) VALUES (?,?,?,?,?,?,?)",
-                        payload,
-                    )
-            except sqlite3.Error:
-                continue
-        conn.commit()
-        # 控制体积：各表保留最近 8000 条
+                conn.rollback()
+            except Exception:
+                pass
+        except Exception:
+            pass
+
+
+def _cleanup_old_logs() -> None:
+    """控制体积：各表保留最近 8000 条。"""
+    conn = get_conn()
+    with _lock:
         for table in ("api_logs", "user_actions", "ds_logs"):
-            conn.execute(
-                f"DELETE FROM {table} WHERE id < (SELECT COALESCE(MAX(id),0) FROM {table}) - 8000"
-            )
-        conn.commit()
+            try:
+                conn.execute(
+                    f"DELETE FROM {table} WHERE id < (SELECT COALESCE(MAX(id),0) FROM {table}) - 8000"
+                )
+                conn.commit()
+            except sqlite3.DatabaseError:
+                _repair_log_table(table)
+            except Exception:
+                pass
 
 
 # ------------------------------------------------------------------ 股票列表
@@ -1279,32 +1382,50 @@ def log_ds(source: str, host: str, path: str, ok: bool,
 
 
 def list_api_logs(limit: int = 100) -> List[Dict[str, Any]]:
-    conn = get_conn()
-    rows = conn.execute(
-        "SELECT ts, method, path, query, status, duration_ms, size_bytes, detail "
-        "FROM api_logs ORDER BY id DESC LIMIT ?",
-        (limit,),
-    ).fetchall()
-    return [dict(r) for r in rows]
+    try:
+        conn = get_conn()
+        rows = conn.execute(
+            "SELECT ts, method, path, query, status, duration_ms, size_bytes, detail "
+            "FROM api_logs ORDER BY id DESC LIMIT ?",
+            (limit,),
+        ).fetchall()
+        return [dict(r) for r in rows]
+    except sqlite3.DatabaseError:
+        _repair_log_table("api_logs")
+        return []
+    except Exception:
+        return []
 
 
 def list_action_logs(limit: int = 100) -> List[Dict[str, Any]]:
-    conn = get_conn()
-    rows = conn.execute(
-        "SELECT ts, action, target, detail FROM user_actions ORDER BY id DESC LIMIT ?",
-        (limit,),
-    ).fetchall()
-    return [dict(r) for r in rows]
+    try:
+        conn = get_conn()
+        rows = conn.execute(
+            "SELECT ts, action, target, detail FROM user_actions ORDER BY id DESC LIMIT ?",
+            (limit,),
+        ).fetchall()
+        return [dict(r) for r in rows]
+    except sqlite3.DatabaseError:
+        _repair_log_table("user_actions")
+        return []
+    except Exception:
+        return []
 
 
 def list_ds_logs(limit: int = 100) -> List[Dict[str, Any]]:
-    conn = get_conn()
-    rows = conn.execute(
-        "SELECT ts, source, host, path, ok, duration_ms, error "
-        "FROM ds_logs ORDER BY id DESC LIMIT ?",
-        (limit,),
-    ).fetchall()
-    return [dict(r) for r in rows]
+    try:
+        conn = get_conn()
+        rows = conn.execute(
+            "SELECT ts, source, host, path, ok, duration_ms, error "
+            "FROM ds_logs ORDER BY id DESC LIMIT ?",
+            (limit,),
+        ).fetchall()
+        return [dict(r) for r in rows]
+    except sqlite3.DatabaseError:
+        _repair_log_table("ds_logs")
+        return []
+    except Exception:
+        return []
 
 
 def in_pytest() -> bool:

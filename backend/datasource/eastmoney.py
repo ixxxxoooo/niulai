@@ -132,7 +132,12 @@ class _FailoverClient:
         self._fail_until.pop(host, None)
 
     def _host_order(self) -> List[int]:
-        """优先当前节点，跳过冷却中的；若全部冷却则按冷却到期排序仍尝试。"""
+        """优先当前节点，跳过冷却中的；若全部冷却则仅探测最快到期的一个节点，快速失败。
+
+        东财历史节点故障时若逐个重试全部主机，单次请求会白耗数百毫秒（如 push2his 整体
+        不可用时 4 个节点 × ~100ms）。改为只探测最早到期节点，既保留故障恢复探测，
+        又把降级路径（腾讯兜底）的耗时降到最低。
+        """
         n = len(self._hosts)
         now = time.monotonic()
         with self._lock:
@@ -148,8 +153,10 @@ class _FailoverClient:
                 healthy.append(idx)
         if healthy:
             return healthy
-        cooling.sort()
-        return [idx for _, idx in cooling]
+        if cooling:
+            cooling.sort()
+            return [cooling[0][1]]
+        return []
 
     def _log_ds(self, host: str, path: str, ok: bool, ms: float, err: str = "") -> None:
         try:

@@ -420,9 +420,11 @@ def test_unlock_calendar_api(client):
 
 def test_stock_risk_diagnosis_api(client):
     """验证个股排雷诊断接口"""
+    import datetime
+    future_date = (datetime.date.today() + datetime.timedelta(days=10)).isoformat()
     with mock.patch("backend.datasource.eastmoney.get_client") as gem:
         gem.return_value.stock_unlock_detail.return_value = [
-            {"code": "000001", "name": "平安银行", "date": "2026-08-20", "ratio_total": 8.0}
+            {"code": "000001", "name": "平安银行", "date": future_date, "ratio_total": 8.0}
         ]
         gem.return_value.stock_performance_forecast.return_value = [
             {"code": "000001", "predict_type": "首亏", "content": "受行业周期影响", "report_date": "2026-06-30"}
@@ -514,7 +516,46 @@ def test_market_heatmap_api(client):
         assert data["items"][0]["children"][0]["name"] == "中芯国际"
 
 
+def test_logs_api_and_resilience(client):
+    """验证日志统计接口及自动自愈机制"""
+    from backend.db import store
 
+    # 1. 验证直接入队与直接落盘查询
+    store.log_api("GET", "/api/test", "foo=bar", 200, 42.5, 1024)
+    store.log_action("click", "test_btn", "user clicked test")
+    store.log_ds("eastmoney", "push2.eastmoney.com", "/api/qt/stock/get", True, 35.2)
 
+    # 手动触发一次 flush 确保写入 DB
+    buf = []
+    while True:
+        try:
+            buf.append(store._log_q.get_nowait())
+        except Exception:
+            break
+    if buf:
+        store._flush_logs(buf)
+
+    # 2. 验证 API 端点
+    r_api = client.get("/api/logs/api?limit=50")
+    assert r_api.status_code == 200
+    api_list = r_api.json()
+    assert isinstance(api_list, list)
+    assert any(it.get("path") == "/api/test" for it in api_list)
+
+    r_act = client.get("/api/logs/actions?limit=50")
+    assert r_act.status_code == 200
+    act_list = r_act.json()
+    assert any(it.get("action") == "click" for it in act_list)
+
+    r_ds = client.get("/api/logs/datasource?limit=50")
+    assert r_ds.status_code == 200
+    ds_list = r_ds.json()
+    assert any(it.get("source") == "eastmoney" for it in ds_list)
+
+    # 3. 验证表损坏自愈能力
+    store._repair_log_table("api_logs")
+    r_after = client.get("/api/logs/api?limit=10")
+    assert r_after.status_code == 200
+    assert r_after.json() == []
 
 

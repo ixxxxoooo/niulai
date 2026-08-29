@@ -181,23 +181,28 @@
     <!-- ── 日志 ── -->
     <div v-if="settingsTab === 'logs'">
     <div class="card">
-      <div class="card-title">
+      <div class="card-title" style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px">
         <span>运行日志（便于定位慢接口）</span>
-        <div class="tabs mini-tabs">
-          <div class="tab" :class="{ active: logTab === 'api' }" @click="logTab = 'api'; loadLogs()">接口耗时</div>
-          <div class="tab" :class="{ active: logTab === 'ds' }" @click="logTab = 'ds'; loadLogs()">数据源</div>
-          <div class="tab" :class="{ active: logTab === 'act' }" @click="logTab = 'act'; loadLogs()">页面操作</div>
+        <div style="display:flex;align-items:center;gap:8px">
+          <UiButton variant="subtle" size="sm" :disabled="logLoading" @click="loadLogs">
+            {{ logLoading ? '刷新中…' : '刷新日志' }}
+          </UiButton>
+          <div class="tabs mini-tabs">
+            <div class="tab" :class="{ active: logTab === 'api' }" @click="logTab = 'api'; loadLogs()">接口耗时</div>
+            <div class="tab" :class="{ active: logTab === 'ds' }" @click="logTab = 'ds'; loadLogs()">数据源</div>
+            <div class="tab" :class="{ active: logTab === 'act' }" @click="logTab = 'act'; loadLogs()">页面操作</div>
+          </div>
         </div>
       </div>
-      <div class="table-wrap" style="max-height: 360px; overflow-y: auto;">
+      <div class="table-wrap" style="max-height: 480px; overflow-y: auto;">
         <table class="data-table" v-if="logTab === 'api'">
           <thead><tr><th>时间</th><th>接口</th><th>状态</th><th>耗时</th></tr></thead>
           <tbody>
             <tr v-for="(r, i) in apiLogs" :key="i">
               <td>{{ r.ts }}</td>
-              <td>{{ r.method }} {{ r.path }}{{ r.query ? '?' + r.query : '' }}</td>
-              <td>{{ r.status }}</td>
-              <td :class="r.duration_ms > 1000 ? 'up' : r.duration_ms > 400 ? 'flat' : ''">{{ Number(r.duration_ms).toFixed(0) }}ms</td>
+              <td style="font-family:monospace;font-size:12px;">{{ r.method }} {{ r.path }}{{ r.query ? '?' + r.query : '' }}</td>
+              <td><span :class="r.status >= 400 ? 'up' : ''">{{ r.status }}</span></td>
+              <td :class="r.duration_ms > 1000 ? 'up' : r.duration_ms > 400 ? 'flat' : ''">{{ Number(r.duration_ms).toFixed(1) }}ms</td>
             </tr>
             <tr v-if="!apiLogs.length"><td colspan="4" class="empty">暂无记录</td></tr>
           </tbody>
@@ -211,7 +216,7 @@
               <td>{{ r.host }}</td>
               <td>{{ r.path }}</td>
               <td :class="r.ok ? 'up' : 'down'">{{ r.ok ? 'OK' : '失败' }}</td>
-              <td>{{ Number(r.duration_ms).toFixed(0) }}ms</td>
+              <td>{{ Number(r.duration_ms).toFixed(1) }}ms</td>
             </tr>
             <tr v-if="!dsLogs.length"><td colspan="6" class="empty">暂无记录</td></tr>
           </tbody>
@@ -354,7 +359,7 @@
 
 <script setup>
 // @author ygw
-import { ref, onMounted, onUnmounted } from 'vue'
+import { ref, watch, onMounted, onUnmounted } from 'vue'
 import { api } from '../api.js'
 import { settingsState, saveSetting, loadSettings, applyThemeMode } from '../composables/useSettings.js'
 import { watchState, clearWatch, importWatch } from '../composables/useWatchlist.js'
@@ -658,13 +663,26 @@ function toggleChangeType(code) {
   saveSetting('changes_watch_types', str)
 }
 
+const logLoading = ref(false)
+
 async function loadLogs() {
+  logLoading.value = true
   try {
     if (logTab.value === 'api') apiLogs.value = await api.logsApi(80)
     else if (logTab.value === 'ds') dsLogs.value = await api.logsDatasource(80)
     else actLogs.value = await api.logsActions(80)
-  } catch (e) { /* ignore */ }
+  } catch (e) {
+    /* ignore */
+  } finally {
+    logLoading.value = false
+  }
 }
+
+watch(settingsTab, (newTab) => {
+  if (newTab === 'logs') {
+    loadLogs()
+  }
+})
 
 onMounted(async () => {
   await loadSettings()
