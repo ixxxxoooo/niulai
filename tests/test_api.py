@@ -575,4 +575,17 @@ def test_stock_trends_kline_comment_endpoints(client):
     assert r_comment.status_code == 200
 
 
+def test_stock_diagnosis_endpoint(client):
+    """验证千股千评全维度研判端点正常返回"""
+    r_diag = client.get("/api/stocks/000912/diagnosis")
+    assert r_diag.status_code == 200
+    data = r_diag.json()
+    assert "evaluation" in data or data == {}
+    if "evaluation" in data:
+        assert "main_force" in data
+        assert "trend" in data
+        assert "signals" in data["trend"]
+
+
+
 

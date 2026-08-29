@@ -80,6 +80,14 @@
       />
     </div>
 
+    <!-- 智能诊股与综合研判（综合评价、主力控盘、趋势研判、资金动向） -->
+    <StockDiagnosis
+      v-if="!isEtf"
+      :code="detail.code || code"
+      :display-name="displayName"
+      :price="detail.price"
+    />
+
     <!-- ETF 持仓成分股（成交明细下方） -->
     <div class="card mt16" v-if="isEtf">
       <div class="card-title">
@@ -208,6 +216,7 @@ import StockSnapshot from '../components/stock/StockSnapshot.vue'
 import OrderBook from '../components/stock/OrderBook.vue'
 import StockCharts from '../components/stock/StockCharts.vue'
 import MoneyFlow from '../components/stock/MoneyFlow.vue'
+import StockDiagnosis from '../components/stock/StockDiagnosis.vue'
 import NewsAnnouncements from '../components/stock/NewsAnnouncements.vue'
 
 const props = defineProps({ code: { type: String, default: '' } })

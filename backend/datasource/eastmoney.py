@@ -1836,6 +1836,164 @@ class EastMoneyClient:
             logger.warning("个股 %s 综合评分拉取异常: %s", code, e)
             return None
 
+    def stock_diagnosis(self, code: str) -> Optional[Dict[str, Any]]:
+        """获取个股千股千评全维度研判（综合评价/主力控盘/趋势研判/技术信号）。
+        @author ygw
+        """
+        clean_code = str(code).strip()
+        if "." in clean_code:
+            clean_code = clean_code.split(".")[0]
+        url = "https://datacenter-web.eastmoney.com/web/api/data/v1/get"
+
+        def _fetch(report_name: str, extra: Optional[Dict[str, Any]] = None) -> List[Dict[str, Any]]:
+            params = {
+                "reportName": report_name,
+                "columns": "ALL",
+                "filter": f'(SECURITY_CODE="{clean_code}")',
+                "token": "28dfeb41d35cc81d84b4664d7c23c49f",
+                "source": "WEB",
+                "client": "WEB",
+            }
+            if extra:
+                params.update(extra)
+            try:
+                resp = self._http.get(url, params=params, headers={
+                    "Referer": "https://data.eastmoney.com/",
+                }, timeout=4)
+                if resp.status_code == 200:
+                    data = resp.json()
+                    return (data.get("result") or {}).get("data") or []
+            except Exception:
+                pass
+            return []
+
+        from concurrent.futures import ThreadPoolExecutor
+        with ThreadPoolExecutor(max_workers=7) as executor:
+            fut_pk = executor.submit(_fetch, "RPT_CUSTOM_STOCK_PK")
+            fut_cr = executor.submit(_fetch, "RPT_STOCK_CHANGERATE")
+            fut_rk = executor.submit(_fetch, "RPT_STOCK_PK_RANK")
+            fut_kp = executor.submit(_fetch, "RPT_DMSK_TS_STOCKEVALUATE", {"pageSize": 1})
+            fut_qs = executor.submit(_fetch, "RPT_STOCK_TRENDVOLUME_COMMENT")
+            fut_tp = executor.submit(_fetch, "RPT_STOCK_TRENDVOLUME_PK", {"pageSize": 1})
+            fut_macd = executor.submit(_fetch, "PRT_STOCK_MACD_PK", {"pageSize": 1})
+
+            pk_list = fut_pk.result()
+            cr_list = fut_cr.result()
+            rk_list = fut_rk.result()
+            kp_list = fut_kp.result()
+            qs_list = fut_qs.result()
+            tp_list = fut_tp.result()
+            macd_list = fut_macd.result()
+
+        if not pk_list and not kp_list and not qs_list:
+            return None
+
+        pk = pk_list[0] if pk_list else {}
+        cr = cr_list[0] if cr_list else {}
+        rk = rk_list[0] if rk_list else {}
+        kp = kp_list[0] if kp_list else {}
+        qs = qs_list[0] if qs_list else {}
+        tp = tp_list[0] if tp_list else {}
+        mc = macd_list[0] if macd_list else {}
+
+        signals = [
+            {
+                "key": "BOLL",
+                "title": "BOLL 布林带",
+                "text": str(mc.get("BOLLOUT") or "暂无明显信号"),
+                "color": str(mc.get("BOLLCLOR") or "灰"),
+            },
+            {
+                "key": "MACD",
+                "title": "MACD 指标",
+                "text": str(mc.get("MACDCOUT") or "暂无明显信号"),
+                "color": str(mc.get("MACDCLOR") or "灰"),
+            },
+            {
+                "key": "KDJ",
+                "title": "KDJ 指标",
+                "text": str(mc.get("KDJOUT") or "暂无明显信号"),
+                "color": str(mc.get("KDJCLOR") or "灰"),
+            },
+            {
+                "key": "RSI",
+                "title": "RSI 指标",
+                "text": str(mc.get("RSIOUT") or "暂无明显信号"),
+                "color": str(mc.get("RSICLOR") or "灰"),
+            },
+            {
+                "key": "BIAS",
+                "title": "BIAS 乖离率",
+                "text": str(mc.get("BIASOUT") or "暂无明显信号"),
+                "color": str(mc.get("BIASCLOR") or "灰"),
+            },
+            {
+                "key": "WR",
+                "title": "WR 威廉指标",
+                "text": str(mc.get("WROUT") or "暂无明显信号"),
+                "color": str(mc.get("WRCLOR") or "灰"),
+            },
+        ]
+
+        return {
+            "code": clean_code,
+            "name": str(pk.get("SECURITY_NAME_ABBR") or kp.get("SECURITY_NAME_ABBR") or ""),
+            "diagnose_time": str(pk.get("DIAGNOSE_TIME") or kp.get("TRADE_DATE") or ""),
+            "evaluation": {
+                "total_score": pk.get("TOTAL_SCORE") or cr.get("TOTAL_SCORE"),
+                "score_change": pk.get("TOTAL_SCORE_CHANGE"),
+                "beat_ratio": pk.get("STOCK_RANK_RATIO") or rk.get("STOCK_RANK_RATIO"),
+                "words_explain": str(pk.get("WORDS_EXPLAIN") or ""),
+                "market_rank": rk.get("MARKET_RANK"),
+                "market_total": rk.get("EVALUATE_MARKET_NUM") or rk.get("MARKET_STOCK_NUM"),
+                "industry_name": str(rk.get("BOARD_NAME") or ""),
+                "industry_rank": rk.get("INDUSTRY_RANK"),
+                "industry_total": rk.get("EVALUATE_INDUSTRY_NUM") or rk.get("INDUSTRY_STOCK_NUM"),
+                "predict_next_day": {
+                    "rise_prob": cr.get("RISE_1_PROBABILITY"),
+                    "avg_increase": cr.get("AVERAGE_1_INCREASE"),
+                    "sample_count": cr.get("ALL_COUNT_1"),
+                },
+                "predict_5_day": {
+                    "rise_prob": cr.get("RISE_5_PROBABILITY"),
+                    "avg_increase": cr.get("AVERAGE_5_INCREASE"),
+                    "sample_count": cr.get("ALL_COUNT_5"),
+                },
+            },
+            "main_force": {
+                "control_type": str(kp.get("PARTICIPATE_TYPE_CN") or "暂无评定"),
+                "org_participate": round(float(kp.get("ORG_PARTICIPATE") or 0) * 100, 2) if kp.get("ORG_PARTICIPATE") is not None else None,
+                "prime_cost": kp.get("PRIME_COST"),
+                "prime_cost_20d": kp.get("PRIME_COST_20DAYS"),
+                "prime_cost_60d": kp.get("PRIME_COST_60DAYS"),
+                "superdeal_inflow": kp.get("SUPERDEAL_INFLOW"),
+                "superdeal_outflow": kp.get("SUPERDEAL_OUTFLOW"),
+                "bigdeal_inflow": kp.get("BIGDEAL_INFLOW"),
+                "bigdeal_outflow": kp.get("BIGDEAL_OUTFLOW"),
+                "prime_inflow": kp.get("PRIME_INFLOW"),
+                "superdeal_ratio": round(float(kp.get("BUY_SUPERDEAL_RATIO") or 0) * 100, 2) if kp.get("BUY_SUPERDEAL_RATIO") is not None else None,
+                "bigdeal_ratio": round(float(kp.get("BUY_BIGDEAL_RATIO") or 0) * 100, 2) if kp.get("BUY_BIGDEAL_RATIO") is not None else None,
+                "main_ratio": round(float(kp.get("RATIO") or 0) * 100, 2) if kp.get("RATIO") is not None else None,
+                "main_ratio_3d": round(float(kp.get("RATIO_3DAYS") or 0) * 100, 2) if kp.get("RATIO_3DAYS") is not None else None,
+                "main_ratio_50d": round(float(kp.get("RATIO_50DAYS") or 0) * 100, 2) if kp.get("RATIO_50DAYS") is not None else None,
+            },
+            "trend": {
+                "comment": str(qs.get("COMMENT_TXT") or tp.get("WORDS_EXPLAIN") or ""),
+                "support_level": tp.get("SUPPORT_LEVEL"),
+                "pressure_level": tp.get("PRESSURE_LEVEL"),
+                "volume_judge": str(tp.get("VOLUME_JUDGE") or ""),
+                "price_relation": str(tp.get("PRICE_AVG_RELATION") or ""),
+                "focus": str(tp.get("PAR_FOCUS") or ""),
+                "stats_60d": {
+                    "stock_change": mc.get("PCTCHANGE_STOCK"),
+                    "swing": mc.get("SWING"),
+                    "index_change": mc.get("PCTCHANGE_INDEX"),
+                    "avg_turnover": mc.get("AVGTURN"),
+                },
+                "signals": signals,
+            },
+        }
+
 
 # 全局单例（进程内复用连接池与节点状态）
 _client: Optional[EastMoneyClient] = None

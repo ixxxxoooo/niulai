@@ -752,3 +752,16 @@ def stock_comment(code: str):
         return {}
     return result
 
+
+@router.get("/stocks/{code}/diagnosis")
+@ttl_cache(ttl=60)
+def stock_diagnosis(code: str):
+    """获取个股千股千评全维度研判（综合评价/主力控盘/趋势研判/技术信号）。
+    @author ygw
+    """
+    result = eastmoney.get_client().stock_diagnosis(code)
+    if result is None:
+        return {}
+    return result
+
+
