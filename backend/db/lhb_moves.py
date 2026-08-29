@@ -77,6 +77,41 @@ def _dc_paged(report: str, columns: str, filt: str, page_size: int = 500) -> Lis
     return out
 
 
+# 东财可转债板块（118/123/127 等，龙虎榜常上榜且不在本地股票池）
+_CB_FS = "b:MK0354"
+_CB_CACHE: Dict[str, Any] = {"ts": 0.0, "map": {}}
+
+
+def _cb_name_map() -> Dict[str, str]:
+    """可转债板块名称映射（东财 b:MK0354），模块级缓存 6 小时。
+
+    用途:
+        龙虎榜可转债不在本地股票池 stocks 表，名称会存空导致前端退显代码，
+        此处用板块列表一次性拉全补名。
+
+    返回:
+        code -> 名称（如 {"118064": "联瑞转债"}）
+    """
+    now = time.monotonic()
+    if _CB_CACHE["map"] and now - _CB_CACHE["ts"] < 6 * 3600:
+        return _CB_CACHE["map"]
+    out: Dict[str, str] = {}
+    try:
+        from ..datasource import eastmoney
+        items = eastmoney.get_client()._clist_all_pages(_CB_FS, "f12,f14", max_pages=5)
+        for it in items:
+            code = str(it.get("f12") or "")
+            name = it.get("f14") or ""
+            if code and name:
+                out[code] = name
+        if out:
+            _CB_CACHE.update({"ts": now, "map": out})
+            logger.info("可转债板块名称映射已刷新: %d 只", len(out))
+    except Exception:
+        logger.debug("可转债板块名称拉取失败", exc_info=True)
+    return out
+
+
 def sync_records_for_dates(dates: List[str], progress: Optional[Any] = None) -> Dict[str, Any]:
     """
     按日期同步龙虎榜全市场席位（买入+卖出）入库，含游资/机构/北向/普通全部席位。
@@ -125,10 +160,11 @@ def sync_records_for_dates(dates: List[str], progress: Optional[Any] = None) -> 
 
         codes = {r[1] for r in rows if r[1]}
         name_map = store.get_stocks_map(list(codes))
+        cb_map = _cb_name_map()  # 可转债不在本地股票池，用板块列表兜底补名
         conn = store.get_conn()
         with store._lock:
             for r in rows:
-                nm = name_map.get(r[1], {}).get("name") or ""
+                nm = (name_map.get(r[1], {}).get("name") or cb_map.get(r[1]) or "")
                 try:
                     conn.execute(
                         "INSERT OR REPLACE INTO lhb_records"
