@@ -35,7 +35,7 @@
         <div class="label">领涨股</div>
         <div class="value">
           <a class="leader-chip" @click="openFromSector({ code: sector.leader_code, name: sector.leader_name })">
-            <span v-for="b in boardBadges({code:sector.leader_code,name:sector.leader_name})" :key="b.t" :class="'badge-'+b.cls" class="board-badge">{{b.t}}</span>{{ sector.leader_name || '-' }} <span class="up">{{ sector.leader_pct != null ? fmtPct(sector.leader_pct) : '' }}</span>
+            {{ sector.leader_name || '-' }}<span v-for="b in boardBadges({code:sector.leader_code,name:sector.leader_name})" :key="b.t" :class="'badge-'+b.cls" class="board-badge">{{b.t}}</span> <span class="up">{{ sector.leader_pct != null ? fmtPct(sector.leader_pct) : '' }}</span>
           </a>
         </div>
       </div>

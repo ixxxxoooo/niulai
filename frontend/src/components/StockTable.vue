@@ -29,8 +29,8 @@
             <td>
               <MiniTrend :code="row.code" :name="row.name">
                 <span class="name-cell" @click.stop="$emit('row-click', row)">
-                  <BoardBadges :row="row" />
                   <span class="stock-name" :class="pctClass(row.change_pct)">{{ row.name || '-' }}</span>
+                  <BoardBadges :row="row" />
                   <LeaderBadge :code="row.code" />
                 </span>
               </MiniTrend>

@@ -66,7 +66,7 @@
                 <td class="stock-name">{{ s.name }}</td>
                 <td :class="pctClass(s.change_pct)">{{ fmtPct(s.change_pct) }}</td>
                 <td :class="pctClass(s.main_inflow)">{{ fmtAmount(s.main_inflow) }}</td>
-                <td><a v-if="s.leader_code" class="leader-chip" @click.stop="openStock({ code: s.leader_code, name: s.leader_name }, { origin: '/', originLabel: '返回盘面' })"><span v-for="b in boardBadges({code:s.leader_code,name:s.leader_name})" :key="b.t" :class="'badge-'+b.cls" class="board-badge">{{b.t}}</span>{{ s.leader_name || '-' }} <span class="up">{{ s.leader_pct != null ? fmtPct(s.leader_pct) : '' }}</span></a></td>
+                <td><a v-if="s.leader_code" class="leader-chip" @click.stop="openStock({ code: s.leader_code, name: s.leader_name }, { origin: '/', originLabel: '返回盘面' })">{{ s.leader_name || '-' }}<span v-for="b in boardBadges({code:s.leader_code,name:s.leader_name})" :key="b.t" :class="'badge-'+b.cls" class="board-badge">{{b.t}}</span> <span class="up">{{ s.leader_pct != null ? fmtPct(s.leader_pct) : '' }}</span></a></td>
               </tr>
             </tbody>
           </table>
@@ -85,7 +85,7 @@
                 <td class="stock-name">{{ s.name }}</td>
                 <td :class="pctClass(s.change_pct)">{{ fmtPct(s.change_pct) }}</td>
                 <td :class="pctClass(s.main_inflow)">{{ fmtAmount(s.main_inflow) }}</td>
-                <td><a v-if="s.leader_code" class="leader-chip" @click.stop="openStock({ code: s.leader_code, name: s.leader_name }, { origin: '/', originLabel: '返回盘面' })"><span v-for="b in boardBadges({code:s.leader_code,name:s.leader_name})" :key="b.t" :class="'badge-'+b.cls" class="board-badge">{{b.t}}</span>{{ s.leader_name || '-' }} <span class="up">{{ s.leader_pct != null ? fmtPct(s.leader_pct) : '' }}</span></a></td>
+                <td><a v-if="s.leader_code" class="leader-chip" @click.stop="openStock({ code: s.leader_code, name: s.leader_name }, { origin: '/', originLabel: '返回盘面' })">{{ s.leader_name || '-' }}<span v-for="b in boardBadges({code:s.leader_code,name:s.leader_name})" :key="b.t" :class="'badge-'+b.cls" class="board-badge">{{b.t}}</span> <span class="up">{{ s.leader_pct != null ? fmtPct(s.leader_pct) : '' }}</span></a></td>
               </tr>
             </tbody>
           </table>

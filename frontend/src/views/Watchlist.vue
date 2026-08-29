@@ -141,7 +141,7 @@
                 <td class="stock-name">
                   <MiniTrend :code="s.code" :name="s.name">
                     <span class="name-cell">
-                      <BoardBadges :row="s" />{{ s.name }}
+                      {{ s.name }}<BoardBadges :row="s" />
                       <LeaderBadge :code="s.code" />
                       <span v-if="s.shares" class="hold-tag">持仓</span>
                       <span
@@ -235,7 +235,7 @@
                 <td class="stock-name">
                   <MiniTrend :code="s.code" :name="s.name">
                     <span class="name-cell" :class="pctClass(s.pnl)">
-                      <BoardBadges :row="s" />{{ s.name }}
+                      {{ s.name }}<BoardBadges :row="s" />
                       <LeaderBadge :code="s.code" />
                       <span
                         v-if="riskMap[s.code]?.badge_text"
@@ -303,7 +303,7 @@
               <tr v-for="s in tsHE.sorted" :key="s.code" @click="openFromList(s, tsHE.sorted, '返回自选')">
                 <td class="stock-name">
                   <MiniTrend :code="s.code" :name="s.name">
-                    <span class="name-cell" :class="pctClass(s.pnl)"><BoardBadges :row="s" />{{ s.name }}</span>
+                    <span class="name-cell" :class="pctClass(s.pnl)">{{ s.name }}<BoardBadges :row="s" /></span>
                   </MiniTrend>
                   <div class="name-mv">{{ fmtMoney(s.market_value) }}</div>
                 </td>
