@@ -177,7 +177,7 @@ CREATE TABLE IF NOT EXISTS ai_history (
 CREATE INDEX IF NOT EXISTS idx_ai_history_code ON ai_history(code, id DESC);
 """
 
-_lock = threading.Lock()
+_lock = threading.RLock()
 _tls = threading.local()
 _log_q: "queue.SimpleQueue" = queue.SimpleQueue()
 _writer_started = False

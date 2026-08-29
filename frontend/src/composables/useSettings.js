@@ -4,9 +4,12 @@ import { reactive } from 'vue'
 import { api } from '../api.js'
 import { logAction } from './useActionLog.js'
 
+const savedTheme = typeof localStorage !== 'undefined' ? localStorage.getItem('theme') : null
+const savedNav = typeof localStorage !== 'undefined' ? localStorage.getItem('navMode') : null
+
 export const settingsState = reactive({
-  theme: 'light',
-  navMode: 'top',
+  theme: savedTheme || 'dark',
+  navMode: (savedNav && ['top', 'side'].includes(savedNav)) ? savedNav : 'top',
   refreshInterval: 5,
   offMarketInterval: 30000,
   chartTopN: 20,
@@ -108,11 +111,21 @@ export async function saveSetting(key, value) {
   if (typeof cur === 'boolean') settingsState[key] = value === true || value === '1' || value === 1
   else if (typeof cur === 'number') settingsState[key] = Number(value)
   else settingsState[key] = value
+
+  // 本地持久化保证刷新零延迟即时生效
+  try {
+    if (typeof value === 'boolean') {
+      localStorage.setItem(key, value ? '1' : '0')
+    } else {
+      localStorage.setItem(key, String(value))
+    }
+  } catch (e) { /* ignore */ }
+
   logAction('setting_change', key, String(value))
   try {
     const stored = typeof value === 'boolean' ? (value ? '1' : '0') : value
     await api.setSetting(key, stored)
-  } catch (e) { /* 失败时内存值仍生效 */ }
+  } catch (e) { /* 失败时内存与本地值仍生效 */ }
   // 图表坐标变更通知各页面重绘
   if (key === 'trendYScale' || key === 'klineYScale') {
     window.dispatchEvent(new CustomEvent('chart-scale-change', { detail: { key, value: settingsState[key] } }))

@@ -428,11 +428,13 @@ function setTheme(mode) {
   themeMode.value = mode
   applyThemeMode(mode)
   saveSetting('theme', mode)
+  showToast(`已切换为${mode === 'dark' ? '深色' : mode === 'light' ? '浅色' : '跟随系统'}主题`)
 }
 
 function setNavMode(mode) {
   navMode.value = mode
   saveSetting('navMode', mode)
+  showToast(`已切换为${mode === 'side' ? '左侧导航' : '顶部导航'}布局`)
 }
 
 function setRefresh(sec) {
