@@ -16,52 +16,54 @@
         </div>
       </div>
 
-      <template v-if="viewDays === 1">
-        <div class="flow-overview">
-          <div class="fo-main fo-single">
-            <div class="fo-single-l">
-              <div class="fo-k">当日主力净流入</div>
-              <div class="fo-v" :class="pctClass(mainFlow.total)">{{ fmtFlowVal(mainFlow.total) }}</div>
-            </div>
-            <div class="fo-single-r">
-              <div class="fo-s">
-                <span class="fo-badge" :class="pctClass(mainFlow.total)">{{ mainFlow.total >= 0 ? '净流入' : '净流出' }}</span>
-                <span>占比 {{ mainFlow.pctText }}</span>
+      <div class="mf-body" :style="{ height: bodyHeight }">
+        <div ref="dayViewEl" v-if="viewDays === 1">
+          <div class="flow-overview">
+            <div class="fo-main fo-single">
+              <div class="fo-single-l">
+                <div class="fo-k">当日主力净流入</div>
+                <div class="fo-v" :class="pctClass(mainFlow.total)">{{ fmtFlowVal(mainFlow.total) }}</div>
               </div>
-              <div class="fo-inout" v-if="mainFlow.in || mainFlow.out">
-                <span>流入 {{ fmtFlowVal(mainFlow.in) }}</span>
-                <span>流出 {{ fmtFlowVal(mainFlow.out) }}</span>
+              <div class="fo-single-r">
+                <div class="fo-s">
+                  <span class="fo-badge" :class="pctClass(mainFlow.total)">{{ mainFlow.total >= 0 ? '净流入' : '净流出' }}</span>
+                  <span>占比 {{ mainFlow.pctText }}</span>
+                </div>
+                <div class="fo-inout" v-if="mainFlow.in || mainFlow.out">
+                  <span>流入 {{ fmtFlowVal(mainFlow.in) }}</span>
+                  <span>流出 {{ fmtFlowVal(mainFlow.out) }}</span>
+                </div>
               </div>
             </div>
           </div>
+          <div ref="chartEl" class="flow-chart"></div>
+          <table class="data-table flow-table">
+            <thead><tr><th style="text-align:left">类别</th><th>净流入</th><th>净占比</th></tr></thead>
+            <tbody>
+              <tr v-for="item in flowTableRows" :key="item.label">
+                <td style="font-weight:500">{{ item.label }}</td>
+                <td :class="item.val >= 0 ? 'up' : 'down'">{{ fmtFlowVal(item.val) }}</td>
+                <td :class="item.pct >= 0 ? 'up' : 'down'">{{ item.pct >= 0 ? '+' : '' }}{{ item.pct.toFixed(2) }}%</td>
+              </tr>
+            </tbody>
+          </table>
         </div>
-        <div ref="chartEl" class="flow-chart"></div>
-        <table class="data-table flow-table">
-          <thead><tr><th style="text-align:left">类别</th><th>净流入</th><th>净占比</th></tr></thead>
-          <tbody>
-            <tr v-for="item in flowTableRows" :key="item.label">
-              <td style="font-weight:500">{{ item.label }}</td>
-              <td :class="item.val >= 0 ? 'up' : 'down'">{{ fmtFlowVal(item.val) }}</td>
-              <td :class="item.pct >= 0 ? 'up' : 'down'">{{ item.pct >= 0 ? '+' : '' }}{{ item.pct.toFixed(2) }}%</td>
-            </tr>
-          </tbody>
-        </table>
-      </template>
 
-      <template v-else-if="histRows.length">
-        <div ref="histChartEl" class="hist-chart"></div>
-        <table class="data-table flow-table">
-          <thead><tr><th style="text-align:left">日期</th><th>涨跌幅</th><th>主力净流入</th><th>主力净占比</th></tr></thead>
-          <tbody>
-            <tr v-for="d in histTableRows" :key="d.date">
-              <td style="text-align:left;font-variant-numeric:tabular-nums">{{ d.date.slice(5) }}</td>
-              <td :class="pctClass(d.change_pct)">{{ fmtPct(d.change_pct) }}</td>
-              <td :class="d.main_inflow >= 0 ? 'up' : 'down'">{{ fmtFlowVal(d.main_inflow) }}</td>
-              <td :class="d.main_pct >= 0 ? 'up' : 'down'">{{ fmtPct(d.main_pct) }}</td>
-            </tr>
-          </tbody>
-        </table>
-      </template>
+        <div v-else-if="histRows.length">
+          <div ref="histChartEl" class="hist-chart"></div>
+          <table class="data-table flow-table">
+            <thead><tr><th style="text-align:left">日期</th><th>涨跌幅</th><th>主力净流入</th><th>主力净占比</th></tr></thead>
+            <tbody>
+              <tr v-for="d in histTableRows" :key="d.date">
+                <td style="text-align:left;font-variant-numeric:tabular-nums">{{ d.date.slice(5) }}</td>
+                <td :class="pctClass(d.change_pct)">{{ fmtPct(d.change_pct) }}</td>
+                <td :class="d.main_inflow >= 0 ? 'up' : 'down'">{{ fmtFlowVal(d.main_inflow) }}</td>
+                <td :class="d.main_pct >= 0 ? 'up' : 'down'">{{ fmtPct(d.main_pct) }}</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
     </template>
     <div v-else style="padding:20px;text-align:center;color:var(--text-dim);font-size:13px">
       暂无资金流数据
@@ -91,6 +93,8 @@ const emit = defineEmits(['screenshot'])
 const rootEl = ref(null)
 const chartEl = ref(null)
 const histChartEl = ref(null)
+const dayViewEl = ref(null)
+const bodyHeight = ref('auto')
 let chart = null
 let histChart = null
 
@@ -220,22 +224,31 @@ function onShot() { emit('screenshot', rootEl.value) }
 function onResize() { chart && chart.resize(); histChart && histChart.resize() }
 function onTheme() { renderChart(); renderHistChart() }
 
+// 以「近1日」视图自然高度作为内容区固定高度，切换 Tab 高度保持一致，超出滚动
+function measureBodyHeight() {
+  if (viewDays.value === 1 && dayViewEl.value && dayViewEl.value.offsetHeight > 0) {
+    bodyHeight.value = dayViewEl.value.offsetHeight + 'px'
+  }
+}
+
 watch(() => props.flow, async () => {
   await nextTick()
   renderChart()
   renderHistChart()
+  measureBodyHeight()
 }, { deep: true })
 
 watch(viewDays, async () => {
   await nextTick()
   renderChart()
   renderHistChart()
+  measureBodyHeight()
 })
 
 onMounted(() => {
   window.addEventListener('resize', onResize)
   window.addEventListener('theme-change', onTheme)
-  nextTick(() => { renderChart(); renderHistChart() })
+  nextTick(() => { renderChart(); renderHistChart(); measureBodyHeight() })
 })
 onUnmounted(() => {
   window.removeEventListener('resize', onResize)
@@ -275,6 +288,9 @@ defineExpose({ rootEl, renderChart })
 .fo-badge.up { background: var(--up-bg); color: var(--up); }
 .fo-badge.down { background: var(--down-bg); color: var(--down); }
 .flow-chart { height: 132px; margin-top: 4px; }
+.mf-body { overflow-y: auto; min-height: 240px; scrollbar-width: thin; }
+.mf-body::-webkit-scrollbar { width: 6px; }
+.mf-body::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
 .hist-head { display: flex; align-items: center; gap: 10px; margin-bottom: 8px; }
 .hist-title { font-size: 13px; font-weight: 600; color: var(--text-dim); }
 .hist-tabs { margin-left: auto; display: inline-flex; gap: 4px; }
