@@ -146,7 +146,7 @@ class TelegraphClient:
                     title = m.group(1)
 
             level = str(it.get("level") or "").upper()
-            is_red = level in ("A", "B") or bool(it.get("is_red")) or (title and ("【" in title or "重大" in title or "紧急" in title))
+            is_red = level in ("A", "B") or bool(it.get("is_red")) or bool(title and ("重大" in title or "紧急" in title or "突发" in title))
 
             # 主题标签
             subjects = []

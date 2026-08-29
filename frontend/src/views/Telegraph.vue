@@ -207,7 +207,11 @@ const tabs = [
   { key: 'fund', label: '基金' },
 ]
 
-const { activeTab: currentTab, setTab: switchTab } = usePageTab('telegraph_tab', 'all')
+const currentTab = usePageTab('telegraph_tab', 'all')
+
+function switchTab(k) {
+  currentTab.value = k
+}
 
 const filteredItems = computed(() => {
   let list = items.value || []
