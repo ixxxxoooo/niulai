@@ -11,7 +11,10 @@
       <div class="card" ref="ladderCard">
       <div class="card-title" style="display:flex;align-items:center;justify-content:space-between">
         <span>按连板数分层（上高下低 · 共 {{ filtered.length }} 家涨停）</span>
-        <button class="btn-screenshot" @click="doScreenshotLadder" title="截图连板梯队"><UiIcon name="screenshot" :size="14" /></button>
+        <span style="display:flex;align-items:center;gap:8px">
+          <a class="source-link" href="https://quote.eastmoney.com/ztb/detail#type=ztgc" target="_blank" rel="noopener">东财 <UiIcon name="external" :size="11" /></a>
+          <button class="btn-screenshot" @click="doScreenshotLadder" title="截图连板梯队"><UiIcon name="screenshot" :size="14" /></button>
+        </span>
       </div>
       <div class="floor-wrap">
         <div v-for="g in floors" :key="g.lbc" class="floor">
