@@ -56,6 +56,11 @@
   </tr>
 </template>
 
+<script>
+// 模块级展开数据缓存：跨行与收起/重开 0ms 瞬间秒开（60s 有效期）
+const _poolRowCache = new Map()
+</script>
+
 <script setup>
 /**
  * 股池表格展开行：分时图 + 日K线 + 综合评分
@@ -88,17 +93,14 @@ const scoreLoading = ref(true)
 let trendChart = null
 let klineChart = null
 
-// 展开数据缓存：同一只股票重复展开/收起秒开（60s 有效期）
-const _cache = new Map()
-
 function getCached(key) {
-  const hit = _cache.get(key)
+  const hit = _poolRowCache.get(key)
   if (hit && Date.now() - hit.ts < 60000) return hit.data
   return null
 }
 
 function setCached(key, data) {
-  _cache.set(key, { ts: Date.now(), data })
+  _poolRowCache.set(key, { ts: Date.now(), data })
 }
 
 const stockUrl = `/#/stock/${props.code}`

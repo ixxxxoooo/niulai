@@ -27,7 +27,7 @@ class _FakeResp:
 
 def test_tencent_quote_parsing():
     client = tencent.TencentClient()
-    with mock.patch("httpx.get", return_value=_FakeResp()):
+    with mock.patch.object(client._http, "get", return_value=_FakeResp()):
         quotes = client.fetch_quotes(["600519"])
     q = quotes["600519"]
     assert q["name"] == "贵州茅台"
@@ -58,6 +58,6 @@ def test_to_tencent_symbol():
 
 def test_tencent_failure_returns_empty():
     client = tencent.TencentClient()
-    with mock.patch("httpx.get", side_effect=Exception("network")):
+    with mock.patch.object(client._http, "get", side_effect=Exception("network")):
         assert client.fetch_quotes(["600519"]) == {}
         assert client.minute_quotes("600519") is None

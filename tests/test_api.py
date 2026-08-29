@@ -559,3 +559,20 @@ def test_logs_api_and_resilience(client):
     assert r_after.json() == []
 
 
+def test_stock_trends_kline_comment_endpoints(client):
+    """验证涨停池展开所需的 trends / kline / comment 端点正常返回"""
+    r_trends = client.get("/api/stocks/600519/trends")
+    assert r_trends.status_code == 200
+    assert "points" in r_trends.json()
+
+    r_kline = client.get("/api/stocks/600519/kline?period=day&limit=60")
+    assert r_kline.status_code == 200
+    k_data = r_kline.json()
+    assert "points" in k_data
+    assert "indicators" in k_data
+
+    r_comment = client.get("/api/stocks/600519/comment")
+    assert r_comment.status_code == 200
+
+
+

@@ -247,15 +247,38 @@ def _merge_baidu_kline_fields(code: str, period: str, points: list) -> None:
             p["volume"] = round(extra["volume_share"] / 100.0, 2)
 
 
+_baidu_cache: dict = {}
+_baidu_http = None
+
 def _baidu_kline_by_date(code: str, ktype: str = "day") -> dict:
     """
     拉取百度 K 线明细，返回 date -> 字段字典。
     @author ygw
     """
     import logging
+    import time
     import httpx
+    global _baidu_http
     logger = logging.getLogger("baidu_kline")
+    now = time.monotonic()
+    cache_key = (code, ktype)
+    if cache_key in _baidu_cache:
+        cached_ts, cached_val = _baidu_cache[cache_key]
+        if now - cached_ts < 180:
+            return cached_val
+
     try:
+        if _baidu_http is None:
+            _baidu_http = httpx.Client(
+                timeout=4.0,
+                limits=httpx.Limits(max_keepalive_connections=10, max_connections=20, keepalive_expiry=60.0),
+                headers={
+                    "Accept": "application/vnd.finance-web.v1+json",
+                    "Origin": "https://finance.baidu.com",
+                    "Referer": "https://finance.baidu.com/",
+                    "User-Agent": config.USER_AGENT,
+                },
+            )
         url = "https://finance.pae.baidu.com/sapi/v1/get_analysis_quotation"
         params = {
             "all": "1", "newFormat": "1",
@@ -263,13 +286,7 @@ def _baidu_kline_by_date(code: str, ktype: str = "day") -> dict:
             "group": "quotation_analysis_kline",
             "code": code, "market_type": "ab", "finClientType": "pc",
         }
-        headers = {
-            "Accept": "application/vnd.finance-web.v1+json",
-            "Origin": "https://finance.baidu.com",
-            "Referer": "https://finance.baidu.com/",
-            "User-Agent": config.USER_AGENT,
-        }
-        resp = httpx.get(url, params=params, headers=headers, timeout=6)
+        resp = _baidu_http.get(url, params=params)
         resp.raise_for_status()
         md = (((resp.json() or {}).get("Result") or {}).get("newMarketData")) or {}
         keys = md.get("keys") or []
@@ -291,6 +308,12 @@ def _baidu_kline_by_date(code: str, ktype: str = "day") -> dict:
                 "pre_close": _safe_float(item.get("preClose")),
                 "volume_share": _safe_float(item.get("volume")),
             }
+        _baidu_cache[cache_key] = (now, out)
+        if len(_baidu_cache) > 500:
+            # 清理过期缓存
+            old_keys = [k for k, (ts, _) in _baidu_cache.items() if now - ts > 180]
+            for k in old_keys:
+                _baidu_cache.pop(k, None)
         return out
     except Exception as e:
         logger.warning(f"百度K线明细失败 code={code}: {e}")

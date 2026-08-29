@@ -77,6 +77,11 @@ class _FailoverClient:
             "Referer": "https://quote.eastmoney.com/",
             "Accept": "*/*",
         }
+        self._http = httpx.Client(
+            timeout=float(config.REQUEST_TIMEOUT),
+            limits=httpx.Limits(max_keepalive_connections=30, max_connections=100, keepalive_expiry=60.0),
+            headers=self._headers,
+        )
 
     def _current_cookie(self) -> str:
         """动态读取东财风控 Cookie（设置表优先，60s 缓存；环境变量兜底）。
@@ -226,7 +231,7 @@ class _FailoverClient:
                     cookie = self._current_cookie()
                     if cookie:
                         headers["Cookie"] = cookie
-                    resp = httpx.get(
+                    resp = self._http.get(
                         url, params=params, headers=headers, timeout=req_timeout,
                         follow_redirects=False,
                     )
@@ -275,7 +280,7 @@ class _FailoverClient:
                     cookie = self._current_cookie()
                     if cookie:
                         headers["Cookie"] = cookie
-                    resp = httpx.get(
+                    resp = self._http.get(
                         url, params=params, headers=headers, timeout=req_timeout,
                         follow_redirects=False,
                     )
@@ -360,6 +365,11 @@ class EastMoneyClient:
                                       cookie=config.EASTMONEY_COOKIE, cookie_key="eastmoneyCookie")
         self._ex = _FailoverClient(config.EASTMONEY_EX_HOSTS, base_path="")
         self._search = _FailoverClient(config.EASTMONEY_SEARCH_HOSTS, base_path="/api")
+        self._http = httpx.Client(
+            timeout=float(config.REQUEST_TIMEOUT),
+            limits=httpx.Limits(max_keepalive_connections=30, max_connections=100, keepalive_expiry=60.0),
+            headers={"User-Agent": config.USER_AGENT, "Referer": "https://quote.eastmoney.com/"},
+        )
 
     # ---------------------------------------------------------------- 搜索
     def search_stocks(self, keyword: str, limit: int = 10) -> List[dict]:
@@ -446,9 +456,9 @@ class EastMoneyClient:
             prefix = "BJ"
         url = "https://emweb.securities.eastmoney.com/PC_HSF10/CoreConception/PageAjax"
         try:
-            resp = httpx.get(
+            resp = self._http.get(
                 url, params={"code": f"{prefix}{code}"},
-                headers={"User-Agent": config.USER_AGENT, "Referer": "https://emweb.securities.eastmoney.com/"},
+                headers={"Referer": "https://emweb.securities.eastmoney.com/"},
                 timeout=config.REQUEST_TIMEOUT, follow_redirects=True,
             )
             resp.raise_for_status()
@@ -726,11 +736,10 @@ class EastMoneyClient:
         url = "https://fundf10.eastmoney.com/FundArchivesDatas.aspx"
         params = {"type": "jjcc", "code": code, "topline": str(max(1, min(top, 20)))}
         headers = {
-            "User-Agent": config.USER_AGENT,
             "Referer": f"https://fundf10.eastmoney.com/{code}.html",
         }
-        resp = httpx.get(url, params=params, headers=headers,
-                         timeout=config.REQUEST_TIMEOUT)
+        resp = self._http.get(url, params=params, headers=headers,
+                              timeout=config.REQUEST_TIMEOUT)
         resp.raise_for_status()
         html = resp.content.decode("utf-8", errors="ignore")
         items = self._parse_fund_holdings(html, top)
@@ -1075,7 +1084,7 @@ class EastMoneyClient:
                     points=tx["points"],
                 )
         try:
-            data = self._his.get("/stock/trends2/get", {
+            data = self._q.get("/stock/trends2/get", {
                 "secid": secid,
                 "fields1": "f1,f2,f3,f4,f5,f6,f7,f8,f9,f10,f11,f12,f13",
                 "fields2": "f51,f52,f53,f54,f55,f56,f57,f58",
@@ -1119,7 +1128,7 @@ class EastMoneyClient:
     def kline(self, code: str = "", market: Optional[int] = None,
               period: str = "day", limit: int = 120,
               secid: Optional[str] = None) -> Optional[Dict]:
-        """K 线（前复权）。period: day/week/month。东财优先，失败降级腾讯。
+        """K 线（前复权）。period: day/week/month。腾讯优先（极速），失败降级东财/TickFlow。
 
         可传 secid（如全球指数 100.N225）或 A 股 code。
         返回 {"points": [{date, open, close, high, low, volume}], "name": str}
@@ -1131,6 +1140,16 @@ class EastMoneyClient:
         idx_kl = self._kline_tencent_sina(secid, period, limit)
         if idx_kl:
             return idx_kl
+
+        # 个股优先腾讯 K 线（复用连接池 40ms 极速响应）
+        stock_code = code or (secid.split(".", 1)[-1] if secid else "")
+        from . import tencent
+        tx = tencent.get_client().kline(stock_code, period, limit,
+                                        symbol=self.TENCENT_INDEX_SYMBOL.get(secid))
+        if tx and tx.get("points"):
+            return tx
+
+        # 降级备选：东财 his
         try:
             data = self._his.get("/stock/kline/get", {
                 "secid": secid, "klt": klt, "fqt": 1, "lmt": limit,
@@ -1163,12 +1182,6 @@ class EastMoneyClient:
                         "turnover": _num(parts[10]) if len(parts) > 10 else None,
                     })
                 return {"points": points, "name": (d or {}).get("name") or ""}
-        from . import tencent
-        stock_code = code or (secid.split(".", 1)[-1] if secid else "")
-        tx = tencent.get_client().kline(stock_code, period, limit,
-                                        symbol=self.TENCENT_INDEX_SYMBOL.get(secid))
-        if tx and tx.get("points"):
-            return tx
         tf_data = self._kline_tickflow(stock_code, period, limit)
         if tf_data:
             return tf_data
@@ -1191,7 +1204,7 @@ class EastMoneyClient:
         if not scale or not symbol:
             return None
         try:
-            resp = httpx.get(
+            resp = self._http.get(
                 "https://money.finance.sina.com.cn/quotes_service/api/json_v2.php/CN_MarketData.getKLineData",
                 params={"symbol": symbol, "scale": scale, "ma": "no", "datalen": str(limit)},
                 headers={"User-Agent": config.USER_AGENT},
@@ -1330,8 +1343,7 @@ class EastMoneyClient:
             "columns": "ALL",
             "filter": f'(SECURITY_CODE="{code}")',
         }
-        resp = httpx.get(url, params=params, headers={
-            "User-Agent": config.USER_AGENT,
+        resp = self._http.get(url, params=params, headers={
             "Referer": "https://data.eastmoney.com/",
         }, timeout=config.REQUEST_TIMEOUT)
         resp.raise_for_status()
@@ -1626,9 +1638,9 @@ class EastMoneyClient:
             "dpt": "wzchanges",
         }
         try:
-            resp = httpx.get(
+            resp = self._http.get(
                 url, params=params,
-                headers={"User-Agent": config.USER_AGENT, "Referer": "https://quote.eastmoney.com/"},
+                headers={"Referer": "https://quote.eastmoney.com/"},
                 timeout=config.REQUEST_TIMEOUT, follow_redirects=True,
             )
             body = resp.json()
@@ -1686,7 +1698,7 @@ class EastMoneyClient:
         }
 
         try:
-            resp = httpx.get(url, params=params, headers={"User-Agent": "Mozilla/5.0", "Referer": "https://data.eastmoney.com/"}, timeout=6)
+            resp = self._http.get(url, params=params, headers={"Referer": "https://data.eastmoney.com/"}, timeout=6)
             resp.raise_for_status()
             data = resp.json()
             items = (data.get("result") or {}).get("data") or []
@@ -1725,7 +1737,7 @@ class EastMoneyClient:
             "sortColumns": "FREE_DATE",
         }
         try:
-            resp = httpx.get(url, params=params, headers={"User-Agent": "Mozilla/5.0", "Referer": "https://data.eastmoney.com/"}, timeout=5)
+            resp = self._http.get(url, params=params, headers={"Referer": "https://data.eastmoney.com/"}, timeout=5)
             resp.raise_for_status()
             data = resp.json()
             items = (data.get("result") or {}).get("data") or []
@@ -1764,7 +1776,7 @@ class EastMoneyClient:
             "sortColumns": "REPORT_DATE",
         }
         try:
-            resp = httpx.get(url, params=params, headers={"User-Agent": "Mozilla/5.0", "Referer": "https://data.eastmoney.com/"}, timeout=5)
+            resp = self._http.get(url, params=params, headers={"Referer": "https://data.eastmoney.com/"}, timeout=5)
             resp.raise_for_status()
             data = resp.json()
             items = (data.get("result") or {}).get("data") or []
@@ -1802,8 +1814,7 @@ class EastMoneyClient:
             "client": "WEB",
         }
         try:
-            resp = httpx.get(url, params=params, headers={
-                "User-Agent": "Mozilla/5.0",
+            resp = self._http.get(url, params=params, headers={
                 "Referer": "https://quote.eastmoney.com/",
             }, timeout=5)
             resp.raise_for_status()

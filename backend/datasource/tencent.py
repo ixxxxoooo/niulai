@@ -51,6 +51,11 @@ class TencentClient:
             "User-Agent": config.USER_AGENT,
             "Referer": config.TENCENT_REFERER,
         }
+        self._http = httpx.Client(
+            timeout=float(config.REQUEST_TIMEOUT),
+            limits=httpx.Limits(max_keepalive_connections=20, max_connections=50, keepalive_expiry=60.0),
+            headers=self._headers,
+        )
 
     def fetch_quotes(self, codes: List[str]) -> Dict[str, dict]:
         """批量获取个股详情（原始解析 dict），key 为标准 6 位代码"""
@@ -60,7 +65,7 @@ class TencentClient:
         url = config.TENCENT_QUOTE_URL + ",".join(symbols)
         t0 = time.monotonic()
         try:
-            resp = httpx.get(url, headers=self._headers, timeout=config.REQUEST_TIMEOUT)
+            resp = self._http.get(url, timeout=config.REQUEST_TIMEOUT)
             resp.raise_for_status()
             text = resp.content.decode("gbk", errors="replace")
             ms = (time.monotonic() - t0) * 1000
@@ -145,7 +150,7 @@ class TencentClient:
         symbol = symbol or to_tencent_symbol(code)
         url = f"https://ifzq.gtimg.cn/appstock/app/minute/query?code={symbol}"
         try:
-            resp = httpx.get(url, headers=self._headers, timeout=config.REQUEST_TIMEOUT)
+            resp = self._http.get(url, timeout=config.REQUEST_TIMEOUT)
             resp.raise_for_status()
             d = resp.json()
         except Exception:
@@ -207,7 +212,7 @@ class TencentClient:
         url = (f"https://ifzq.gtimg.cn/appstock/app/fqkline/get"
                f"?param={symbol},{period},,,{limit},qfq")
         try:
-            resp = httpx.get(url, headers=self._headers, timeout=config.REQUEST_TIMEOUT)
+            resp = self._http.get(url, timeout=config.REQUEST_TIMEOUT)
             resp.raise_for_status()
             d = resp.json()
         except Exception:
