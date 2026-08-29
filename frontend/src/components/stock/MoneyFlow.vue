@@ -53,7 +53,7 @@
         <table class="data-table flow-table">
           <thead><tr><th style="text-align:left">日期</th><th>涨跌幅</th><th>主力净流入</th><th>主力净占比</th></tr></thead>
           <tbody>
-            <tr v-for="d in histRows" :key="d.date">
+            <tr v-for="d in histTableRows" :key="d.date">
               <td style="text-align:left;font-variant-numeric:tabular-nums">{{ d.date.slice(5) }}</td>
               <td :class="pctClass(d.change_pct)">{{ fmtPct(d.change_pct) }}</td>
               <td :class="d.main_inflow >= 0 ? 'up' : 'down'">{{ fmtFlowVal(d.main_inflow) }}</td>
@@ -128,11 +128,13 @@ function fmtFlowVal(v) {
 }
 
 const viewDays = ref(1)
+// 历史图数据：升序（日期从左到右递增，最近的在最右侧）
 const histRows = computed(() => {
   if (!props.flow.length) return []
-  // 倒序：最新日期在前，方便查看最近资金流向
-  return props.flow.slice(-viewDays.value).slice().reverse()
+  return props.flow.slice(-viewDays.value)
 })
+// 历史表数据：倒序（最新日期在上，便于快速查看最近流向）
+const histTableRows = computed(() => histRows.value.slice().reverse())
 
 function renderHistChart() {
   if (!histChartEl.value) {
