@@ -33,7 +33,7 @@ class _FailoverClient:
     - 非交易时段缩短超时，减少「全部节点不可用」时的长时间卡住
     """
 
-    def __init__(self, hosts: List[str], base_path: str = "/api/qt"):
+    def __init__(self, hosts: List[str], base_path: str = "/api/qt", cookie: str = ""):
         self._hosts = hosts
         self._base_path = base_path
         self._lock = threading.Lock()
@@ -46,6 +46,8 @@ class _FailoverClient:
             "Referer": "https://quote.eastmoney.com/",
             "Accept": "*/*",
         }
+        if cookie:
+            self._headers["Cookie"] = cookie
 
     def _parse_json(self, resp: httpx.Response) -> Any:
         """解析 JSON，兼容 UTF-8 BOM（部分节点返回带 BOM 内容）"""
@@ -290,7 +292,8 @@ class EastMoneyClient:
     def __init__(self):
         self._q = _FailoverClient(config.EASTMONEY_HOSTS)
         self._his = _FailoverClient(config.EASTMONEY_HIS_HOSTS, base_path="/api/qt")
-        self._fflow = _FailoverClient(config.EASTMONEY_FFLOW_HOSTS, base_path="/api/qt")
+        self._fflow = _FailoverClient(config.EASTMONEY_FFLOW_HOSTS, base_path="/api/qt",
+                                      cookie=config.EASTMONEY_COOKIE)
         self._ex = _FailoverClient(config.EASTMONEY_EX_HOSTS, base_path="")
         self._search = _FailoverClient(config.EASTMONEY_SEARCH_HOSTS, base_path="/api")
 

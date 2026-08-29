@@ -1,4 +1,5 @@
 """全局配置"""
+import os
 from pathlib import Path
 
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -18,6 +19,9 @@ EASTMONEY_FFLOW_HOSTS = [
     "push2delay.eastmoney.com",
     "1.push2delay.eastmoney.com",
 ]
+# 东财数据中心风控 Cookie（ct/ut 等，浏览器访问东财后获得）。
+# push2his 资金流历史接口需携带方可返回完整数据；留空则降级 delay 节点仅当日。
+EASTMONEY_COOKIE = os.environ.get("EASTMONEY_COOKIE", "")
 # 东方财富历史数据节点（push2his2 实测稳定；主节点会间歇性拒连）
 EASTMONEY_HIS_HOSTS = [
     "push2his2.eastmoney.com",
