@@ -9,14 +9,31 @@
         </div>
 
         <div class="th-controls-group">
-          <!-- 实时时间与倒计时 -->
+          <!-- 实时时间与独立倒计时 -->
           <div class="th-live-status">
             <span class="live-pulse"></span>
             <span class="live-text">电报持续更新中</span>
-            <span class="th-polling-badge" @click="refreshAll" :title="'点击刷新，' + polling.countdown + 's 后自动刷新'">
-              <span class="ri-dot" :class="{ active: loading || polling.refreshing }"></span>
-              {{ polling.countdown }}s
+            <span
+              class="th-polling-badge"
+              @click="refreshAll"
+              :title="'点击立即刷新（当前 ' + intervalSec + ' 秒轮询）'"
+            >
+              <span class="ri-dot" :class="{ active: loading || isRefreshing }"></span>
+              {{ countdown }}s
             </span>
+            <!-- 5s / 10s 独立倒计时切换 -->
+            <div class="th-interval-switcher" title="选择电报刷新频率">
+              <button
+                class="interval-btn"
+                :class="{ active: intervalSec === 5 }"
+                @click="setIntervalSec(5)"
+              >5s</button>
+              <button
+                class="interval-btn"
+                :class="{ active: intervalSec === 10 }"
+                @click="setIntervalSec(10)"
+              >10s</button>
+            </div>
           </div>
 
           <!-- 桌面通知开关 -->
@@ -34,8 +51,8 @@
           </label>
 
           <!-- 截图按钮 -->
-          <button class="btn-screenshot" @click="captureElement(headerCard, '财经电报.png')" title="截图保存">
-            <UiIcon name="screenshot" :size="14" />
+          <button class="btn-screenshot-custom" @click="captureElement(headerCard, '财经电报.png')" title="截图保存">
+            <UiIcon name="screenshot" :size="15" />
           </button>
         </div>
       </div>
@@ -51,12 +68,11 @@
             @click="switchTab(tab.key)"
           >
             {{ tab.label }}
-            <span class="tab-badge" v-if="tab.key === 'red'">HOT</span>
           </button>
         </div>
 
         <div class="th-search-box">
-          <UiIcon name="search" :size="13" class="search-icon" />
+          <UiIcon name="search" :size="14" class="search-icon" />
           <input
             type="text"
             v-model="searchQuery"
@@ -182,7 +198,6 @@
 import { ref, computed, onMounted, onUnmounted, watch } from 'vue'
 import { api } from '../api.js'
 import { fmtPct, pctClass } from '../utils.js'
-import { usePolling } from '../composables/usePolling.js'
 import { usePageTab } from '../composables/usePageTab.js'
 import { openStock } from '../composables/useStockMeta.js'
 import { captureElement } from '../composables/useScreenshot.js'
@@ -192,15 +207,29 @@ const headerCard = ref(null)
 const items = ref([])
 const loading = ref(false)
 const loadingMore = ref(false)
+const isRefreshing = ref(false)
 const searchQuery = ref('')
 const expandedSet = ref(new Set())
+
+// 独立轮询倒计时：默认 5 秒，支持 5s / 10s
+const intervalSec = ref(parseInt(localStorage.getItem('niulai_telegraph_interval'), 10) || 5)
+const countdown = ref(intervalSec.value)
+let pollTimer = null
+
+function setIntervalSec(sec) {
+  intervalSec.value = sec
+  countdown.value = sec
+  try {
+    localStorage.setItem('niulai_telegraph_interval', String(sec))
+  } catch (e) { /* ignore */ }
+}
 
 const notifyEnabled = ref(localStorage.getItem('niulai_telegraph_notify') === '1')
 const audioEnabled = ref(localStorage.getItem('niulai_telegraph_audio') === '1')
 
 const tabs = [
   { key: 'all', label: '全部' },
-  { key: 'red', label: '加红 / 重磅' },
+  { key: 'red', label: '加红' },
   { key: 'company', label: '公司' },
   { key: 'watch', label: '看盘' },
   { key: 'hk_us', label: '港美股' },
@@ -292,7 +321,9 @@ async function toggleNotification() {
 }
 
 watch(audioEnabled, (v) => {
-  localStorage.setItem('niulai_telegraph_audio', v ? '1' : '0')
+  try {
+    localStorage.setItem('niulai_telegraph_audio', v ? '1' : '0')
+  } catch (e) { /* ignore */ }
 })
 
 function sendDesktopNotification(item) {
@@ -317,6 +348,7 @@ let lastSeenId = null
 
 async function loadData(isPolling = false) {
   if (!isPolling) loading.value = true
+  else isRefreshing.value = true
   try {
     const cat = currentTab.value === 'red' ? 'red' : currentTab.value
     const res = await api.telegraph(cat, null, 30)
@@ -339,6 +371,7 @@ async function loadData(isPolling = false) {
     console.error('加载电报失败', e)
   } finally {
     loading.value = false
+    isRefreshing.value = false
   }
 }
 
@@ -352,7 +385,6 @@ async function loadMore() {
     const res = await api.telegraph(cat, lastTime, 30)
     const moreItems = res?.items || []
     if (moreItems.length) {
-      // 去重拼接
       const map = new Map()
       items.value.forEach(it => map.set(it.id, it))
       moreItems.forEach(it => map.set(it.id, it))
@@ -366,19 +398,49 @@ async function loadMore() {
 }
 
 function refreshAll() {
+  countdown.value = intervalSec.value
   loadData(false)
 }
 
 watch(currentTab, () => {
   items.value = []
   lastSeenId = null
+  countdown.value = intervalSec.value
   loadData(false)
 })
 
-const polling = usePolling(() => loadData(true), 15000)
+function startTimer() {
+  if (pollTimer) clearInterval(pollTimer)
+  pollTimer = setInterval(() => {
+    if (document.hidden) return
+    if (countdown.value > 1) {
+      countdown.value--
+    } else {
+      countdown.value = intervalSec.value
+      loadData(true)
+    }
+  }, 1000)
+}
+
+function onVisibilityChange() {
+  if (!document.hidden) {
+    countdown.value = intervalSec.value
+    loadData(true)
+  }
+}
 
 onMounted(() => {
   loadData(false)
+  startTimer()
+  document.addEventListener('visibilitychange', onVisibilityChange)
+})
+
+onUnmounted(() => {
+  if (pollTimer) {
+    clearInterval(pollTimer)
+    pollTimer = null
+  }
+  document.removeEventListener('visibilitychange', onVisibilityChange)
 })
 </script>
 
@@ -431,7 +493,7 @@ onMounted(() => {
 .th-live-status {
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: 8px;
   font-size: 12px;
   color: var(--text-dim);
 }
@@ -453,16 +515,70 @@ onMounted(() => {
   display: inline-flex;
   align-items: center;
   gap: 4px;
-  padding: 2px 8px;
+  padding: 3px 8px;
   border-radius: var(--radius-pill);
   background: var(--kv-bg);
   border: 1px solid var(--border);
   font-size: 11px;
+  font-weight: 600;
+  color: var(--text);
   font-variant-numeric: tabular-nums;
   cursor: pointer;
   user-select: none;
+  transition: all 0.15s;
 }
-.th-polling-badge:hover { border-color: var(--accent); }
+.th-polling-badge:hover {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+/* 5s / 10s 独立倒计时切换器 */
+.th-interval-switcher {
+  display: inline-flex;
+  background: var(--kv-bg);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-pill);
+  padding: 1px;
+  gap: 2px;
+}
+.interval-btn {
+  background: none;
+  border: none;
+  padding: 1px 7px;
+  border-radius: var(--radius-pill);
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text-dim);
+  cursor: pointer;
+  transition: all 0.15s;
+}
+.interval-btn:hover {
+  color: var(--text);
+}
+.interval-btn.active {
+  background: var(--accent);
+  color: #fff;
+}
+
+/* 截图按钮（亮暗主题高对比） */
+.btn-screenshot-custom {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border-radius: var(--radius-sm);
+  background: var(--kv-bg);
+  border: 1px solid var(--border);
+  color: var(--text);
+  cursor: pointer;
+  transition: all 0.15s;
+}
+.btn-screenshot-custom:hover {
+  border-color: var(--accent);
+  color: var(--accent);
+  background: var(--accent-bg);
+}
 
 /* 开关控件 */
 .toggle-control {
@@ -536,7 +652,7 @@ onMounted(() => {
   transition: all 0.15s;
 }
 .th-tab-btn:hover {
-  background: var(--border);
+  background: var(--bg-hover);
   color: var(--text);
 }
 .th-tab-btn.active {
@@ -548,14 +664,6 @@ onMounted(() => {
   background: var(--up);
   border-color: var(--up);
 }
-.tab-badge {
-  font-size: 9px;
-  background: rgba(255,255,255,0.25);
-  color: #fff;
-  padding: 1px 4px;
-  border-radius: 3px;
-  font-weight: 700;
-}
 
 .th-search-box {
   position: relative;
@@ -566,7 +674,8 @@ onMounted(() => {
 .search-icon {
   position: absolute;
   left: 10px;
-  color: var(--text-dim);
+  color: var(--text);
+  opacity: 0.6;
 }
 .th-search-input {
   width: 100%;
@@ -619,7 +728,7 @@ onMounted(() => {
   border-bottom: none;
 }
 .feed-item:hover {
-  background: var(--kv-bg);
+  background: var(--bg-hover);
   margin: 0 -10px;
   padding: 14px 10px;
   border-radius: 6px;
@@ -749,6 +858,7 @@ onMounted(() => {
   border-radius: 3px;
   border: 1px solid var(--border);
   font-weight: 500;
+  color: var(--text);
 }
 .item-full-time {
   font-variant-numeric: tabular-nums;
@@ -772,7 +882,7 @@ onMounted(() => {
 .btn-load-more {
   background: var(--kv-bg);
   border: 1px solid var(--border);
-  color: var(--text-dim);
+  color: var(--text);
   font-size: 12px;
   font-weight: 600;
   padding: 8px 24px;
