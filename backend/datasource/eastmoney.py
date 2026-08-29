@@ -1778,7 +1778,45 @@ class EastMoneyClient:
             logger.warning("个股 %s 业绩预告拉取异常: %s", code, e)
             return []
 
-
+    def stock_comment(self, code: str) -> Optional[Dict[str, Any]]:
+        """获取个股综合评分（东财 RPT_CUSTOM_STOCK_PK），含打败比例、次日上涨概率等。
+        @author ygw
+        """
+        clean_code = str(code).strip()
+        if "." in clean_code:
+            clean_code = clean_code.split(".")[0]
+        url = "https://datacenter-web.eastmoney.com/web/api/data/v1/get"
+        params = {
+            "reportName": "RPT_CUSTOM_STOCK_PK",
+            "columns": "ALL",
+            "filter": f'(SECURITY_CODE="{clean_code}")',
+            "token": "28dfeb41d35cc81d84b4664d7c23c49f",
+            "source": "WEB",
+            "client": "WEB",
+        }
+        try:
+            resp = httpx.get(url, params=params, headers={
+                "User-Agent": "Mozilla/5.0",
+                "Referer": "https://quote.eastmoney.com/",
+            }, timeout=5)
+            resp.raise_for_status()
+            data = resp.json()
+            items = (data.get("result") or {}).get("data") or []
+            if not items:
+                return None
+            it = items[0]
+            return {
+                "code": clean_code,
+                "name": str(it.get("SECURITY_NAME_ABBR") or ""),
+                "total_score": it.get("TOTAL_SCORE"),
+                "change_rate": it.get("TOTAL_SCORE_CHANGE"),
+                "beat_ratio": it.get("STOCK_RANK_RATIO"),
+                "rise_probability": it.get("RISE_1_PROBABILITY"),
+                "words_explain": str(it.get("WORDS_EXPLAIN") or ""),
+            }
+        except Exception as e:
+            logger.warning("个股 %s 综合评分拉取异常: %s", code, e)
+            return None
 
 
 # 全局单例（进程内复用连接池与节点状态）

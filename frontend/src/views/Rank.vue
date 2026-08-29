@@ -59,6 +59,10 @@
         </div>
       </div>
 
+      <div v-if="loading && !rows.length" class="rank-loading">
+        <UiIcon name="refresh" :size="14" class="rotating" /> 数据加载中…
+      </div>
+
       <!-- 榜单数据明细 -->
       <template v-if="tab === 'zhangsu'">
         <StockTable :rows="rows" :columns="zhangsuCols" @row-click="openFromRank" />
@@ -89,31 +93,34 @@
               <th data-tooltip="当日龙虎榜上榜席位中命中的知名游资（如章盟主）。红色徽章=拉萨天团，属反向指标需谨慎。">游资</th>
             </tr></thead>
             <tbody>
-              <tr v-for="p in poolSort.sorted" :key="p.code" @click="openFromRank(p)">
-                <td class="stock-name" :class="pctClass(p.change_pct)">
-                  <MiniTrend :code="p.code" :name="p.name">
-                    <span class="name-cell"><BoardBadges :row="p" />{{ p.name }}<LeaderBadge :code="p.code" /></span>
-                  </MiniTrend>
-                </td>
-                <td>{{ p.code }}</td>
-                <td>{{ fmtPrice(p.price) }}</td>
-                <td :class="pctClass(p.change_pct)">{{ fmtPct(p.change_pct) }}</td>
-                <td>
-                  <span class="zt-lb-wrap">
-                    <span class="zt-lb-badge" :data-tooltip="`连板数：${p.lbc}，点击查看连板梯队`" @click.stop="goLadder()">{{ lbcLabel(p.lbc) }}</span>
-                    <span v-if="p.zb_count" class="zt-zb-badge" :data-tooltip="`今日炸板 ${p.zb_count} 次，点击查看连板梯队`" @click.stop="goLadder()">炸{{ p.zb_count }}</span>
-                  </span>
-                </td>
-                <td><span class="rank-industry" @click.stop="gotoIndustry(p.industry)">{{ p.industry || '-' }}</span></td>
-                <td v-if="tab === 'zt'" :class="pctClass(p.seal_amount)">{{ fmtAmount(p.seal_amount) }}</td>
-                <td>{{ fmtPct(p.turnover) }}</td>
-                <td v-if="tab !== 'qs'">{{ p.first_time || '-' }}</td>
-                <td v-if="tab === 'zt'">{{ p.last_time || '-' }}</td>
-                <td class="youzi-cell">
-                  <span v-for="y in (p.youzi || [])" :key="y" class="youzi-badge" :class="{ lhasa: y.includes('拉萨') }" :data-tooltip="`点击查看该游资动向`" @click.stop="goSeat(y)">{{ y }}</span>
-                  <span v-if="!(p.youzi || []).length" class="seat-no">—</span>
-                </td>
-              </tr>
+              <template v-for="p in poolSort.sorted" :key="p.code">
+                <tr :class="{ 'row-expanded': expandedCode === p.code }" @click="toggleExpand(p.code)" @dblclick.stop="openFromRank(p)">
+                  <td class="stock-name" :class="pctClass(p.change_pct)">
+                    <MiniTrend :code="p.code" :name="p.name">
+                      <span class="name-cell"><BoardBadges :row="p" />{{ p.name }}<LeaderBadge :code="p.code" /></span>
+                    </MiniTrend>
+                  </td>
+                  <td>{{ p.code }}</td>
+                  <td>{{ fmtPrice(p.price) }}</td>
+                  <td :class="pctClass(p.change_pct)">{{ fmtPct(p.change_pct) }}</td>
+                  <td>
+                    <span class="zt-lb-wrap">
+                      <span class="zt-lb-badge" :data-tooltip="`连板数：${p.lbc}，点击查看连板梯队`" @click.stop="goLadder()">{{ lbcLabel(p.lbc) }}</span>
+                      <span v-if="p.zb_count" class="zt-zb-badge" :data-tooltip="`今日炸板 ${p.zb_count} 次，点击查看连板梯队`" @click.stop="goLadder()">炸{{ p.zb_count }}</span>
+                    </span>
+                  </td>
+                  <td><span class="rank-industry" @click.stop="gotoIndustry(p.industry)">{{ p.industry || '-' }}</span></td>
+                  <td v-if="tab === 'zt'" :class="pctClass(p.seal_amount)">{{ fmtAmount(p.seal_amount) }}</td>
+                  <td>{{ fmtPct(p.turnover) }}</td>
+                  <td v-if="tab !== 'qs'">{{ p.first_time || '-' }}</td>
+                  <td v-if="tab === 'zt'">{{ p.last_time || '-' }}</td>
+                  <td class="youzi-cell">
+                    <span v-for="y in (p.youzi || [])" :key="y" class="youzi-badge" :class="{ lhasa: y.includes('拉萨') }" :data-tooltip="`点击查看该游资动向`" @click.stop="goSeat(y)">{{ y }}</span>
+                    <span v-if="!(p.youzi || []).length" class="seat-no">—</span>
+                  </td>
+                </tr>
+                <PoolExpandRow v-if="expandedCode === p.code" :code="p.code" :name="p.name" :colspan="poolColspan" />
+              </template>
               <tr v-if="!poolSort.sorted.length"><td :colspan="poolColspan" class="empty">暂无数据</td></tr>
             </tbody>
           </table>
@@ -135,21 +142,24 @@
               <th class="sortable" :class="{ sorted: sort.sortKey === 'last_time' }" @click="sort.toggleSort('last_time')">最后封板</th>
             </tr></thead>
             <tbody>
-              <tr v-for="p in sort.sorted" :key="p.code" @click="openFromRank(p)">
-                <td class="stock-name down">
-                  <MiniTrend :code="p.code" :name="p.name">
-                    <span class="name-cell"><BoardBadges :row="p" />{{ p.name }}<LeaderBadge :code="p.code" /></span>
-                  </MiniTrend>
-                </td>
-                <td>{{ p.code }}</td>
-                <td>{{ fmtPrice(p.price) }}</td>
-                <td class="down">{{ fmtPct(p.change_pct) }}</td>
-                <td><span class="rank-industry" @click.stop="gotoIndustry(p.industry)">{{ p.industry || '-' }}</span></td>
-                <td>{{ fmtAmount(p.amount) }}</td>
-                <td>{{ fmtPct(p.turnover) }}</td>
-                <td>{{ p.first_time || '-' }}</td>
-                <td>{{ p.last_time || '-' }}</td>
-              </tr>
+              <template v-for="p in sort.sorted" :key="p.code">
+                <tr :class="{ 'row-expanded': expandedCode === p.code }" @click="toggleExpand(p.code)" @dblclick.stop="openFromRank(p)">
+                  <td class="stock-name down">
+                    <MiniTrend :code="p.code" :name="p.name">
+                      <span class="name-cell"><BoardBadges :row="p" />{{ p.name }}<LeaderBadge :code="p.code" /></span>
+                    </MiniTrend>
+                  </td>
+                  <td>{{ p.code }}</td>
+                  <td>{{ fmtPrice(p.price) }}</td>
+                  <td class="down">{{ fmtPct(p.change_pct) }}</td>
+                  <td><span class="rank-industry" @click.stop="gotoIndustry(p.industry)">{{ p.industry || '-' }}</span></td>
+                  <td>{{ fmtAmount(p.amount) }}</td>
+                  <td>{{ fmtPct(p.turnover) }}</td>
+                  <td>{{ p.first_time || '-' }}</td>
+                  <td>{{ p.last_time || '-' }}</td>
+                </tr>
+                <PoolExpandRow v-if="expandedCode === p.code" :code="p.code" :name="p.name" :colspan="9" />
+              </template>
               <tr v-if="!sort.sorted.length"><td colspan="9" class="empty">今日无跌停</td></tr>
             </tbody>
           </table>
@@ -245,7 +255,7 @@
 
 <script setup>
 // @author ygw
-import { ref, computed, watch } from 'vue'
+import { ref, computed, watch, reactive } from 'vue'
 import { api } from '../api.js'
 import { fmtAmount, fmtPrice, fmtPct, pctClass } from '../utils.js'
 import { navigate } from '../router.js'
@@ -260,6 +270,7 @@ import UiIcon from '../components/ui/UiIcon.vue'
 import StockTable from '../components/StockTable.vue'
 import MiniTrend from '../components/MiniTrend.vue'
 import BoardBadges from '../components/BoardBadges.vue'
+import PoolExpandRow from '../components/PoolExpandRow.vue'
 
 const dateTabs = ['zt', 'qs', 'zb', 'dt', 'lhb']
 const poolTabs = ['zt', 'qs', 'zb']
@@ -371,6 +382,20 @@ const lhbDate = ref('')
 const rankDateInput = ref('')
 const todayStr = new Date().toISOString().slice(0, 10)
 const error = ref('')
+const loading = ref(false)
+// 各 Tab 已加载数据缓存：切回时秒开，避免重新请求白屏
+const tabCache = reactive({})
+
+function cacheCurrentTab() {
+  tabCache[tab.value] = { rows: rows.value, etfTotal: etfTotal.value, lhbDate: lhbDate.value }
+}
+
+function restoreTabCache(t) {
+  const c = tabCache[t]
+  rows.value = c ? c.rows : []
+  etfTotal.value = c ? c.etfTotal : 0
+  lhbDate.value = c ? c.lhbDate : ''
+}
 
 const tradingDates = computed(() => {
   const out = []
@@ -397,9 +422,7 @@ function onRankDateClear() {
 watch(() => props.tab, (n) => {
   if (n && VALID.includes(n) && n !== tab.value) {
     tab.value = n
-    rows.value = []
-    etfTotal.value = 0
-    lhbDate.value = ''
+    restoreTabCache(n)
     error.value = ''
     load()
   }
@@ -454,6 +477,11 @@ const poolSort = computed(() => tab.value === 'qs' ? qsSort : tab.value === 'zb'
 const poolColspan = computed(() => tab.value === 'zt' ? 11 : tab.value === 'zb' ? 9 : 8)
 const sort = useTableSort(rows, 'rank_dt_pool')
 
+const expandedCode = ref('')
+function toggleExpand(code) {
+  expandedCode.value = expandedCode.value === code ? '' : code
+}
+
 function changeTagClass(typeName) {
   if (!typeName) return ''
   if (['火箭发射', '快速反弹', '大笔买入', '封涨停板', '有大买盘', '竞价上涨', '高开5%', '向上缺口', '尾盘拉升'].includes(typeName)) return 'tag-up'
@@ -467,15 +495,15 @@ function switchTab(t) {
   tab.value = t
   logAction('rank_tab', t)
   navigate('/rank/' + t)
-  rows.value = []
-  etfTotal.value = 0
-  lhbDate.value = ''
+  restoreTabCache(t)
   error.value = ''
+  expandedCode.value = ''
   load()
 }
 
 async function load() {
   const seq = ++loadSeq
+  loading.value = true
   try {
     if (tab.value === 'zhangsu') {
       const r = await api.zhangsu(80)
@@ -525,10 +553,13 @@ async function load() {
       rows.value = r
     }
     if (seq !== loadSeq) return
+    cacheCurrentTab()
     error.value = ''
   } catch (e) {
     if (seq !== loadSeq) return
     error.value = '榜单加载失败：' + e.message
+  } finally {
+    if (seq === loadSeq) loading.value = false
   }
 }
 
@@ -544,6 +575,17 @@ usePolling(load, 3000)
   flex-wrap: wrap;
   gap: 8px;
 }
+.rank-loading {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 24px;
+  color: var(--text-dim);
+  font-size: 13px;
+  justify-content: center;
+}
+.rotating { animation: rank-spin 0.9s linear infinite; }
+@keyframes rank-spin { to { transform: rotate(360deg); } }
 .rank-title-group {
   display: flex;
   align-items: center;
@@ -621,4 +663,9 @@ usePolling(load, 3000)
   display: flex; flex-wrap: wrap; gap: 2px 4px; justify-content: flex-end;
   max-width: 260px; white-space: normal;
 }
+.row-expanded {
+  background: var(--bg-hover) !important;
+  border-bottom-color: transparent;
+}
+.data-table tbody tr { cursor: pointer; }
 </style>

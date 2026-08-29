@@ -717,3 +717,15 @@ def _calc_support_resistance(snap, kline, trend):
         levels[side] = unique[:2]
     return levels
 
+
+@router.get("/stocks/{code}/comment")
+@ttl_cache(ttl=60)
+def stock_comment(code: str):
+    """获取个股综合评分（东财智能诊股），含评分、打败比例、次日上涨概率、文字解读。
+    @author ygw
+    """
+    result = eastmoney.get_client().stock_comment(code)
+    if result is None:
+        return {}
+    return result
+
