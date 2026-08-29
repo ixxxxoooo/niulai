@@ -124,26 +124,41 @@
         <div class="kv"><span class="k">买入</span><span class="v up">{{ fmtAmount(lhb.buy, 2) }}</span></div>
         <div class="kv"><span class="k">卖出</span><span class="v down">{{ fmtAmount(lhb.sell, 2) }}</span></div>
       </div>
-      <div class="ob-tabs mb12">
-        <button class="ob-tab" :class="{ on: lhbSide === 'buy' }" @click="setLhbSide('buy')">买入席位</button>
-        <button class="ob-tab" :class="{ on: lhbSide === 'sell' }" @click="setLhbSide('sell')">卖出席位</button>
-      </div>
-      <div>
-        <div class="ob-title">{{ lhbSide === 'buy' ? '买入席位' : '卖出席位' }}{{ lhbSeats.length > 5 ? '（多榜单合并，去重 ' + lhbSeats.length + ' 家）' : '' }}</div>
-        <table class="data-table">
-          <thead><tr><th>席位</th><th>类型</th><th>买入</th><th>卖出</th><th>净额</th></tr></thead>
-          <tbody>
-            <tr v-for="(s, i) in lhbSeats" :key="lhbSide + i" style="cursor:default">
-              <td class="analyse-td seat-name-cell">
-                {{ s.name }}
-              </td>
-              <td><span v-if="!s.nickname" :class="['seat-badge', 'seat-' + (s.type || 'broker')]">{{ s.label || '营业部' }}</span><span v-if="s.nickname" class="youzi-badge" :data-tip="youziTip(s)" @click.stop="goSeat(s.nickname)">{{ s.nickname }}</span></td>
-              <td class="up">{{ fmtAmount(s.buy, 2) }}</td>
-              <td class="down">{{ fmtAmount(s.sell, 2) }}</td>
-              <td :class="pctClass(s.net)">{{ fmtAmount(s.net, 2) }}</td>
-            </tr>
-          </tbody>
-        </table>
+      <div class="grid-2">
+        <div>
+          <div class="ob-title">买入席位{{ lhb.buy_seats && lhb.buy_seats.length > 5 ? '（多榜单合并，去重 ' + lhb.buy_seats.length + ' 家）' : '' }}</div>
+          <table class="data-table">
+            <thead><tr><th>席位</th><th>类型</th><th>买入</th><th>卖出</th><th>净额</th></tr></thead>
+            <tbody>
+              <tr v-for="(s, i) in (lhb.buy_seats || [])" :key="'b'+i" style="cursor:default">
+                <td class="analyse-td seat-name-cell">
+                  {{ s.name }}
+                </td>
+                <td><span v-if="!s.nickname" :class="['seat-badge', 'seat-' + (s.type || 'broker')]">{{ s.label || '营业部' }}</span><span v-if="s.nickname" class="youzi-badge" :data-tip="youziTip(s)" @click.stop="goSeat(s.nickname)">{{ s.nickname }}</span></td>
+                <td class="up">{{ fmtAmount(s.buy, 2) }}</td>
+                <td class="down">{{ fmtAmount(s.sell, 2) }}</td>
+                <td :class="pctClass(s.net)">{{ fmtAmount(s.net, 2) }}</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+        <div>
+          <div class="ob-title">卖出席位{{ lhb.sell_seats && lhb.sell_seats.length > 5 ? '（多榜单合并，去重 ' + lhb.sell_seats.length + ' 家）' : '' }}</div>
+          <table class="data-table">
+            <thead><tr><th>席位</th><th>类型</th><th>买入</th><th>卖出</th><th>净额</th></tr></thead>
+            <tbody>
+              <tr v-for="(s, i) in (lhb.sell_seats || [])" :key="'s'+i" style="cursor:default">
+                <td class="analyse-td seat-name-cell">
+                  {{ s.name }}
+                </td>
+                <td><span v-if="!s.nickname" :class="['seat-badge', 'seat-' + (s.type || 'broker')]">{{ s.label || '营业部' }}</span><span v-if="s.nickname" class="youzi-badge" :data-tip="youziTip(s)" @click.stop="goSeat(s.nickname)">{{ s.nickname }}</span></td>
+                <td class="up">{{ fmtAmount(s.buy, 2) }}</td>
+                <td class="down">{{ fmtAmount(s.sell, 2) }}</td>
+                <td :class="pctClass(s.net)">{{ fmtAmount(s.net, 2) }}</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
       </div>
       <details v-if="lhb.history && lhb.history.length > 1" class="lhb-history">
         <summary style="font-size:12px;color:var(--text-dim);cursor:pointer;margin-top:10px">历史上榜（{{ lhb.history.length }}）</summary>
@@ -205,8 +220,6 @@ const flow = ref([])
 const klineDay = ref(null)
 const dayPoints = ref([])
 const lhb = ref(null)
-const lhbSide = ref('buy')
-let lhbSideTouched = false
 const error = ref('')
 const isWatched = ref(false)
 const showAlert = ref(false)
@@ -232,17 +245,6 @@ function youziTip(s) {
 
 function goSeat(nickname) {
   navigate('/seats?nick=' + encodeURIComponent(nickname))
-}
-
-// 龙虎榜当前方向的席位列表（买入/卖出仅展示其一）
-const lhbSeats = computed(() => {
-  if (!lhb.value) return []
-  return lhbSide.value === 'buy' ? (lhb.value.buy_seats || []) : (lhb.value.sell_seats || [])
-})
-
-function setLhbSide(side) {
-  lhbSideTouched = true
-  lhbSide.value = side
 }
 const quoteSource = ref('')
 const flowSource = ref('')
@@ -586,7 +588,6 @@ async function loadSlow() {
     }
     if (lb && lb.latest) {
       lhb.value = { ...lb.latest, appear_count: lb.appear_count, appear_dates: lb.appear_dates, history: lb.history }
-      if (!lhbSideTouched) lhbSide.value = ((lb.latest.net ?? 0) >= 0) ? 'buy' : 'sell'
     } else if (lb && lb.date) {
       lhb.value = lb
     } else {
@@ -662,13 +663,6 @@ onUnmounted(() => {
 /* 龙虎榜席位增强 */
 .lhb-freq { display: inline-block; font-size: 12px; background: var(--accent); color: #fff; padding: 1px 8px; border-radius: 10px; margin: 0 8px; font-weight: 500; }
 .lhb-kv-grid { grid-template-columns: repeat(3, 1fr); }
-.ob-tabs { display: inline-flex; gap: 4px; }
-.ob-tab {
-  border: 1px solid var(--border); background: var(--kv-bg); color: var(--text-dim);
-  font-size: 12px; padding: 3px 14px; border-radius: var(--radius-sm); cursor: pointer;
-  transition: all .15s;
-}
-.ob-tab.on { background: var(--accent-bg); color: var(--accent); border-color: var(--accent); font-weight: 600; }
 .seat-badge { display: inline-block; font-size: 11px; padding: 1px 6px; border-radius: 4px; white-space: nowrap; }
 .seat-legend { background: #f59e0b; color: #fff; }
 .seat-new_gen { background: #3b82f6; color: #fff; }
