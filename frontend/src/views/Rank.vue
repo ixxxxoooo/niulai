@@ -175,18 +175,21 @@
           <table class="data-table">
             <thead><tr><th>排名</th><th>名称</th><th>代码</th><th>涨跌幅</th><th>热度</th><th>解读</th></tr></thead>
             <tbody>
-              <tr v-for="p in thsRows" :key="p.code" @click="openFromRank(p)">
-                <td>{{ p.rank }}</td>
-                <td class="stock-name" :class="pctClass(p.change_pct)">
-                  <MiniTrend :code="p.code" :name="p.name">
-                    <span class="name-cell"><BoardBadges :row="p" />{{ p.name }}<LeaderBadge :code="p.code" /></span>
-                  </MiniTrend>
-                </td>
-                <td>{{ p.code }}</td>
-                <td :class="pctClass(p.change_pct)">{{ fmtPct(p.change_pct) }}</td>
-                <td>{{ p.heat != null ? Number(p.heat).toFixed(0) : '-' }}</td>
-                <td class="analyse">{{ p.analyse || '-' }}</td>
-              </tr>
+              <template v-for="p in thsRows" :key="p.code">
+                <tr :class="{ 'row-expanded': expandedCode === p.code }" @click="toggleExpand(p.code)" @dblclick.stop="openFromRank(p)">
+                  <td>{{ p.rank }}</td>
+                  <td class="stock-name" :class="pctClass(p.change_pct)">
+                    <MiniTrend :code="p.code" :name="p.name">
+                      <span class="name-cell"><BoardBadges :row="p" />{{ p.name }}<LeaderBadge :code="p.code" /></span>
+                    </MiniTrend>
+                  </td>
+                  <td>{{ p.code }}</td>
+                  <td :class="pctClass(p.change_pct)">{{ fmtPct(p.change_pct) }}</td>
+                  <td>{{ p.heat != null ? Number(p.heat).toFixed(0) : '-' }}</td>
+                  <td class="analyse">{{ p.analyse || '-' }}</td>
+                </tr>
+                <PoolExpandRow v-if="expandedCode === p.code" :code="p.code" :name="p.name" :colspan="6" />
+              </template>
               <tr v-if="!thsRows.length"><td colspan="6" class="empty">暂无数据</td></tr>
             </tbody>
           </table>
@@ -198,16 +201,19 @@
           <table class="data-table">
             <thead><tr><th>时间</th><th>名称</th><th>代码</th><th>异动类型</th><th>涨跌幅</th><th>现价</th></tr></thead>
             <tbody>
-              <tr v-for="(p, i) in changesRows" :key="i" @click="openFromRank(p)">
-                <td>{{ p.time }}</td>
-                <td class="stock-name" :class="pctClass(p.change_pct)">
-                  <span class="name-cell"><BoardBadges :row="p" />{{ p.name }}<LeaderBadge :code="p.code" /></span>
-                </td>
-                <td>{{ p.code }}</td>
-                <td><span :class="['change-tag', changeTagClass(p.type_name)]">{{ p.type_name }}</span></td>
-                <td :class="pctClass(p.change_pct)">{{ p.change_pct != null ? fmtPct(p.change_pct) : '-' }}</td>
-                <td>{{ p.price || '-' }}</td>
-              </tr>
+              <template v-for="(p, i) in changesRows" :key="p.code ? p.code + '_' + i : i">
+                <tr :class="{ 'row-expanded': p.code && expandedCode === p.code }" @click="p.code && toggleExpand(p.code)" @dblclick.stop="openFromRank(p)">
+                  <td>{{ p.time }}</td>
+                  <td class="stock-name" :class="pctClass(p.change_pct)">
+                    <span class="name-cell"><BoardBadges :row="p" />{{ p.name }}<LeaderBadge :code="p.code" /></span>
+                  </td>
+                  <td>{{ p.code }}</td>
+                  <td><span :class="['change-tag', changeTagClass(p.type_name)]">{{ p.type_name }}</span></td>
+                  <td :class="pctClass(p.change_pct)">{{ p.change_pct != null ? fmtPct(p.change_pct) : '-' }}</td>
+                  <td>{{ p.price || '-' }}</td>
+                </tr>
+                <PoolExpandRow v-if="p.code && expandedCode === p.code" :code="p.code" :name="p.name" :colspan="6" />
+              </template>
               <tr v-if="!changesRows.length"><td colspan="6" class="empty">暂无异动数据（非交易时段无数据）</td></tr>
             </tbody>
           </table>
@@ -226,24 +232,27 @@
               <th data-tooltip="当日该股上榜席位中命中的知名游资（如章盟主）。红色徽章=拉萨天团，属反向指标需谨慎。">游资</th>
             </tr></thead>
             <tbody>
-              <tr v-for="p in lhbRows" :key="p.code" @click="openFromRank(p)">
-                <td class="stock-name" :class="pctClass(p.change_pct)">
-                  <MiniTrend :code="p.code" :name="p.name">
-                    <span class="name-cell"><BoardBadges :row="p" />{{ p.name }}<LeaderBadge :code="p.code" /></span>
-                  </MiniTrend>
-                </td>
-                <td>{{ p.code }}</td>
-                <td>{{ fmtPrice(p.price) }}</td>
-                <td :class="pctClass(p.change_pct)">{{ fmtPct(p.change_pct) }}</td>
-                <td :class="pctClass(p.net)">{{ fmtAmount(p.net) }}</td>
-                <td class="up">{{ fmtAmount(p.buy) }}</td>
-                <td class="down">{{ fmtAmount(p.sell) }}</td>
-                <td class="analyse">{{ p.reason || '-' }}</td>
-                <td>
-                  <span v-for="y in (p.youzi || [])" :key="y.nickname" class="youzi-badge" :class="{ lhasa: y.nickname.includes('拉萨') }" :data-tooltip="youziTip(y)" @click.stop="goSeat(y.nickname)">{{ y.nickname }}</span>
-                  <span v-if="!(p.youzi || []).length" class="seat-no">—</span>
-                </td>
-              </tr>
+              <template v-for="p in lhbRows" :key="p.code">
+                <tr :class="{ 'row-expanded': expandedCode === p.code }" @click="toggleExpand(p.code)" @dblclick.stop="openFromRank(p)">
+                  <td class="stock-name" :class="pctClass(p.change_pct)">
+                    <MiniTrend :code="p.code" :name="p.name">
+                      <span class="name-cell"><BoardBadges :row="p" />{{ p.name }}<LeaderBadge :code="p.code" /></span>
+                    </MiniTrend>
+                  </td>
+                  <td>{{ p.code }}</td>
+                  <td>{{ fmtPrice(p.price) }}</td>
+                  <td :class="pctClass(p.change_pct)">{{ fmtPct(p.change_pct) }}</td>
+                  <td :class="pctClass(p.net)">{{ fmtAmount(p.net) }}</td>
+                  <td class="up">{{ fmtAmount(p.buy) }}</td>
+                  <td class="down">{{ fmtAmount(p.sell) }}</td>
+                  <td class="analyse">{{ p.reason || '-' }}</td>
+                  <td>
+                    <span v-for="y in (p.youzi || [])" :key="y.nickname" class="youzi-badge" :class="{ lhasa: y.nickname.includes('拉萨') }" :data-tooltip="youziTip(y)" @click.stop="goSeat(y.nickname)">{{ y.nickname }}</span>
+                    <span v-if="!(p.youzi || []).length" class="seat-no">—</span>
+                  </td>
+                </tr>
+                <PoolExpandRow v-if="expandedCode === p.code" :code="p.code" :name="p.name" :colspan="9" />
+              </template>
               <tr v-if="!lhbRows.length"><td colspan="9" class="empty">暂无龙虎榜数据</td></tr>
             </tbody>
           </table>

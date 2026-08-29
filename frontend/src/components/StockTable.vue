@@ -20,28 +20,40 @@
         </tr>
       </thead>
       <tbody>
-        <tr v-for="row in sortedRows" :key="row.code || row.name" @click="$emit('row-click', row)">
-          <td>
-            <MiniTrend :code="row.code" :name="row.name">
-              <span class="name-cell">
-                <BoardBadges :row="row" />
-                <span class="stock-name" :class="pctClass(row.change_pct)">{{ row.name || '-' }}</span>
-                <LeaderBadge :code="row.code" />
-              </span>
-            </MiniTrend>
-          </td>
-          <td v-for="c in columns.slice(1)" :key="c.key" :class="cellClass(row, c)">
-            <template v-if="c.key === 'volume_ratio'">
-              {{ fmtCell(row, c) }}
-              <span v-if="row.volume_ratio != null && row.volume_ratio > 1.5" class="vol-tag up">放量</span>
-              <span v-else-if="row.volume_ratio != null && row.volume_ratio < 0.8" class="vol-tag down">缩量</span>
-            </template>
-            <template v-else-if="c.key === 'industry'">
-              <span class="industry-link" :class="pctClass(row.change_pct)" @click.stop="gotoIndustry(row)">{{ row.industry || '-' }}</span>
-            </template>
-            <template v-else>{{ fmtCell(row, c) }}</template>
-          </td>
-        </tr>
+        <template v-for="row in sortedRows" :key="row.code || row.name">
+          <tr
+            :class="{ 'row-expanded': expandable && expandedCode === row.code }"
+            @click="handleRowClick(row)"
+            @dblclick.stop="$emit('row-click', row)"
+          >
+            <td>
+              <MiniTrend :code="row.code" :name="row.name">
+                <span class="name-cell">
+                  <BoardBadges :row="row" />
+                  <span class="stock-name" :class="pctClass(row.change_pct)">{{ row.name || '-' }}</span>
+                  <LeaderBadge :code="row.code" />
+                </span>
+              </MiniTrend>
+            </td>
+            <td v-for="c in columns.slice(1)" :key="c.key" :class="cellClass(row, c)">
+              <template v-if="c.key === 'volume_ratio'">
+                {{ fmtCell(row, c) }}
+                <span v-if="row.volume_ratio != null && row.volume_ratio > 1.5" class="vol-tag up">放量</span>
+                <span v-else-if="row.volume_ratio != null && row.volume_ratio < 0.8" class="vol-tag down">缩量</span>
+              </template>
+              <template v-else-if="c.key === 'industry'">
+                <span class="industry-link" :class="pctClass(row.change_pct)" @click.stop="gotoIndustry(row)">{{ row.industry || '-' }}</span>
+              </template>
+              <template v-else>{{ fmtCell(row, c) }}</template>
+            </td>
+          </tr>
+          <PoolExpandRow
+            v-if="expandable && row.code && expandedCode === row.code"
+            :code="row.code"
+            :name="row.name"
+            :colspan="columns.length"
+          />
+        </template>
         <tr v-if="!sortedRows.length">
           <td :colspan="columns.length" class="empty">暂无数据</td>
         </tr>
@@ -60,6 +72,7 @@ import { navigate } from '../router.js'
 import { api } from '../api.js'
 import MiniTrend from './MiniTrend.vue'
 import BoardBadges from './BoardBadges.vue'
+import PoolExpandRow from './PoolExpandRow.vue'
 
 async function gotoIndustry(row) {
   const name = row.industry
@@ -77,8 +90,19 @@ const props = defineProps({
   columns: { type: Array, default: () => [] },
   noFilter: { type: Boolean, default: false },
   storageKey: { type: String, default: '' },
+  expandable: { type: Boolean, default: true },
 })
-defineEmits(['row-click'])
+const emit = defineEmits(['row-click'])
+
+const expandedCode = ref('')
+
+function handleRowClick(row) {
+  if (props.expandable && row && row.code) {
+    expandedCode.value = expandedCode.value === row.code ? '' : row.code
+  } else {
+    emit('row-click', row)
+  }
+}
 
 function getAutoStorageKey() {
   if (props.storageKey) return props.storageKey
@@ -184,4 +208,9 @@ th.sorted { color: var(--accent); }
   color: var(--accent);
 }
 .industry-link:hover { filter: brightness(1.15); }
+.data-table tbody tr { cursor: pointer; }
+.row-expanded {
+  background: var(--bg-hover) !important;
+  border-bottom-color: transparent;
+}
 </style>
