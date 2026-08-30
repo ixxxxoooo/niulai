@@ -1,5 +1,6 @@
 <template>
   <div>
+    <ToolNavTabs current-tab="alerts" />
     <div class="page-title">
       价格监控
       <span class="page-sub">跌到/涨到指定价格、点数、涨跌幅或涨速时，通过浏览器桌面通知提醒</span>
@@ -149,6 +150,7 @@ import { openStock } from '../composables/useStockMeta.js'
 import { requestNotifyPermission } from '../composables/useAlertNotify.js'
 import { showConfirm } from '../composables/useConfirm.js'
 import SearchSuggest from '../components/SearchSuggest.vue'
+import ToolNavTabs from '../components/ToolNavTabs.vue'
 
 const rows = ref([])
 const error = ref('')

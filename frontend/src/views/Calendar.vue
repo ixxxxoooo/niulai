@@ -1,5 +1,6 @@
 <template>
   <div class="calendar-page">
+    <ToolNavTabs current-tab="calendar" />
     <div class="page-title-row">
       <div>
         <div class="page-title">交易与财经日历</div>
@@ -244,6 +245,7 @@ import { captureElement } from '../composables/useScreenshot.js'
 import { usePageTab } from '../composables/usePageTab.js'
 import { openStock } from '../composables/useStockMeta.js'
 import RiskModal from '../components/RiskModal.vue'
+import ToolNavTabs from '../components/ToolNavTabs.vue'
 
 const loading = ref(false)
 const error = ref('')

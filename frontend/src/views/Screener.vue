@@ -1,5 +1,6 @@
 <template>
   <div class="page screener-page">
+    <ToolNavTabs current-tab="screener" />
     <!-- 顶部标题栏与数据底座紧凑条 -->
     <div class="header-section">
       <div class="title-wrap">
@@ -441,6 +442,7 @@ import { showConfirm } from '../composables/useConfirm.js'
 import { fmtPrice, fmtPct, fmtNum, fmtAmount, pctClass } from '../utils.js'
 import UiIcon from '../components/ui/UiIcon.vue'
 import StockQuickModal from '../components/StockQuickModal.vue'
+import ToolNavTabs from '../components/ToolNavTabs.vue'
 
 const STORAGE_KEY = 'niulai_screener_state_v1'
 

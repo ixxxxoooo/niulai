@@ -1,6 +1,6 @@
 <template>
   <div class="app-shell" :class="[navMode === 'side' ? 'nav-side' : 'nav-top', { 'sidebar-collapsed': sideCollapsed }]">
-    <div v-if="sectorMenu || marketMenu" class="nav-overlay" @click="sectorMenu = false; marketMenu = false"></div>
+    <div v-if="sectorMenu || marketMenu || toolMenu" class="nav-overlay" @click="sectorMenu = false; marketMenu = false; toolMenu = false"></div>
 
     <!-- ========== 顶部导航栏（仅 top 模式） ========== -->
     <div v-if="navMode === 'top'" class="topbar">
@@ -8,7 +8,7 @@
         <img class="brand-logo" src="/niulai.png" alt="牛来" />
       </div>
       <nav class="nav">
-        <span class="nav-drop" @click.stop="marketMenu = !marketMenu; sectorMenu = false">
+        <span class="nav-drop" @click.stop="marketMenu = !marketMenu; sectorMenu = false; toolMenu = false">
           <a class="nav-drop-btn" :class="{ active: ['overview', 'global', 'heatmap'].includes(route.name) }">
             大盘 <span class="caret">▾</span>
           </a>
@@ -18,7 +18,7 @@
             <a :class="{ active: route.name === 'heatmap' }" @click="go('/heatmap'); marketMenu = false">大盘云图</a>
           </div>
         </span>
-        <span class="nav-drop" @click.stop="sectorMenu = !sectorMenu; marketMenu = false">
+        <span class="nav-drop" @click.stop="sectorMenu = !sectorMenu; marketMenu = false; toolMenu = false">
           <a class="nav-drop-btn" :class="{ active: route.name === 'sectors' }">板块 <span class="caret">▾</span></a>
           <div v-if="sectorMenu" class="submenu" @click.stop>
             <a :class="{ active: route.name === 'sectors' && !route.flow && !route.strength }" @click="go('/sectors'); sectorMenu = false">板块分析</a>
@@ -29,11 +29,18 @@
         <a :class="{ active: route.name === 'rank' }" @click="go('/rank')">榜单</a>
         <a :class="{ active: route.name === 'ladder' }" @click="go('/ladder')">连板梯队</a>
         <a :class="{ active: route.name === 'watchlist' }" @click="go('/watchlist')">自选股</a>
-        <a :class="{ active: route.name === 'alerts' }" @click="go('/alerts')">监控</a>
         <a :class="{ active: route.name === 'telegraph' }" @click="go('/telegraph')">电报</a>
         <a :class="{ active: route.name === 'seats' }" @click="go('/seats')">游资</a>
-        <a :class="{ active: route.name === 'screener' }" @click="go('/screener')">选股</a>
-        <a :class="{ active: route.name === 'calendar' }" @click="go('/calendar')">日历</a>
+        <span class="nav-drop" @click.stop="toolMenu = !toolMenu; marketMenu = false; sectorMenu = false">
+          <a class="nav-drop-btn" :class="{ active: ['screener', 'alerts', 'calendar'].includes(route.name) }">
+            工具 <span class="caret">▾</span>
+          </a>
+          <div v-if="toolMenu" class="submenu" @click.stop>
+            <a :class="{ active: route.name === 'screener' }" @click="go('/screener'); toolMenu = false">条件选股</a>
+            <a :class="{ active: route.name === 'alerts' }" @click="go('/alerts'); toolMenu = false">盯盘监控</a>
+            <a :class="{ active: route.name === 'calendar' }" @click="go('/calendar'); toolMenu = false">事件日历</a>
+          </div>
+        </span>
       </nav>
 
       <div class="topbar-right">
@@ -101,11 +108,12 @@
         <a :class="{ active: route.name === 'rank' }" @click="go('/rank')">榜单</a>
         <a :class="{ active: route.name === 'ladder' }" @click="go('/ladder')">连板梯队</a>
         <a :class="{ active: route.name === 'watchlist' }" @click="go('/watchlist')">自选股</a>
-        <a :class="{ active: route.name === 'alerts' }" @click="go('/alerts')">监控</a>
         <a :class="{ active: route.name === 'telegraph' }" @click="go('/telegraph')">电报</a>
         <a :class="{ active: route.name === 'seats' }" @click="go('/seats')">游资</a>
-        <a :class="{ active: route.name === 'screener' }" @click="go('/screener')">选股</a>
-        <a :class="{ active: route.name === 'calendar' }" @click="go('/calendar')">日历</a>
+        <span class="side-group">工具</span>
+        <a class="side-sub" :class="{ active: route.name === 'screener' }" @click="go('/screener')">条件选股</a>
+        <a class="side-sub" :class="{ active: route.name === 'alerts' }" @click="go('/alerts')">盯盘监控</a>
+        <a class="side-sub" :class="{ active: route.name === 'calendar' }" @click="go('/calendar')">事件日历</a>
       </nav>
       <nav class="side-nav side-collapsed-nav" v-else>
         <a :class="{ active: ['overview', 'global', 'heatmap'].includes(route.name) }" @click="go('/')" title="大盘（总览/全球/云图）">盘</a>
@@ -113,11 +121,9 @@
         <a :class="{ active: route.name === 'rank' }" @click="go('/rank')" title="榜单">热</a>
         <a :class="{ active: route.name === 'ladder' }" @click="go('/ladder')" title="连板梯队">连</a>
         <a :class="{ active: route.name === 'watchlist' }" @click="go('/watchlist')" title="自选股">自</a>
-        <a :class="{ active: route.name === 'alerts' }" @click="go('/alerts')" title="监控">监</a>
         <a :class="{ active: route.name === 'telegraph' }" @click="go('/telegraph')" title="实时电报">电</a>
         <a :class="{ active: route.name === 'seats' }" @click="go('/seats')" title="游资">游</a>
-        <a :class="{ active: route.name === 'screener' }" @click="go('/screener')" title="选股">选</a>
-        <a :class="{ active: route.name === 'calendar' }" @click="go('/calendar')" title="日历">历</a>
+        <a :class="{ active: ['screener', 'alerts', 'calendar'].includes(route.name) }" @click="go('/screener')" title="工具（选股/监控/日历）">具</a>
       </nav>
 
       <!-- 侧边栏底部：设置 + 时间 -->
@@ -209,6 +215,7 @@ import { startTelegraphWatcher, stopTelegraphWatcher } from './composables/useTe
 const route = ref(parseHash())
 const sectorMenu = ref(false)
 const marketMenu = ref(false)
+const toolMenu = ref(false)
 const now = ref('')
 const session = ref('')
 const isLight = ref(false)
@@ -246,6 +253,7 @@ function onHash() {
   viewComp.value = views[route.value.name] || Overview
   sectorMenu.value = false
   marketMenu.value = false
+  toolMenu.value = false
   logAction('page_view', route.value.name, location.hash || '#/')
 }
 function go(p) { navigate(p) }
