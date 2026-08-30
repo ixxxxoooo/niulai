@@ -63,7 +63,7 @@ export function subPanel(ind, tc, subInd, showCross = true) {
 
 export function tripleAxis(times, tc, priceRange = null, withSub = true) {
   const y0 = {
-    type: 'value', gridIndex: 0, scale: true,
+    type: 'value', gridIndex: 0, position: 'left', scale: true,
     splitLine: { lineStyle: { color: tc.split } },
     axisLabel: { color: tc.axis, fontSize: 11 },
   }

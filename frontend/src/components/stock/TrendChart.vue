@@ -1,5 +1,5 @@
 <template>
-  <div ref="el" style="width: 100%; height: 500px"></div>
+  <div ref="el" style="width: 100%" :style="{ height }"></div>
 </template>
 
 <script setup>
@@ -23,6 +23,7 @@ const props = defineProps({
   showBuySell: { type: Boolean, default: true },
   srOptions: { type: Array, default: () => [] },
   selectedSet: { type: Object, default: () => new Set() },
+  height: { type: String, default: '500px' },
 })
 
 const el = ref(null)

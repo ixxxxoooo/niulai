@@ -83,6 +83,7 @@
           <div class="tab" @click="zoomKline(1)" title="显示更多历史K线 (视野变宽)">拉长K线</div>
           <div class="tab" @click="zoomKline(-1)" title="聚焦近期K线 (蜡烛变粗)">缩短K线</div>
         </div>
+        <button class="btn-screenshot" @click="screenshotChart" title="截图到剪贴板"><UiIcon name="screenshot" :size="14" /></button>
       </div>
       <div ref="chartEl" style="width: 100%; height: 500px"></div>
     </div>
@@ -110,6 +111,8 @@ import { navigate } from '../router.js'
 import { usePolling } from '../composables/usePolling.js'
 import { getCachedKline } from '../composables/useKlineCache.js'
 import { ensureIndicators, trendIndicators } from '../chartIndicators.js'
+import { showToast } from '../composables/useToast.js'
+import { applyWatermark } from '../composables/useScreenshot.js'
 import BackButton from '../components/BackButton.vue'
 import AlertQuickModal from '../components/AlertQuickModal.vue'
 
@@ -289,7 +292,7 @@ function zoomKline(dir) {
 }
 
 function setSub(t) {
-  subInd.value = t
+  subInd.value = subInd.value === t ? '' : t
   if (period.value === 'trend') renderTrend()
   else renderKline(period.value)
 }
@@ -312,6 +315,40 @@ function subSeries(ind, tc) {
     { name: 'DEA', type: 'line', data: macd.dea, showSymbol: false, lineStyle: { width: 1, color: '#f5a623' } },
     { name: 'MACD', type: 'bar', barWidth: '55%', data: (macd.hist || []).map(v => ({ value: v, itemStyle: { color: (v || 0) >= 0 ? tc.up + '99' : tc.down + '99' } })) },
   ]
+}
+
+async function screenshotChart() {
+  if (!chart) return
+  const bg = getComputedStyle(document.body).getPropertyValue('--bg-card').trim() || '#1a1b26'
+  const url = chart.getDataURL({ type: 'png', pixelRatio: 2, backgroundColor: bg })
+  const ok = await captureToClipboard(url, `${displayName.value}_${chartTitle.value}.png`)
+  showToast(ok ? '截图成功，已复制到剪贴板' : '截图失败', ok ? 'success' : 'error')
+}
+
+async function captureToClipboard(dataUrl, filename) {
+  try {
+    const img = new Image()
+    await new Promise((res, rej) => { img.onload = res; img.onerror = rej; img.src = dataUrl })
+    const canvas = document.createElement('canvas')
+    canvas.width = img.naturalWidth
+    canvas.height = img.naturalHeight
+    const ctx = canvas.getContext('2d')
+    ctx.drawImage(img, 0, 0)
+    await applyWatermark(canvas, { right: 18, bottom: 16, heightRatio: 0.05 })
+    dataUrl = canvas.toDataURL('image/png')
+  } catch (e) { /* 水印失败仍用原图 */ }
+  try {
+    const resp = await fetch(dataUrl)
+    const blob = await resp.blob()
+    await navigator.clipboard.write([new ClipboardItem({ 'image/png': blob })])
+    return true
+  } catch (e) {
+    const a = document.createElement('a')
+    a.href = dataUrl
+    a.download = filename
+    a.click()
+    return true
+  }
 }
 
 /**
@@ -345,48 +382,92 @@ function renderTrend() {
   if (!chart || !trend.value || !trend.value.points || !trend.value.points.length) return
   const tc = themeColors()
   const t = trend.value
-  const isGlobal = secid.value.startsWith('100.') || secid.value.startsWith('124.')
-  const fullTimes = isGlobal ? t.points.map(p => p.time) : buildFullTrendTimes()
+  const fullTimes = buildFullTrendTimes()
   const byTime = new Map()
   for (const p of t.points) byTime.set(p.time, p)
   const times = fullTimes
-  const prices = isGlobal ? t.points.map(p => p.price) : fullTimes.map(tt => { const p = byTime.get(tt); return p ? p.price : null })
-  const avgs = isGlobal ? t.points.map(p => p.avg) : fullTimes.map(tt => { const p = byTime.get(tt); return p ? p.avg : null })
-  const vols = isGlobal ? t.points.map(p => p.volume || 0) : fullTimes.map(tt => { const p = byTime.get(tt); return p ? p.volume || 0 : 0 })
+  const prices = fullTimes.map(tt => { const p = byTime.get(tt); return p ? p.price : null })
+  const avgs = fullTimes.map(tt => { const p = byTime.get(tt); return p ? p.avg : null })
+  const vols = fullTimes.map(tt => { const p = byTime.get(tt); return p ? p.volume : 0 })
   const realPrices = prices.filter(v => v != null)
-  const pre = t.pre_close || realPrices[0]
+  const realAvgs = avgs.filter(v => v != null)
+  const pre = t.pre_close || (realPrices.length ? realPrices[0] : 1)
   const last = realPrices[realPrices.length - 1]
   const color = last >= pre ? tc.up : tc.down
+  const avgOk = realAvgs.length > 0 && Math.abs(realAvgs[0] - pre) / pre < 0.2
   const ind = trendIndicators(t.points)
-  const padTail = (arr) => {
-    if (!arr) return arr
-    const gap = fullTimes.length - arr.length
-    if (gap <= 0) return arr
-    return [...arr, ...new Array(gap).fill(null)]
-  }
-  if (ind.macd) { ind.macd.dif = padTail(ind.macd.dif); ind.macd.dea = padTail(ind.macd.dea); ind.macd.hist = padTail(ind.macd.hist) }
-  if (ind.kdj) { ind.kdj.k = padTail(ind.kdj.k); ind.kdj.d = padTail(ind.kdj.d); ind.kdj.j = padTail(ind.kdj.j) }
-  if (ind.rsi) ind.rsi = padTail(ind.rsi)
-  // 过滤异常均价（海外指数通常无均价，避免压扁 Y 轴）
-  const avgOk = !isGlobal && avgs.every((a, i) => a != null && a > (prices[i] || 0) * 0.5)
-  // 指数无涨跌停：limit 模式自动回退 normal
   const { yMin, yMax, pctMin, pctMax } = calcTrendYRange({
     mode: settingsState.trendYScale || 'normal',
     prices: realPrices,
     preClose: pre,
   })
   const zeroColor = tc.avg || '#8b949e'
-  chart.setOption({
-    animation: false,
-    dataZoom: [{
-      type: 'inside', xAxisIndex: [0, 1, 2], filterMode: 'filter',
-      zoomOnMouseWheel: false, moveOnMouseWheel: false, moveOnMouseMove: false,
-    }],
-    grid: [
+  const hasSub = !!subInd.value
+  const grids = hasSub
+    ? [
       { left: 64, right: 56, top: 26, height: '52%' },
       { left: 64, right: 56, top: '61%', height: '14%' },
       { left: 64, right: 56, top: '78%', height: '17%' },
-    ],
+    ]
+    : [
+      { left: 64, right: 56, top: 26, height: '67%' },
+      { left: 64, right: 56, top: '75%', height: '19%' },
+    ]
+  const xAxes = [
+    { type: 'category', data: times, gridIndex: 0, boundaryGap: false, axisLabel: { color: tc.axis, fontSize: 11 }, axisLine: { lineStyle: { color: tc.split } } },
+    { type: 'category', data: times, gridIndex: 1, boundaryGap: false, axisLabel: { show: false }, axisLine: { lineStyle: { color: tc.split } } },
+  ]
+  const yAxes = [
+    {
+      type: 'value', gridIndex: 0, min: yMin, max: yMax,
+      splitLine: { lineStyle: { color: tc.split } },
+      axisLabel: { color: tc.axis, fontSize: 11, formatter: v => Number(v).toFixed(2) },
+    },
+    { type: 'value', gridIndex: 1, splitLine: { show: false }, axisLabel: { color: tc.axis, fontSize: 10 } },
+    {
+      type: 'value', gridIndex: 0, position: 'right', min: pctMin, max: pctMax,
+      splitLine: { show: false },
+      axisLabel: {
+        color: tc.axis, fontSize: 10,
+        formatter: (v) => (v > 0 ? '+' : '') + Number(v).toFixed(1) + '%',
+      },
+    },
+  ]
+  if (hasSub) {
+    xAxes.push({ type: 'category', data: times, gridIndex: 2, boundaryGap: false, axisLabel: { show: false }, axisLine: { lineStyle: { color: tc.split } } })
+    yAxes.push({ type: 'value', gridIndex: 2, scale: true, splitLine: { lineStyle: { color: tc.split } }, axisLabel: { color: tc.axis, fontSize: 10 } })
+  }
+  const series = [
+    {
+      name: '点位', type: 'line', data: prices, showSymbol: false,
+      lineStyle: { color, width: 1.8 }, itemStyle: { color },
+      markLine: {
+        silent: true, symbol: 'none',
+        data: [{ yAxis: pre, name: '昨收' }],
+        lineStyle: { color: zeroColor, type: 'solid', width: 1.2 },
+        label: { show: false },
+      },
+    },
+    ...(avgOk ? [{ name: '均价', type: 'line', data: avgs, showSymbol: false, lineStyle: { color: '#ffcc00', width: 1.5, type: 'solid' }, itemStyle: { color: '#ffcc00' } }] : []),
+    {
+      name: '成交量', type: 'bar', xAxisIndex: 1, yAxisIndex: 1, barWidth: '60%',
+      data: vols.map((v, i) => ({
+        value: v,
+        itemStyle: { color: prices[i] == null ? 'transparent' : (prices[i] >= pre ? tc.up : tc.down) + '8c' },
+      })),
+    },
+  ]
+  if (hasSub) {
+    series.push(...subSeries(ind, tc).map(s => ({ ...s, xAxisIndex: 2, yAxisIndex: 3 })))
+  }
+
+  chart.setOption({
+    animation: false,
+    dataZoom: [{
+      type: 'inside', xAxisIndex: hasSub ? [0, 1, 2] : [0, 1], filterMode: 'filter',
+      zoomOnMouseWheel: false, moveOnMouseWheel: false, moveOnMouseMove: false,
+    }],
+    grid: grids,
     tooltip: {
       trigger: 'axis', axisPointer: { type: 'cross' },
       formatter: (ps) => {
@@ -408,50 +489,86 @@ function renderTrend() {
       },
     },
     legend: { show: false },
-    xAxis: [
-      { type: 'category', data: times, gridIndex: 0, boundaryGap: false, axisLabel: { color: tc.axis, fontSize: 11 }, axisLine: { lineStyle: { color: tc.split } } },
-      { type: 'category', data: times, gridIndex: 1, boundaryGap: false, axisLabel: { show: false }, axisLine: { lineStyle: { color: tc.split } } },
-      { type: 'category', data: times, gridIndex: 2, boundaryGap: false, axisLabel: { show: false }, axisLine: { lineStyle: { color: tc.split } } },
-    ],
-    yAxis: [
-      {
-        type: 'value', gridIndex: 0, min: yMin, max: yMax,
-        splitLine: { lineStyle: { color: tc.split } },
-        axisLabel: { color: tc.axis, fontSize: 11, formatter: v => Number(v).toFixed(2) },
-      },
-      { type: 'value', gridIndex: 1, splitLine: { show: false }, axisLabel: { color: tc.axis, fontSize: 10 } },
-      { type: 'value', gridIndex: 2, scale: true, splitLine: { lineStyle: { color: tc.split } }, axisLabel: { color: tc.axis, fontSize: 10 } },
-      {
-        type: 'value', gridIndex: 0, position: 'right', min: pctMin, max: pctMax,
-        splitLine: { show: false },
-        axisLabel: {
-          color: tc.axis, fontSize: 10,
-          formatter: (v) => (v > 0 ? '+' : '') + Number(v).toFixed(1) + '%',
-        },
-      },
-    ],
-    series: [
-      {
-        name: '点位', type: 'line', data: prices, showSymbol: false,
-        lineStyle: { color, width: 1.8 }, itemStyle: { color },
-        markLine: {
-          silent: true, symbol: 'none',
-          data: [{ yAxis: pre, name: '昨收' }],
-          lineStyle: { color: zeroColor, type: 'solid', width: 1.2 },
-          label: { show: false },
-        },
-      },
-      ...(avgOk ? [{ name: '均价', type: 'line', data: avgs, showSymbol: false, lineStyle: { color: '#ffcc00', width: 1.5, type: 'solid' }, itemStyle: { color: '#ffcc00' } }] : []),
-      {
-        name: '成交量', type: 'bar', xAxisIndex: 1, yAxisIndex: 1, barWidth: '60%',
-        data: vols.map((v, i) => ({
-          value: v,
-          itemStyle: { color: prices[i] == null ? 'transparent' : (prices[i] >= pre ? tc.up : tc.down) + '8c' },
-        })),
-      },
-      ...subSeries(ind, tc).map(s => ({ ...s, xAxisIndex: 2, yAxisIndex: 2 })),
-    ],
+    xAxis: xAxes,
+    yAxis: yAxes,
+    series,
   }, true)
+}
+
+let currentYAxis = null
+let lastKData = null
+
+/**
+ * 准备 K 线渲染数据（指标 + 均线），同一数据源缓存复用，避免 datazoom 高频重算
+ * @param {object} k K 线数据
+ * @returns {{ ind: object, ma5: Array, ma10: Array, ma20: Array, ma60: Array, volMa5: Array }}
+ */
+function prepareKData(k) {
+  const pts = k.points
+  if (lastKData && lastKData.pts === pts) return lastKData
+  const ind = ensureIndicators(pts, k.indicators)
+  lastKData = {
+    pts,
+    ind,
+    ma5: ind.ma5 || calcMA(pts, 5),
+    ma10: ind.ma10 || calcMA(pts, 10),
+    ma20: ind.ma20 || calcMA(pts, 20),
+    ma60: ind.ma60 || calcMA(pts, 60),
+    volMa5: ind.vol_ma5 || calcMA(pts.map(x => ({ close: x.volume || 0 })), 5),
+  }
+  return lastKData
+}
+
+/**
+ * 当前 dataZoom 可见区间（按百分比映射到数据下标）
+ * @param {number} total
+ * @returns {{ startIdx: number, endIdx: number }}
+ */
+function visibleIndicesK(total) {
+  let s = Math.round((klineZoom.start / 100) * total)
+  let e = Math.round((klineZoom.end / 100) * total)
+  s = Math.max(0, Math.min(total - 1, s))
+  e = Math.max(s + 1, Math.min(total, e))
+  return { startIdx: s, endIdx: e }
+}
+
+/**
+ * 按可见区间计算 Y 轴范围（价格轴 + 右侧百分比轴），实现「随视图动态缩放」
+ * @param {Array} pts K 线点
+ * @param {Array[]} overlays 均线等叠加序列
+ * @returns {object} calcKlineYRange 结果
+ */
+function visibleRangeForK(pts, overlays) {
+  const { startIdx, endIdx } = visibleIndicesK(pts.length)
+  const sl = (arr) => (Array.isArray(arr) ? arr.slice(startIdx, endIdx) : [])
+  return calcKlineYRange({
+    mode: settingsState.klineYScale || 'auto',
+    highs: pts.slice(startIdx, endIdx).map(x => x.high),
+    lows: pts.slice(startIdx, endIdx).map(x => x.low),
+    overlays: overlays.map(sl),
+    base: pts[startIdx]?.close,
+  })
+}
+
+/**
+ * 依据最新 dataZoom 窗口动态更新左右 Y 轴范围
+ */
+function applyVisibleYRange() {
+  if (!chart || !currentYAxis || period.value === 'trend') return
+  const k = klineCache[period.value]
+  if (!k || !k.points || !k.points.length) return
+  const pts = k.points
+  const { ma5, ma10, ma20, ma60 } = prepareKData(k)
+  const range = visibleRangeForK(pts, [ma5, ma10, ma20, ma60])
+  const yAxis = currentYAxis.map(a => ({ ...a }))
+  yAxis[0].min = range.yMin
+  yAxis[0].max = range.yMax
+  yAxis[0].scale = false
+  if (range.pctMin != null) {
+    yAxis[1].min = range.pctMin
+    yAxis[1].max = range.pctMax
+  }
+  chart.setOption({ yAxis }, false)
 }
 
 function renderKline(p) {
@@ -460,28 +577,90 @@ function renderKline(p) {
   if (!k || !k.points || !k.points.length) return
   const tc = themeColors()
   const pts = k.points
-  const ind = ensureIndicators(pts, k.indicators)
+  const { ind, ma5, ma10, ma20, ma60, volMa5 } = prepareKData(k)
   const dates = pts.map(x => x.date)
-  const ma5 = ind.ma5 || calcMA(pts, 5)
-  const ma10 = ind.ma10 || calcMA(pts, 10)
-  const ma20 = ind.ma20 || calcMA(pts, 20)
-  const ma60 = ind.ma60 || calcMA(pts, 60)
   const base = pts[0].close || pts[0].low || 1
-  const priceRange = calcKlineYRange({
-    mode: settingsState.klineYScale || 'auto',
-    highs: pts.map(x => x.high),
-    lows: pts.map(x => x.low),
-    overlays: [ma5, ma10, ma20, ma60],
-    base,
-  })
-
   const vols = pts.map(x => x.volume || 0)
-  const volMa5 = ind.vol_ma5 || calcMA(pts.map(x => ({ close: x.volume || 0 })), 5)
 
-  // 初始视图：日周月默认显示 60 个蜡烛图
+  // 初始视图：日周月默认显示 60 个蜡烛图（须先设置 zoom，可见区间才能对应）
   if (klineZoom.start === 0 && klineZoom.end === 100 && pts.length > 60) {
     klineZoom.start = Math.max(0, 100 - Math.round(60 / pts.length * 100))
     klineZoom.end = 100
+  }
+
+  const priceRange = visibleRangeForK(pts, [ma5, ma10, ma20, ma60])
+
+  const hasSub = !!subInd.value
+  const grids = hasSub
+    ? [
+      { left: 64, right: 56, top: 26, height: '52%' },
+      { left: 64, right: 56, top: '61%', height: '14%' },
+      { left: 64, right: 56, top: '78%', height: '17%' },
+    ]
+    : [
+      { left: 64, right: 56, top: 26, height: '67%' },
+      { left: 64, right: 56, top: '75%', height: '19%' },
+    ]
+  const xAxes = [
+    { type: 'category', data: dates, gridIndex: 0, axisLabel: { color: tc.axis, fontSize: 11 }, axisLine: { lineStyle: { color: tc.split } } },
+    { type: 'category', data: dates, gridIndex: 1, axisLabel: { show: false }, axisLine: { lineStyle: { color: tc.split } } },
+  ]
+  const yAxes = [
+    {
+      type: 'value', gridIndex: 0, position: 'left',
+      min: priceRange.yMin, max: priceRange.yMax,
+      splitLine: { lineStyle: { color: tc.split } },
+      axisLabel: { color: tc.axis, fontSize: 11 },
+      axisLine: { lineStyle: { color: tc.split } },
+    },
+    {
+      type: 'value', gridIndex: 0, position: 'right',
+      min: priceRange.pctMin, max: priceRange.pctMax,
+      splitLine: { show: false },
+      axisLabel: { color: tc.axis, fontSize: 10, formatter: (v) => (v > 0 ? '+' : '') + Number(v).toFixed(1) + '%' },
+      axisLine: { lineStyle: { color: tc.split } },
+    },
+    {
+      type: 'value', gridIndex: 1,
+      splitLine: { show: false },
+      axisLabel: { color: tc.axis, fontSize: 10 },
+    },
+  ]
+  if (hasSub) {
+    xAxes.push({ type: 'category', data: dates, gridIndex: 2, axisLabel: { show: false }, axisLine: { lineStyle: { color: tc.split } } })
+    yAxes.push({
+      type: 'value', gridIndex: 2, scale: true,
+      splitLine: { lineStyle: { color: tc.split } },
+      axisLabel: { color: tc.axis, fontSize: 10 },
+    })
+  }
+  currentYAxis = yAxes
+
+  const series = [
+    {
+      name: 'K线', type: 'candlestick',
+      xAxisIndex: 0, yAxisIndex: 0,
+      data: pts.map(x => [x.open, x.close, x.low, x.high]),
+      itemStyle: { color: tc.up, color0: tc.down, borderColor: tc.up, borderColor0: tc.down },
+    },
+    { name: 'MA5', type: 'line', xAxisIndex: 0, yAxisIndex: 0, data: ma5, showSymbol: false, lineStyle: { width: 1, color: '#f5a623' }, itemStyle: { color: '#f5a623' } },
+    { name: 'MA10', type: 'line', xAxisIndex: 0, yAxisIndex: 0, data: ma10, showSymbol: false, lineStyle: { width: 1, color: '#4c9aff' }, itemStyle: { color: '#4c9aff' } },
+    { name: 'MA20', type: 'line', xAxisIndex: 0, yAxisIndex: 0, data: ma20, showSymbol: false, lineStyle: { width: 1, color: '#f04444' }, itemStyle: { color: '#f04444' } },
+    { name: 'MA60', type: 'line', xAxisIndex: 0, yAxisIndex: 0, data: ma60, showSymbol: false, lineStyle: { width: 1, color: '#2fbf8f' }, itemStyle: { color: '#2fbf8f' } },
+    {
+      name: '成交量', type: 'bar', xAxisIndex: 1, yAxisIndex: 2, barWidth: '60%',
+      data: vols.map((v, i) => ({
+        value: v,
+        itemStyle: { color: pts[i].close >= pts[i].open ? tc.up + '8c' : tc.down + '8c' },
+      })),
+    },
+    {
+      name: 'VOL MA5', type: 'line', data: volMa5, xAxisIndex: 1, yAxisIndex: 2, showSymbol: false,
+      lineStyle: { width: 1, color: '#f5a623', type: 'dashed' }, itemStyle: { color: '#f5a623' },
+    },
+  ]
+  if (hasSub) {
+    series.push(...subSeries(ind, tc).map(s => ({ ...s, xAxisIndex: 2, yAxisIndex: 3 })))
   }
 
   chart.setOption({
@@ -489,18 +668,14 @@ function renderKline(p) {
     dataZoom: [
       {
         type: 'inside',
-        xAxisIndex: [0, 1, 2],
+        xAxisIndex: hasSub ? [0, 1, 2] : [0, 1],
         filterMode: 'filter',
         zoomOnMouseWheel: true,
         start: klineZoom.start,
         end: klineZoom.end,
       },
     ],
-    grid: [
-      { left: 64, right: 56, top: 26, height: '52%' },
-      { left: 64, right: 56, top: '61%', height: '14%' },
-      { left: 64, right: 56, top: '78%', height: '17%' },
-    ],
+    grid: grids,
     tooltip: {
       trigger: 'axis', axisPointer: { type: 'cross' },
       formatter: (ps) => {
@@ -535,61 +710,9 @@ function renderKline(p) {
       },
     },
     legend: { data: ['MA5', 'MA10', 'MA20', 'MA60'], top: 0, right: 0, textStyle: { color: tc.axis, fontSize: 10 }, itemWidth: 12, itemHeight: 6 },
-    xAxis: [
-      { type: 'category', data: dates, gridIndex: 0, axisLabel: { color: tc.axis, fontSize: 11 }, axisLine: { lineStyle: { color: tc.split } } },
-      { type: 'category', data: dates, gridIndex: 1, axisLabel: { show: false }, axisLine: { lineStyle: { color: tc.split } } },
-      { type: 'category', data: dates, gridIndex: 2, axisLabel: { show: false }, axisLine: { lineStyle: { color: tc.split } } },
-    ],
-    yAxis: [
-      {
-        type: 'value', gridIndex: 0,
-        min: priceRange.yMin, max: priceRange.yMax,
-        splitLine: { lineStyle: { color: tc.split } },
-        axisLabel: { color: tc.axis, fontSize: 11 },
-        axisLine: { lineStyle: { color: tc.split } },
-      },
-      {
-        type: 'value', gridIndex: 0, position: 'right',
-        min: priceRange.pctMin, max: priceRange.pctMax,
-        splitLine: { show: false },
-        axisLabel: { color: tc.axis, fontSize: 10, formatter: (v) => (v > 0 ? '+' : '') + Number(v).toFixed(1) + '%' },
-        axisLine: { lineStyle: { color: tc.split } },
-      },
-      {
-        type: 'value', gridIndex: 1,
-        splitLine: { show: false },
-        axisLabel: { color: tc.axis, fontSize: 10 },
-      },
-      {
-        type: 'value', gridIndex: 2, scale: true,
-        splitLine: { lineStyle: { color: tc.split } },
-        axisLabel: { color: tc.axis, fontSize: 10 },
-      },
-    ],
-    series: [
-      {
-        name: 'K线', type: 'candlestick',
-        xAxisIndex: 0, yAxisIndex: 0,
-        data: pts.map(x => [x.open, x.close, x.low, x.high]),
-        itemStyle: { color: tc.up, color0: tc.down, borderColor: tc.up, borderColor0: tc.down },
-      },
-      { name: 'MA5', type: 'line', xAxisIndex: 0, yAxisIndex: 0, data: ma5, showSymbol: false, lineStyle: { width: 1, color: '#f5a623' }, itemStyle: { color: '#f5a623' } },
-      { name: 'MA10', type: 'line', xAxisIndex: 0, yAxisIndex: 0, data: ma10, showSymbol: false, lineStyle: { width: 1, color: '#4c9aff' }, itemStyle: { color: '#4c9aff' } },
-      { name: 'MA20', type: 'line', xAxisIndex: 0, yAxisIndex: 0, data: ma20, showSymbol: false, lineStyle: { width: 1, color: '#f04444' }, itemStyle: { color: '#f04444' } },
-      { name: 'MA60', type: 'line', xAxisIndex: 0, yAxisIndex: 0, data: ma60, showSymbol: false, lineStyle: { width: 1, color: '#2fbf8f' }, itemStyle: { color: '#2fbf8f' } },
-      {
-        name: '成交量', type: 'bar', xAxisIndex: 1, yAxisIndex: 2, barWidth: '60%',
-        data: vols.map((v, i) => ({
-          value: v,
-          itemStyle: { color: pts[i].close >= pts[i].open ? tc.up + '8c' : tc.down + '8c' },
-        })),
-      },
-      {
-        name: 'VOL MA5', type: 'line', data: volMa5, xAxisIndex: 1, yAxisIndex: 2, showSymbol: false,
-        lineStyle: { width: 1, color: '#f5a623', type: 'dashed' }, itemStyle: { color: '#f5a623' },
-      },
-      ...subSeries(ind, tc).map(s => ({ ...s, xAxisIndex: 2, yAxisIndex: 3 })),
-    ],
+    xAxis: xAxes,
+    yAxis: yAxes,
+    series,
   }, true)
 }
 
@@ -626,6 +749,7 @@ onMounted(async () => {
       klineZoom.start = params.start
       klineZoom.end = params.end != null ? params.end : klineZoom.end
     }
+    applyVisibleYRange()
     if (klineZoom.start <= 8 && period.value !== 'trend') {
       maybeLoadMoreHistory()
     }

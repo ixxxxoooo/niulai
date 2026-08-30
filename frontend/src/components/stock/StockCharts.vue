@@ -40,6 +40,7 @@
       :show-buy-sell="showBuySell"
       :sr-options="srOptions"
       :selected-set="selectedSR"
+      :height="chartHeight"
     />
     <KlineChart
       v-show="chartPeriod !== 'trend'"
@@ -51,6 +52,7 @@
       :sub-ind="subInd"
       :sr-options="srOptions"
       :selected-set="selectedSR"
+      :height="chartHeight"
       @load-more="onKlineLoadMore"
     />
   </div>
@@ -75,6 +77,7 @@ const props = defineProps({
   displayName: { type: String, default: '' },
   initialKlineDay: { type: Object, default: null },
   srLevels: { type: Object, default: () => ({ support: [], resistance: [] }) },
+  chartHeight: { type: String, default: '500px' },
 })
 
 const emit = defineEmits(['error', 'kline-day'])

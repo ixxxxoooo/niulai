@@ -31,44 +31,28 @@
       :concept-list="conceptList"
     />
 
-    <div class="grid-3 mt16">
-      <StockCharts
-        ref="chartsRef"
-        :code="code"
-        :detail="detail"
-        :trend="trend"
-        :display-name="displayName"
-        :initial-kline-day="klineDay"
-        :sr-levels="srLevels"
-        @error="(msg) => error = msg"
-        @kline-day="onKlineDay"
-      />
-      <OrderBook :orderbook="detail.orderbook" :outer="detail.outer" :inner="detail.inner" />
-    </div>
+    <StockCharts
+      ref="chartsRef"
+      class="mt16"
+      :code="code"
+      :detail="detail"
+      :trend="trend"
+      :display-name="displayName"
+      :initial-kline-day="klineDay"
+      :sr-levels="srLevels"
+      :chart-height="chartHeight"
+      @error="(msg) => error = msg"
+      @kline-day="onKlineDay"
+    />
 
     <div class="grid-2 mt16">
-      <div class="card">
-        <div class="card-title">成交明细（最近 {{ ticks.length }} 笔 · 10 秒刷新）<a class="source-link" :href="eastmoneyUrl" target="_blank" rel="noopener">东财 <UiIcon name="external" :size="11" /></a></div>
-        <div class="table-wrap" style="max-height: 380px; overflow-y: auto;">
-          <table class="data-table">
-            <thead><tr><th>时间</th><th>价格</th><th>数量(手)</th><th>金额</th><th>方向</th></tr></thead>
-            <tbody>
-              <tr v-for="(t, i) in ticks" :key="i">
-                <td>{{ t.time }}</td>
-                <td :class="pctClass(t.direction === 2 ? -1 : 1)">{{ fmtPrice(t.price) }}</td>
-                <td>{{ fmtNum(t.volume, 0) }}</td>
-                <td>{{ fmtAmount(t.amount) }}</td>
-                <td>
-                  <span :class="t.direction === 1 ? 'up' : t.direction === 2 ? 'down' : 'flat'">
-                    {{ t.direction === 1 ? '买盘' : t.direction === 2 ? '卖盘' : '中性' }}
-                  </span>
-                </td>
-              </tr>
-              <tr v-if="!ticks.length"><td colspan="5" class="empty">暂无数据</td></tr>
-            </tbody>
-          </table>
-        </div>
-      </div>
+      <OrderTicks
+        :orderbook="detail.orderbook"
+        :outer="detail.outer"
+        :inner="detail.inner"
+        :ticks="ticks"
+        :eastmoney-url="eastmoneyUrl"
+      />
 
       <MoneyFlow
         :flow="flow"
@@ -213,7 +197,7 @@ import AiAnalysisPanel from '../components/AiAnalysisPanel.vue'
 import { captureElement } from '../composables/useScreenshot.js'
 import StockHeader from '../components/stock/StockHeader.vue'
 import StockSnapshot from '../components/stock/StockSnapshot.vue'
-import OrderBook from '../components/stock/OrderBook.vue'
+import OrderTicks from '../components/stock/OrderTicks.vue'
 import StockCharts from '../components/stock/StockCharts.vue'
 import MoneyFlow from '../components/stock/MoneyFlow.vue'
 import StockDiagnosis from '../components/stock/StockDiagnosis.vue'
@@ -321,6 +305,9 @@ const vol5Class = computed(() => {
   if (!vol5.value) return 'flat'
   return vol5.value.ratio >= 1.5 ? 'up' : vol5.value.ratio <= 0.7 ? 'down' : 'flat'
 })
+
+// K线独占整行后按视口自适应高度，保证宽幅下比例协调
+const chartHeight = computed(() => 'clamp(420px, 38vw, 640px)')
 
 /**
  * 根据日K收盘价计算连涨/连跌天数及区间累计涨跌幅（平盘中断）。
