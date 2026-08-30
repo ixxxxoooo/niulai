@@ -1,11 +1,6 @@
 <template>
   <div>
     <ToolNavTabs current-tab="alerts" />
-    <div class="page-title">
-      价格监控
-      <span class="page-sub">跌到/涨到指定价格、点数、涨跌幅或涨速时，通过浏览器桌面通知提醒</span>
-    </div>
-
     <div class="error-banner" v-if="error">{{ error }}</div>
 
     <div class="card mb12 perm-card" v-if="perm !== 'granted'">

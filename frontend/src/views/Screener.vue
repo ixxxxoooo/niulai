@@ -1,12 +1,8 @@
 <template>
   <div class="page screener-page">
     <ToolNavTabs current-tab="screener" />
-    <!-- 顶部标题栏与数据底座紧凑条 -->
+    <!-- 顶部数据底座紧凑条 -->
     <div class="header-section">
-      <div class="title-wrap">
-        <h2>盘后量化选股</h2>
-        <span class="sub-title">12 大经典高胜率实战策略 · 多策略共振严选 · 智能排雷去杂</span>
-      </div>
       <div class="top-status-bar">
         <div class="status-kvs">
           <span class="sk-item" data-tooltip="【全市场股票池】&#10;当前本地数据库已收录并覆盖的 A 股全市场股票总数">股票池 <b>{{ syncSt.stock_count || 0 }}</b> 只</span>

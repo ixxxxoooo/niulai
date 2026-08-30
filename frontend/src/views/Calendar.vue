@@ -1,11 +1,7 @@
 <template>
   <div class="calendar-page">
-    <ToolNavTabs current-tab="calendar" />
-    <div class="page-title-row">
-      <div>
-        <div class="page-title">交易与财经日历</div>
-        <div class="page-subtitle">关键交割日 · 期权到期 · 宏观数据 · 央行利率 · 法定休市</div>
-      </div>
+    <div class="calendar-header-row">
+      <ToolNavTabs current-tab="calendar" />
       <div class="page-actions">
         <button class="btn-tool" @click="load" :disabled="loading" title="刷新数据">
           <UiIcon name="refresh" :size="14" :class="{ rotating: loading }" /> 刷新
@@ -644,6 +640,13 @@ onMounted(() => {
 /* 速查手册 */
 .cheatsheet-body {
   margin-top: 12px;
+}
+.calendar-header-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
 }
 </style>
 

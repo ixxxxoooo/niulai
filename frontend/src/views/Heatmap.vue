@@ -1,11 +1,7 @@
 <template>
   <div class="heatmap-page" :class="{ 'is-fullscreen': isFullscreen }" ref="fullscreenContainer">
-    <MarketNavTabs current-tab="heatmap" v-if="!isFullscreen" />
-    <div class="page-title-row">
-      <div>
-        <div class="page-title">大盘热力云图</div>
-        <div class="page-subtitle">面积代表资金体量 · 色彩反映行业与个股强弱全景（Finviz / 机构标准 Treemap）</div>
-      </div>
+    <div class="heatmap-header-row" v-if="!isFullscreen">
+      <MarketNavTabs current-tab="heatmap" />
       <div class="page-actions">
         <!-- 搜索定位 -->
         <div class="heatmap-search-box">
@@ -32,8 +28,18 @@
       </div>
     </div>
 
+    <!-- 全屏下简要标题栏 -->
+    <div class="page-title-row" v-else>
+      <div class="page-title">大盘热力云图</div>
+      <div class="page-actions">
+        <button class="btn-tool" @click="toggleFullscreen" title="退出全屏">
+          <UiIcon name="close" :size="14" /> 退出全屏
+        </button>
+      </div>
+    </div>
+
     <!-- 范围与面积控制胶囊栏 -->
-    <div class="heatmap-toolbar mt12">
+    <div class="heatmap-toolbar">
       <!-- 范围切换 -->
       <div class="toolbar-section">
         <span class="toolbar-label">范围：</span>
@@ -589,6 +595,14 @@ onUnmounted(() => {
   flex: 1;
   height: 100%;
   min-height: auto;
+}
+
+.heatmap-header-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
 }
 
 /* 顶部搜索框 */
