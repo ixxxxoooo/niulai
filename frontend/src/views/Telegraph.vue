@@ -201,6 +201,8 @@ import { fmtPct, pctClass } from '../utils.js'
 import { usePageTab } from '../composables/usePageTab.js'
 import { openStock } from '../composables/useStockMeta.js'
 import { captureElement } from '../composables/useScreenshot.js'
+import { showToast } from '../composables/useToast.js'
+import { requestTelegraphNotifyPermission, playTelegraphBeep, sendTelegraphNotification } from '../composables/useTelegraphNotify.js'
 import UiIcon from '../components/ui/UiIcon.vue'
 
 const headerCard = ref(null)
@@ -221,6 +223,7 @@ function setIntervalSec(sec) {
   countdown.value = sec
   try {
     localStorage.setItem('niulai_telegraph_interval', String(sec))
+    showToast(`电报自动刷新频率已设为 ${sec} 秒`)
   } catch (e) { /* ignore */ }
 }
 
@@ -282,67 +285,30 @@ function toggleExpand(id) {
   expandedSet.value = set
 }
 
-// 提示音（Web Audio API 生成优雅清脆音效）
-function playAlertBeep() {
-  if (!audioEnabled.value) return
-  try {
-    const ctx = new (window.AudioContext || window.webkitAudioContext)()
-    const osc = ctx.createOscillator()
-    const gain = ctx.createGain()
-    osc.type = 'sine'
-    osc.frequency.setValueAtTime(880, ctx.currentTime) // A5
-    osc.frequency.exponentialRampToValueAtTime(1320, ctx.currentTime + 0.12)
-    gain.gain.setValueAtTime(0.15, ctx.currentTime)
-    gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.18)
-    osc.connect(gain)
-    gain.connect(ctx.destination)
-    osc.start()
-    osc.stop(ctx.currentTime + 0.2)
-  } catch (e) {
-    // ignore
-  }
-}
-
-// 桌面通知
+// 桌面通知开关切换
 async function toggleNotification() {
   if (notifyEnabled.value) {
-    if ('Notification' in window) {
-      const perm = await Notification.requestPermission()
-      if (perm === 'granted') {
-        localStorage.setItem('niulai_telegraph_notify', '1')
-      } else {
-        notifyEnabled.value = false
-        localStorage.setItem('niulai_telegraph_notify', '0')
-      }
+    const ok = await requestTelegraphNotifyPermission()
+    if (ok) {
+      localStorage.setItem('niulai_telegraph_notify', '1')
+      showToast('已开启 7×24 实时电报全局后台桌面通知')
+    } else {
+      notifyEnabled.value = false
+      localStorage.setItem('niulai_telegraph_notify', '0')
+      showToast('未获得系统桌面通知权限')
     }
   } else {
     localStorage.setItem('niulai_telegraph_notify', '0')
+    showToast('已关闭电报桌面通知')
   }
 }
 
 watch(audioEnabled, (v) => {
   try {
     localStorage.setItem('niulai_telegraph_audio', v ? '1' : '0')
+    showToast(v ? '已开启加红电报全局后台声音提醒' : '已关闭声音提醒')
   } catch (e) { /* ignore */ }
 })
-
-function sendDesktopNotification(item) {
-  if (!notifyEnabled.value || typeof Notification === 'undefined' || Notification.permission !== 'granted') {
-    return
-  }
-  try {
-    const n = new Notification(item.title ? `【电报】${item.title}` : '7×24 财经电报', {
-      body: item.content?.slice(0, 100) || '点击查看快讯详情',
-      icon: '/niulai.png',
-    })
-    n.onclick = () => {
-      window.focus()
-      n.close()
-    }
-  } catch (e) {
-    // ignore
-  }
-}
 
 let lastSeenId = null
 
@@ -353,15 +319,6 @@ async function loadData(isPolling = false) {
     const cat = currentTab.value === 'red' ? 'red' : currentTab.value
     const res = await api.telegraph(cat, null, 30)
     const newItems = res?.items || []
-
-    // 检查是否有新加红电报触发声音/通知
-    if (isPolling && newItems.length && lastSeenId && newItems[0].id !== lastSeenId) {
-      const top = newItems[0]
-      if (top.is_red) {
-        playAlertBeep()
-        sendDesktopNotification(top)
-      }
-    }
 
     if (newItems.length) {
       lastSeenId = newItems[0].id

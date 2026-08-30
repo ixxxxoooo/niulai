@@ -198,6 +198,7 @@ import Calendar from './views/Calendar.vue'
 import Heatmap from './views/Heatmap.vue'
 import Telegraph from './views/Telegraph.vue'
 import { startAlertWatcher, stopAlertWatcher } from './composables/useAlertNotify.js'
+import { startTelegraphWatcher, stopTelegraphWatcher } from './composables/useTelegraphNotify.js'
 
 const route = ref(parseHash())
 const sectorMenu = ref(false)
@@ -325,12 +326,14 @@ onMounted(async () => {
   clockTimer = setInterval(tickClock, 1000)
   sessionTimer = setInterval(tickSession, 15000)
   startAlertWatcher(8000)
+  startTelegraphWatcher(6000)
 })
 onUnmounted(() => {
   window.removeEventListener('hashchange', onHash)
   clearInterval(clockTimer)
   clearInterval(sessionTimer)
   stopAlertWatcher()
+  stopTelegraphWatcher()
   if (collapseWatch) collapseWatch()
   if (mql && mql.removeEventListener) mql.removeEventListener('change', onSystemTheme)
 })
