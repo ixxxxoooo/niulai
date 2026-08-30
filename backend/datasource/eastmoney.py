@@ -576,13 +576,43 @@ class EastMoneyClient:
             })
         return out
 
-    def us_sector_boards(self, region: Optional[str] = None) -> List[dict]:
-        """全球题材板块涨跌幅（代表股简单平均，成分股一并返回）。
+    @staticmethod
+    def _calc_us_session_info() -> dict:
+        from datetime import datetime
+        import zoneinfo
+        try:
+            tz_ny = zoneinfo.ZoneInfo("America/New_York")
+        except Exception:
+            tz_ny = zoneinfo.ZoneInfo("UTC")
+        now_ny = datetime.now(tz_ny)
+        weekday = now_ny.weekday()
+        hm = now_ny.strftime("%H:%M")
+        if weekday >= 5:
+            session = "closed"
+            session_name = "周末休市"
+        elif "04:00" <= hm < "09:30":
+            session = "pre"
+            session_name = "盘前交易"
+        elif "09:30" <= hm < "16:00":
+            session = "regular"
+            session_name = "盘中交易"
+        elif "16:00" <= hm < "20:00":
+            session = "post"
+            session_name = "盘后交易"
+        else:
+            session = "closed"
+            session_name = "已休市"
+        return {
+            "session": session,
+            "session_name": session_name,
+            "ny_time": hm,
+            "ny_date": now_ny.strftime("%Y-%m-%d"),
+        }
 
-        东财无海外题材板块接口，采用 config.GLOBAL_THEME_SECTORS 配置的代表股
-        拉实时快照，板块涨跌幅 = 有数据成分股涨跌幅的算术平均。
-        region 可选过滤：us/jp/kr；不传返回全部。
-        性能：所有板块代表股一次性合并为单个 ulist 请求，再按板块分组。
+    def us_sector_boards(self, region: Optional[str] = None) -> List[dict]:
+        """全球题材板块涨跌幅（含美股盘中、盘前、盘后三种时段数据）。
+
+        东财提供常规实时快照，腾讯补充美股盘前/盘后成交价格与变动幅。
         """
         cfg = getattr(config, "GLOBAL_THEME_SECTORS", [])
         if region:
@@ -600,18 +630,39 @@ class EastMoneyClient:
         all_quotes = self.global_stock_quotes(all_secids)
         by_secid = {q["secid"]: q for q in all_quotes}
 
+        # 美股补充盘前/盘后实时变动
+        us_tickers = [s.split(".")[1] for s in all_secids if s.startswith(("105.", "106.", "107."))]
+        if us_tickers:
+            from . import tencent
+            ext_map = tencent.get_client().fetch_us_extended_quotes(us_tickers)
+            for sid, q in by_secid.items():
+                code = q.get("code", "").upper()
+                if code in ext_map:
+                    e = ext_map[code]
+                    q["ext_price"] = e.get("ext_price")
+                    q["ext_pct"] = e.get("ext_pct")
+                    q["ext_chg"] = e.get("ext_chg")
+
+        us_session = self._calc_us_session_info()
+
         out: List[dict] = []
         for board in cfg:
             secids = board.get("secids") or []
             quotes = [by_secid[s] for s in secids if s in by_secid]
             pcts = [q["change_pct"] for q in quotes if q.get("change_pct") is not None]
+            ext_pcts = [q["ext_pct"] for q in quotes if q.get("ext_pct") is not None]
+            is_us = board.get("region") == "us"
             out.append({
                 "key": board.get("key", ""),
                 "name": board.get("name", ""),
                 "region": board.get("region", ""),
                 "change_pct": round(sum(pcts) / len(pcts), 2) if pcts else None,
+                "ext_pct": round(sum(ext_pcts) / len(ext_pcts), 2) if ext_pcts else None,
                 "up_count": sum(1 for p in pcts if p > 0),
                 "down_count": sum(1 for p in pcts if p < 0),
+                "ext_up_count": sum(1 for p in ext_pcts if p > 0),
+                "ext_down_count": sum(1 for p in ext_pcts if p < 0),
+                "us_session": us_session if is_us else None,
                 "stocks": quotes,
             })
         return out

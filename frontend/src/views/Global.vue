@@ -35,18 +35,46 @@
 
     <!-- 美股题材 -->
     <div class="card mt16" ref="usCard">
-      <div class="card-title" style="display:flex;align-items:center;justify-content:space-between">
-        <span>美股题材</span>
-        <button class="btn-screenshot" @click="captureElement(usCard, '美股题材.png')" title="截图"><UiIcon name="screenshot" :size="14" /></button>
+      <div class="card-title" style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;">
+        <div style="display:flex;align-items:center;gap:12px;">
+          <span>美股题材</span>
+          <span v-if="usSessionInfo" class="us-session-badge" :class="'badge-' + usSessionInfo.session">
+            {{ usSessionInfo.session_name }} (美东 {{ usSessionInfo.ny_time }})
+          </span>
+        </div>
+        <div style="display:flex;align-items:center;gap:10px;">
+          <div class="tabs mini-tabs" style="margin-bottom:0;">
+            <div class="tab" :class="{ active: usSessionTab === 'regular' }" @click="usSessionTab = 'regular'">盘中 (常规)</div>
+            <div class="tab" :class="{ active: usSessionTab === 'pre' }" @click="usSessionTab = 'pre'">盘前</div>
+            <div class="tab" :class="{ active: usSessionTab === 'post' }" @click="usSessionTab = 'post'">盘后</div>
+          </div>
+          <button class="btn-screenshot" @click="captureElement(usCard, '美股题材.png')" title="截图"><UiIcon name="screenshot" :size="14" /></button>
+        </div>
       </div>
       <div class="theme-grid">
         <div v-for="b in usBoards" :key="b.key" class="theme-item">
           <div class="theme-name">{{ b.name }}</div>
-          <div class="theme-pct" :class="pctClass(b.change_pct)">{{ fmtPct(b.change_pct) }}</div>
+          <div class="theme-pct" :class="pctClass(boardPct(b))">
+            {{ boardPct(b) != null ? fmtPct(boardPct(b)) : '—' }}
+          </div>
+          <div class="theme-sub-hint" v-if="usSessionTab !== 'regular'">
+            盘中 {{ fmtPct(b.change_pct) }}
+          </div>
           <div class="theme-pop">
+            <div class="pop-header" v-if="usSessionTab !== 'regular'">
+              <span>标的</span>
+              <span>{{ usSessionTab === 'pre' ? '盘前' : '盘后' }} / 盘中</span>
+            </div>
             <div v-for="s in b.stocks" :key="s.secid" class="pop-row">
               <span class="pop-name">{{ s.name }}</span>
-              <span class="pop-pct" :class="pctClass(s.change_pct)">{{ s.change_pct != null ? fmtPct(s.change_pct) : '—' }}</span>
+              <div class="pop-vals">
+                <span class="pop-pct" :class="pctClass(stockPct(s))">
+                  {{ stockPct(s) != null ? fmtPct(stockPct(s)) : '—' }}
+                </span>
+                <span class="pop-reg-pct" v-if="usSessionTab !== 'regular'" :class="pctClass(s.change_pct)">
+                  ({{ s.change_pct != null ? fmtPct(s.change_pct) : '—' }})
+                </span>
+              </div>
             </div>
           </div>
         </div>
@@ -152,6 +180,27 @@ async function loadTrends() {
   } catch (e) { /* ignore */ }
 }
 
+const usSessionTab = ref('regular')
+
+const usSessionInfo = computed(() => {
+  const b = usBoards.value[0]
+  return b?.us_session || null
+})
+
+function boardPct(b) {
+  if (usSessionTab.value === 'pre' || usSessionTab.value === 'post') {
+    return b.ext_pct != null ? b.ext_pct : b.change_pct
+  }
+  return b.change_pct
+}
+
+function stockPct(s) {
+  if (usSessionTab.value === 'pre' || usSessionTab.value === 'post') {
+    return s.ext_pct != null ? s.ext_pct : s.change_pct
+  }
+  return s.change_pct
+}
+
 // 全球指数分组：美股一排，日韩/港股一排
 const usIndices = computed(() => indices.value.filter(q => q.region === '美股'))
 const apIndices = computed(() => indices.value.filter(q => q.region !== '美股'))
@@ -181,6 +230,46 @@ const poll = usePolling(load, 10000)
 </script>
 
 <style scoped>
+.mini-tabs { margin-bottom: 0; }
+.mini-tabs .tab { padding: 3px 10px; font-size: 12px; }
+
+.us-session-badge {
+  font-size: 11px;
+  padding: 2px 8px;
+  border-radius: 4px;
+  font-weight: 500;
+  border: 1px solid var(--border);
+  background: var(--bg);
+  color: var(--text-dim);
+}
+.badge-regular { color: var(--up); border-color: var(--up-bg); background: var(--up-bg); }
+.badge-pre { color: #f5a623; border-color: rgba(245, 166, 35, 0.2); background: rgba(245, 166, 35, 0.1); }
+.badge-post { color: #4c9aff; border-color: rgba(76, 154, 255, 0.2); background: rgba(76, 154, 255, 0.1); }
+
+.theme-sub-hint {
+  font-size: 11px;
+  color: var(--text-dim);
+  margin-top: 1px;
+}
+.pop-header {
+  display: flex;
+  justify-content: space-between;
+  font-size: 11px;
+  color: var(--text-dim);
+  border-bottom: 1px solid var(--border);
+  padding-bottom: 4px;
+  margin-bottom: 4px;
+}
+.pop-vals {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.pop-reg-pct {
+  font-size: 11px;
+  opacity: 0.75;
+}
+
 /* 全球指数：每排固定 4 个 */
 .us-grid, .ap-grid {
   grid-template-columns: repeat(4, 1fr);
@@ -220,7 +309,7 @@ const poll = usePolling(load, 10000)
   left: 0;
   top: calc(100% + 6px);
   z-index: 50;
-  min-width: 175px;
+  min-width: 185px;
   max-height: 280px;
   overflow-y: auto;
   background: var(--bg-card);

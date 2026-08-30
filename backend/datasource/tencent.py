@@ -140,6 +140,45 @@ class TencentClient:
             }
         return out
 
+    def fetch_us_extended_quotes(self, tickers: List[str]) -> Dict[str, dict]:
+        """批量获取美股盘前/盘后与常规行情（毫秒级极速聚合）。"""
+        if not tickers:
+            return {}
+        out = {}
+        chunk_size = 70
+        for i in range(0, len(tickers), chunk_size):
+            chunk = tickers[i:i + chunk_size]
+            syms = [f"us{t}" for t in chunk]
+            url = f"{config.TENCENT_QUOTE_URL}{','.join(syms)}"
+            try:
+                resp = self._http.get(url, timeout=config.REQUEST_TIMEOUT)
+                if resp.status_code != 200:
+                    continue
+                for line in resp.text.strip().split(";\n"):
+                    if not line:
+                        continue
+                    parts = line.split("~")
+                    if len(parts) < 33:
+                        continue
+                    code = parts[2].split(".")[0].replace("us", "").upper()
+                    reg_price = _f(parts, 3)
+                    pre_close = _f(parts, 4)
+                    reg_pct = _f(parts, 32)
+                    ext_price = _f(parts, 67) if len(parts) > 67 else None
+                    ext_pct = round((ext_price - reg_price) / reg_price * 100, 2) if ext_price and reg_price else None
+                    ext_chg = round(ext_price - reg_price, 2) if ext_price and reg_price else None
+                    out[code] = {
+                        "reg_price": reg_price,
+                        "reg_pct": reg_pct,
+                        "ext_price": ext_price,
+                        "ext_pct": ext_pct,
+                        "ext_chg": ext_chg,
+                        "pre_close": pre_close,
+                    }
+            except Exception:
+                continue
+        return out
+
     def minute_quotes(self, code: str, symbol: Optional[str] = None) -> Optional[Dict]:
         """腾讯分时数据（东财 push2his 的降级备选）
 
