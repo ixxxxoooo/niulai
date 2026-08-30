@@ -1,5 +1,5 @@
 <template>
-  <div class="stock-spark-wrap" :title="tooltipText">
+  <div class="stock-spark-wrap" ref="wrapEl" :title="tooltipText">
     <svg v-if="hasData" :viewBox="`0 0 ${vw} ${vh}`" preserveAspectRatio="none" class="stock-spark-svg">
       <defs>
         <linearGradient :id="`spark-grad-${code}`" x1="0%" y1="0%" x2="0%" y2="100%">
@@ -23,10 +23,10 @@
 
 <script setup>
 /**
- * 表格行内迷你分时折线图（纯 SVG，毫秒级轻量渲染）
+ * 表格行内迷你分时折线图（纯 SVG + 视口懒加载，毫秒级极速渲染，零性能负担）
  * @author ygw
  */
-import { ref, computed, onMounted, watch } from 'vue'
+import { ref, computed, onMounted, onUnmounted, watch } from 'vue'
 import { api } from '../api.js'
 
 const props = defineProps({
@@ -37,7 +37,10 @@ const vw = 100
 const vh = 28
 const PAD = 2
 
-// 模块级缓存，30 秒内复用避免重复请求
+const wrapEl = ref(null)
+let observer = null
+
+// 模块级缓存，30 秒内复用避免重复网络请求
 const _sparkCache = window._stockSparkCache || (window._stockSparkCache = new Map())
 
 const trendData = ref(null)
@@ -64,8 +67,34 @@ async function loadTrend() {
   }
 }
 
-onMounted(loadTrend)
-watch(() => props.code, loadTrend)
+onMounted(() => {
+  // 视口懒加载：仅当行滚动进入屏幕时才触发请求，保障上百只标的列表极速流畅
+  if (typeof IntersectionObserver !== 'undefined' && wrapEl.value) {
+    observer = new IntersectionObserver((entries) => {
+      if (entries[0] && entries[0].isIntersecting) {
+        loadTrend()
+        if (observer) {
+          observer.disconnect()
+          observer = null
+        }
+      }
+    }, { rootMargin: '100px' })
+    observer.observe(wrapEl.value)
+  } else {
+    loadTrend()
+  }
+})
+
+onUnmounted(() => {
+  if (observer) {
+    observer.disconnect()
+    observer = null
+  }
+})
+
+watch(() => props.code, () => {
+  loadTrend()
+})
 
 const hasData = computed(() => {
   return trendData.value && trendData.value.points && trendData.value.points.length > 1
