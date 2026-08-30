@@ -1,6 +1,6 @@
 <template>
   <div class="app-shell" :class="[navMode === 'side' ? 'nav-side' : 'nav-top', { 'sidebar-collapsed': sideCollapsed }]">
-    <div v-if="sectorMenu || marketMenu || toolMenu" class="nav-overlay" @click="sectorMenu = false; marketMenu = false; toolMenu = false"></div>
+    <div v-if="sectorMenu || toolMenu" class="nav-overlay" @click="sectorMenu = false; toolMenu = false"></div>
 
     <!-- ========== 顶部导航栏（仅 top 模式） ========== -->
     <div v-if="navMode === 'top'" class="topbar">
@@ -8,17 +8,8 @@
         <img class="brand-logo" src="/niulai.png" alt="牛来" />
       </div>
       <nav class="nav">
-        <span class="nav-drop" @click.stop="marketMenu = !marketMenu; sectorMenu = false; toolMenu = false">
-          <a class="nav-drop-btn" :class="{ active: ['overview', 'global', 'heatmap'].includes(route.name) }">
-            大盘 <span class="caret">▾</span>
-          </a>
-          <div v-if="marketMenu" class="submenu" @click.stop>
-            <a :class="{ active: route.name === 'overview' }" @click="go('/'); marketMenu = false">盘面总览</a>
-            <a :class="{ active: route.name === 'global' }" @click="go('/global'); marketMenu = false">全球外盘</a>
-            <a :class="{ active: route.name === 'heatmap' }" @click="go('/heatmap'); marketMenu = false">大盘云图</a>
-          </div>
-        </span>
-        <span class="nav-drop" @click.stop="sectorMenu = !sectorMenu; marketMenu = false; toolMenu = false">
+        <a :class="{ active: ['overview', 'global', 'heatmap'].includes(route.name) }" @click="go('/')">大盘</a>
+        <span class="nav-drop" @click.stop="sectorMenu = !sectorMenu; toolMenu = false">
           <a class="nav-drop-btn" :class="{ active: route.name === 'sectors' }">板块 <span class="caret">▾</span></a>
           <div v-if="sectorMenu" class="submenu" @click.stop>
             <a :class="{ active: route.name === 'sectors' && !route.flow && !route.strength }" @click="go('/sectors'); sectorMenu = false">板块分析</a>
@@ -31,7 +22,7 @@
         <a :class="{ active: route.name === 'watchlist' }" @click="go('/watchlist')">自选股</a>
         <a :class="{ active: route.name === 'telegraph' }" @click="go('/telegraph')">电报</a>
         <a :class="{ active: route.name === 'seats' }" @click="go('/seats')">游资</a>
-        <span class="nav-drop" @click.stop="toolMenu = !toolMenu; marketMenu = false; sectorMenu = false">
+        <span class="nav-drop" @click.stop="toolMenu = !toolMenu; sectorMenu = false">
           <a class="nav-drop-btn" :class="{ active: ['screener', 'alerts', 'calendar'].includes(route.name) }">
             工具 <span class="caret">▾</span>
           </a>
@@ -97,10 +88,7 @@
       </div>
 
       <nav class="side-nav" v-if="!sideCollapsed">
-        <span class="side-group">大盘</span>
-        <a class="side-sub" :class="{ active: route.name === 'overview' }" @click="go('/')">盘面总览</a>
-        <a class="side-sub" :class="{ active: route.name === 'global' }" @click="go('/global')">全球外盘</a>
-        <a class="side-sub" :class="{ active: route.name === 'heatmap' }" @click="go('/heatmap')">大盘云图</a>
+        <a :class="{ active: ['overview', 'global', 'heatmap'].includes(route.name) }" @click="go('/')">大盘</a>
         <span class="side-group">板块</span>
         <a class="side-sub" :class="{ active: route.name === 'sectors' && !route.flow && !route.strength }" @click="go('/sectors')">板块分析</a>
         <a class="side-sub" :class="{ active: route.name === 'sectors' && route.flow }" @click="go('/sectors/flow')">板块资金</a>
@@ -214,7 +202,6 @@ import { startTelegraphWatcher, stopTelegraphWatcher } from './composables/useTe
 
 const route = ref(parseHash())
 const sectorMenu = ref(false)
-const marketMenu = ref(false)
 const toolMenu = ref(false)
 const now = ref('')
 const session = ref('')
@@ -252,7 +239,6 @@ function onHash() {
   route.value = parseHash()
   viewComp.value = views[route.value.name] || Overview
   sectorMenu.value = false
-  marketMenu.value = false
   toolMenu.value = false
   logAction('page_view', route.value.name, location.hash || '#/')
 }
