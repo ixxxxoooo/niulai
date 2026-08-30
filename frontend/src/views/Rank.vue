@@ -1,6 +1,5 @@
 <template>
   <div class="rank-page">
-    <div class="page-title">热门股与资金流向</div>
     <div class="error-banner" v-if="error">{{ error }}</div>
 
     <div class="tabs">
