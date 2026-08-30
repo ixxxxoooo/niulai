@@ -2,7 +2,7 @@
   <div class="heatmap-page" :class="{ 'is-fullscreen': isFullscreen }" ref="fullscreenContainer">
     <div class="heatmap-header-row" v-if="!isFullscreen">
       <MarketNavTabs current-tab="heatmap" />
-      <div class="page-actions">
+      <div class="heatmap-actions">
         <!-- 搜索定位 -->
         <div class="heatmap-search-box">
           <span class="search-icon">🔍</span>
@@ -603,7 +603,12 @@ onUnmounted(() => {
   justify-content: space-between;
   gap: 12px;
   flex-wrap: wrap;
-  margin-bottom: 4px;
+}
+.heatmap-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 14px;
 }
 
 /* 顶部搜索框 */

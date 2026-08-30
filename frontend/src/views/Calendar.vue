@@ -2,7 +2,7 @@
   <div class="calendar-page">
     <div class="calendar-header-row">
       <ToolNavTabs current-tab="calendar" />
-      <div class="page-actions">
+      <div class="calendar-actions">
         <button class="btn-tool" @click="load" :disabled="loading" title="刷新数据">
           <UiIcon name="refresh" :size="14" :class="{ rotating: loading }" /> 刷新
         </button>
@@ -647,7 +647,12 @@ onMounted(() => {
   justify-content: space-between;
   gap: 12px;
   flex-wrap: wrap;
-  margin-bottom: 4px;
+}
+.calendar-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 14px;
 }
 </style>
 
