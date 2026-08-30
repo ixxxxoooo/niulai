@@ -47,8 +47,8 @@ function render() {
   const ma5 = ind.ma5 || calcMA(pts, 5)
   const ma10 = ind.ma10 || calcMA(pts, 10)
   const ma20 = ind.ma20 || calcMA(pts, 20)
-  const ma60 = ind.ma60 || []
-  const volMa5 = ind.vol_ma5 || []
+  const ma60 = ind.ma60 || calcMA(pts, 60)
+  const volMa5 = ind.vol_ma5 || calcMA(pts.map(p => ({ close: p.volume || 0 })), 5)
   const boll = ind.boll || {}
   const hasSub = !!props.subInd
   const sub = subPanel(ind, tc, props.subInd)
