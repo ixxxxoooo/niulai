@@ -12,17 +12,55 @@
 
     <div class="error-banner" v-if="error">{{ error }}</div>
 
-    <!-- 指数核心信息（图表上方） -->
+    <!-- 指数核心行情面板 -->
     <div class="card" v-if="meta.price">
-      <div class="index-info-bar">
-        <span class="index-info-price" :class="pctClass(meta.change_pct)">{{ fmtPrice(meta.price) }}</span>
-        <span class="index-info-pct" :class="pctClass(meta.change_pct)">{{ fmtPct(meta.change_pct) }}</span>
-        <span class="index-info-item">高 <b>{{ fmtPrice(meta.high) }}</b></span>
-        <span class="index-info-item">低 <b>{{ fmtPrice(meta.low) }}</b></span>
-        <span class="index-info-item">振幅 <b>{{ fmtPct(meta.amplitude) }}</b></span>
-        <span class="index-info-item">成交 <b>{{ fmtAmount(meta.amount) }}</b></span>
-        <span class="index-info-item">量 <b>{{ fmtAmount((meta.volume || 0) * 100) }}股</b></span>
-        <span class="index-info-item"><b class="up">涨{{ meta.up_count || 0 }}</b> / <b class="down">跌{{ meta.down_count || 0 }}</b> / 平{{ meta.flat_count || 0 }}</span>
+      <div class="index-quote-header">
+        <div class="index-quote-main">
+          <span class="stock-price" :class="pctClass(meta.change_pct)">{{ fmtPrice(meta.price) }}</span>
+          <span class="stock-change" :class="pctClass(meta.change_pct)">
+            {{ fmtPct(meta.change_pct) }}
+            <span class="change-amt" v-if="meta.change != null">{{ (meta.change > 0 ? '+' : '') + fmtPrice(meta.change) }}</span>
+          </span>
+        </div>
+        <div class="index-quote-sub" v-if="openPrice != null || prevClosePrice != null">
+          <span class="sub-item" v-if="openPrice != null">今开 <b :class="vsPreClass(openPrice)">{{ fmtPrice(openPrice) }}</b></span>
+          <span class="sub-dot" v-if="openPrice != null && prevClosePrice != null">·</span>
+          <span class="sub-item" v-if="prevClosePrice != null">昨收 <b>{{ fmtPrice(prevClosePrice) }}</b></span>
+        </div>
+        <div class="index-breadth" v-if="hasBreadth">
+          <span class="breadth-pill up">涨 {{ meta.up_count }}</span>
+          <span class="breadth-pill down">跌 {{ meta.down_count }}</span>
+          <span class="breadth-pill flat">平 {{ meta.flat_count }}</span>
+        </div>
+      </div>
+
+      <div class="kv-grid mt12">
+        <div class="kv">
+          <span class="k">最高</span>
+          <span class="v" :class="vsPreClass(meta.high)">{{ fmtPrice(meta.high) }}</span>
+        </div>
+        <div class="kv">
+          <span class="k">最低</span>
+          <span class="v" :class="vsPreClass(meta.low)">{{ fmtPrice(meta.low) }}</span>
+        </div>
+        <div class="kv">
+          <span class="k">振幅</span>
+          <span class="v">{{ fmtPct(meta.amplitude) }}</span>
+        </div>
+        <div class="kv">
+          <span class="k">成交额</span>
+          <span class="v">{{ fmtAmount(meta.amount) }}</span>
+        </div>
+        <div class="kv">
+          <span class="k">成交量</span>
+          <span class="v">{{ fmtNum((meta.volume || 0) * 100, 0) }}股</span>
+        </div>
+        <div class="kv" v-if="hasBreadth">
+          <span class="k">涨跌分布</span>
+          <span class="v breadth-val">
+            <span class="up">{{ meta.up_count }}</span> / <span class="down">{{ meta.down_count }}</span> / <span class="flat">{{ meta.flat_count }}</span>
+          </span>
+        </div>
       </div>
     </div>
 
@@ -100,6 +138,29 @@ const indexSourceUrl = computed(() => {
   }
   return `https://quote.eastmoney.com/zs${code}.html`
 })
+const prevClosePrice = computed(() => {
+  if (meta.price != null && meta.change != null) {
+    return +(meta.price - meta.change).toFixed(2)
+  }
+  return trend.value?.pre_close ?? null
+})
+
+const openPrice = computed(() => {
+  if (meta.open != null) return meta.open
+  if (trend.value?.points?.length) return trend.value.points[0].price
+  return null
+})
+
+const hasBreadth = computed(() => {
+  return (meta.up_count != null && meta.up_count > 0) || (meta.down_count != null && meta.down_count > 0)
+})
+
+function vsPreClass(val) {
+  if (val == null || prevClosePrice.value == null) return ''
+  if (val > prevClosePrice.value) return 'up'
+  if (val < prevClosePrice.value) return 'down'
+  return ''
+}
 
 function prevIndex() {
   const list = Object.keys(INDEX_NAMES)
@@ -546,4 +607,57 @@ onUnmounted(() => {
   color: var(--text); cursor: pointer; padding: 2px 8px; font-size: 14px; line-height: 1;
 }
 .btn-nav-idx:hover { background: var(--accent-bg); color: var(--accent); }
+
+.index-quote-header {
+  display: flex;
+  align-items: baseline;
+  gap: 16px;
+  flex-wrap: wrap;
+  padding-bottom: 2px;
+}
+.index-quote-main {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+}
+.change-amt {
+  margin-left: 6px;
+  font-size: 15px;
+  font-weight: 500;
+  opacity: 0.9;
+}
+.index-quote-sub {
+  color: var(--text-dim);
+  font-size: 13px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.index-quote-sub b {
+  color: var(--text);
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+.index-quote-sub b.up { color: var(--up); }
+.index-quote-sub b.down { color: var(--down); }
+.sub-dot { color: var(--border); }
+.index-breadth {
+  margin-left: auto;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.breadth-pill {
+  font-size: 12px;
+  font-weight: 600;
+  padding: 3px 10px;
+  border-radius: 6px;
+  font-variant-numeric: tabular-nums;
+}
+.breadth-pill.up { background: var(--up-bg); color: var(--up); }
+.breadth-pill.down { background: var(--down-bg); color: var(--down); }
+.breadth-pill.flat { background: var(--bg-hover); color: var(--text-dim); }
+.breadth-val .up { color: var(--up); }
+.breadth-val .down { color: var(--down); }
+.breadth-val .flat { color: var(--text-dim); }
 </style>
