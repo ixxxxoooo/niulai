@@ -1,5 +1,5 @@
 <template>
-  <div class="tool-nav-bar mb16">
+  <div class="tool-nav-bar">
     <div class="tabs tool-tabs">
       <button
         class="tab"
@@ -46,7 +46,7 @@ function go(path) {
 .tool-nav-bar {
   display: flex;
   align-items: center;
-  margin-bottom: 18px;
+  margin-bottom: 12px;
 }
 .tool-tabs {
   margin-bottom: 0;

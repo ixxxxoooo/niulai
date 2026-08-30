@@ -1,5 +1,5 @@
 <template>
-  <div class="market-nav-bar mb16">
+  <div class="market-nav-bar">
     <div class="tabs market-tabs">
       <button
         class="tab"
@@ -46,7 +46,7 @@ function go(path) {
 .market-nav-bar {
   display: flex;
   align-items: center;
-  margin-bottom: 18px;
+  margin-bottom: 12px;
 }
 .market-tabs {
   margin-bottom: 0;
