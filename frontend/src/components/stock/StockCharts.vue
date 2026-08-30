@@ -44,12 +44,14 @@
     <KlineChart
       v-show="chartPeriod !== 'trend'"
       ref="klineRef"
+      :code="code"
       :period="chartPeriod"
       :kline="klineCache[chartPeriod]"
       :detail="detail"
       :sub-ind="subInd"
       :sr-options="srOptions"
       :selected-set="selectedSR"
+      @load-more="onKlineLoadMore"
     />
   </div>
 </template>
@@ -142,7 +144,7 @@ async function switchChart(p) {
   }
   if (klineCache[p]) { await draw(); return }
   try {
-    const k = await getCachedKline(props.code, p, 120)
+    const k = await getCachedKline(props.code, p, 350)
     if (k && k.points && k.points.length) {
       klineCache[p] = k
       if (p === 'day') emit('kline-day', k)
@@ -152,6 +154,12 @@ async function switchChart(p) {
     }
   } catch (e) {
     emit('error', 'K线数据加载失败：' + e.message)
+  }
+}
+
+function onKlineLoadMore({ period, data }) {
+  if (data && data.points) {
+    klineCache[period] = data
   }
 }
 

@@ -9,6 +9,7 @@
  */
 import { ref, onMounted, onUnmounted, watch } from 'vue'
 import * as echarts from 'echarts'
+import { api } from '../../api.js'
 import { themeColors, isLightTheme } from '../../utils.js'
 import { calcKlineYRange } from '../../utils/chartScale.js'
 import { ensureIndicators } from '../../chartIndicators.js'
@@ -16,6 +17,7 @@ import { settingsState } from '../../composables/useSettings.js'
 import { subPanel, tripleAxis, calcMA, buildMarkLines, formatKlineTooltip } from './chartCommon.js'
 
 const props = defineProps({
+  code: { type: String, default: '' },
   period: { type: String, default: 'day' },
   kline: { type: Object, default: null },
   detail: { type: Object, default: () => ({}) },
@@ -23,6 +25,8 @@ const props = defineProps({
   srOptions: { type: Array, default: () => [] },
   selectedSet: { type: Object, default: () => new Set() },
 })
+
+const emit = defineEmits(['load-more'])
 
 const el = ref(null)
 let chart = null
@@ -127,14 +131,48 @@ function render() {
 }
 
 const klineZoom = { start: 0, end: 100 }
+let loadingMoreHistory = false
+
+async function maybeLoadMoreHistory() {
+  if (loadingMoreHistory || !props.code) return
+  const curLen = props.kline?.points?.length || 0
+  if (curLen === 0 || curLen >= 800) return
+
+  const targetLimit = Math.min(800, curLen + 300)
+  loadingMoreHistory = true
+  try {
+    const isGlobal = props.code.startsWith('100.') || props.code.startsWith('124.')
+    let fresh
+    if (isGlobal) {
+      fresh = await api.quoteKline(props.code, props.period, targetLimit)
+    } else {
+      fresh = await api.kline(props.code, props.period, targetLimit)
+    }
+    if (fresh && fresh.points && fresh.points.length > curLen) {
+      const added = fresh.points.length - curLen
+      const oldVisibleIdx = Math.round((klineZoom.start / 100) * curLen)
+      const newVisibleIdx = oldVisibleIdx + added
+      klineZoom.start = Math.max(0, +((newVisibleIdx / fresh.points.length) * 100).toFixed(2))
+      klineZoom.end = 100
+      emit('load-more', { period: props.period, data: fresh })
+    }
+  } catch (e) {
+    /* ignore */
+  } finally {
+    loadingMoreHistory = false
+  }
+}
 
 function zoom(dir) {
   if (!chart) return
   if (dir > 0) {
-    klineZoom.start = Math.max(0, klineZoom.start - 15)
-    klineZoom.end = Math.min(100, klineZoom.end + 5)
+    klineZoom.start = Math.max(0, klineZoom.start - 12)
+    klineZoom.end = Math.min(100, klineZoom.end + 4)
+    if (klineZoom.start <= 10) {
+      maybeLoadMoreHistory()
+    }
   } else {
-    klineZoom.start = Math.min(klineZoom.end - 10, klineZoom.start + 15)
+    klineZoom.start = Math.min(klineZoom.end - 10, klineZoom.start + 12)
   }
   chart.dispatchAction({
     type: 'dataZoom',
@@ -154,6 +192,9 @@ onMounted(() => {
     } else if (params.start != null) {
       klineZoom.start = params.start
       klineZoom.end = params.end != null ? params.end : klineZoom.end
+    }
+    if (klineZoom.start <= 8) {
+      maybeLoadMoreHistory()
     }
   })
   window.addEventListener('resize', onResize)

@@ -17,10 +17,10 @@ function cacheKey(code, period) {
  * @param {boolean} isGlobal 是否全球指数
  * @returns {Promise<object|null>}
  */
-export async function getCachedKline(code, period, limit = 120, isGlobal = false) {
+export async function getCachedKline(code, period, limit = 350, isGlobal = false) {
   const key = cacheKey(code, period)
   const hit = _cache.get(key)
-  if (hit && Date.now() - hit.ts < CACHE_TTL) {
+  if (hit && Date.now() - hit.ts < CACHE_TTL && (hit.data?.points?.length || 0) >= limit) {
     return hit.data
   }
 
@@ -31,6 +31,9 @@ export async function getCachedKline(code, period, limit = 120, isGlobal = false
     data = await api.kline(code, period, limit)
   }
   if (data && data.points && data.points.length) {
+    if (hit && (hit.data?.points?.length || 0) > data.points.length && Date.now() - hit.ts < CACHE_TTL) {
+      return hit.data
+    }
     _cache.set(key, { data, ts: Date.now() })
   }
   return data

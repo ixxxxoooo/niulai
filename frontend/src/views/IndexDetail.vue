@@ -151,7 +151,8 @@ async function switchChart(p) {
   if (p === 'trend') { loadTrend(); return }
   if (klineCache[p]) { renderKline(p); return }
   try {
-    const k = await getCachedKline(secid.value, p, 150, true)
+    const isGlobal = secid.value.startsWith('100.') || secid.value.startsWith('124.')
+    const k = await getCachedKline(secid.value, p, 350, isGlobal)
     if (k && k.points && k.points.length) {
       klineCache[p] = k
       error.value = ''
@@ -166,22 +167,60 @@ async function switchChart(p) {
 
 async function probeKline() {
   try {
-    const k = await getCachedKline(secid.value, 'day', 30, true)
+    const isGlobal = secid.value.startsWith('100.') || secid.value.startsWith('124.')
+    const k = await getCachedKline(secid.value, 'day', 350, isGlobal)
     if (k && k.points && k.points.length) klineCache.day = k
   } catch (e) { /* 探测失败仍保留日K入口 */ }
 }
 
 const klineZoom = reactive({ start: 0, end: 100 })
+let loadingMoreHistory = false
+
+async function maybeLoadMoreHistory() {
+  if (loadingMoreHistory || period.value === 'trend') return
+  const currentK = klineCache[period.value]
+  const curLen = currentK?.points?.length || 0
+  if (curLen === 0 || curLen >= 800) return
+
+  const targetLimit = Math.min(800, curLen + 300)
+  loadingMoreHistory = true
+  try {
+    const isGlobal = secid.value.startsWith('100.') || secid.value.startsWith('124.')
+    let fresh
+    if (isGlobal) {
+      fresh = await api.quoteKline(secid.value, period.value, targetLimit)
+    } else {
+      fresh = await api.kline(secid.value, period.value, targetLimit)
+    }
+    if (fresh && fresh.points && fresh.points.length > curLen) {
+      const added = fresh.points.length - curLen
+      klineCache[period.value] = fresh
+      // 重新对齐缩放位置，防止视图跳动
+      const oldVisibleIdx = Math.round((klineZoom.start / 100) * curLen)
+      const newVisibleIdx = oldVisibleIdx + added
+      klineZoom.start = Math.max(0, +((newVisibleIdx / fresh.points.length) * 100).toFixed(2))
+      klineZoom.end = 100
+      renderKline(period.value)
+    }
+  } catch (e) {
+    /* ignore */
+  } finally {
+    loadingMoreHistory = false
+  }
+}
 
 function zoomKline(dir) {
   if (!chart || period.value === 'trend') return
   if (dir > 0) {
     // 拉长K线：视野更宽，看到更多根 K 线
-    klineZoom.start = Math.max(0, klineZoom.start - 15)
-    klineZoom.end = Math.min(100, klineZoom.end + 5)
+    klineZoom.start = Math.max(0, klineZoom.start - 12)
+    klineZoom.end = Math.min(100, klineZoom.end + 4)
+    if (klineZoom.start <= 10) {
+      maybeLoadMoreHistory()
+    }
   } else {
     // 缩短K线：聚焦近期，蜡烛变宽
-    klineZoom.start = Math.min(klineZoom.end - 10, klineZoom.start + 15)
+    klineZoom.start = Math.min(klineZoom.end - 10, klineZoom.start + 12)
   }
   chart.dispatchAction({
     type: 'dataZoom',
@@ -470,6 +509,9 @@ onMounted(async () => {
     } else if (params.start != null) {
       klineZoom.start = params.start
       klineZoom.end = params.end != null ? params.end : klineZoom.end
+    }
+    if (klineZoom.start <= 8 && period.value !== 'trend') {
+      maybeLoadMoreHistory()
     }
   })
   window.addEventListener('resize', onResize)

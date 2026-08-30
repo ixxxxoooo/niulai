@@ -197,7 +197,7 @@ def stock_trends(code: str):
 def stock_kline(
     code: str,
     period: str = Query("day", pattern="^(day|week|month)$"),
-    limit: int = Query(120, ge=10, le=500),
+    limit: int = Query(350, ge=10, le=1000),
 ):
     """K 线（前复权）：day/week/month，附带 MA 均线指标；用百度补齐额/涨跌/换手"""
     k = eastmoney.get_client().kline(code, period=period, limit=limit)
