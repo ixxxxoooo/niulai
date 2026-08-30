@@ -13,7 +13,7 @@
         <div class="tab" :class="{ active: subInd === 'kdj' }" data-tip="KDJ 由 K、D、J 三条线组成，取值 0~100（J 可越界）。K 上穿 D 为金叉（买入信号），下穿为死叉（卖出信号）；K/D 低于 20 为超卖区，高于 80 为超买区。J 线最灵敏，J>100 短期过热、J<0 短期超跌。KDJ 在强趋势里会钝化，配合 MACD 一起看更可靠。" @click="setSub('kdj')">KDJ</div>
         <div class="tab" :class="{ active: subInd === 'rsi' }" data-tip="RSI 反映近期涨跌力量的强弱，取值 0~100（默认 14 日）。RSI>70 偏超买（涨多可能回调），<30 偏超卖（跌多可能反弹）；50 上方多头占优、50 下方空头占优。RSI 与价格背离是重要的转折信号。" @click="setSub('rsi')">RSI</div>
       </div>
-      <div class="tabs mini-tabs">
+      <div class="tabs mini-tabs" v-if="chartPeriod === 'trend'">
         <div class="tab" :class="{ active: showBuySell }" @click="toggleBuySell">买卖点</div>
       </div>
       <div class="tabs mini-tabs" v-if="chartPeriod !== 'trend'">
