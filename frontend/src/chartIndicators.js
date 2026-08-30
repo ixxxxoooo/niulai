@@ -4,12 +4,17 @@
 function ma(data, period) {
   const n = data.length
   const out = Array(n).fill(null)
-  if (n < period) return out
+  if (!n) return out
   let s = 0
   for (let i = 0; i < n; i++) {
-    s += data[i]
-    if (i >= period) s -= data[i - period]
-    if (i >= period - 1) out[i] = +(s / period).toFixed(4)
+    const v = data[i] ?? 0
+    s += v
+    if (i >= period) {
+      s -= (data[i - period] ?? 0)
+      out[i] = +(s / period).toFixed(4)
+    } else {
+      out[i] = +(s / (i + 1)).toFixed(4)
+    }
   }
   return out
 }
@@ -17,20 +22,16 @@ function ma(data, period) {
 function ema(data, period) {
   const n = data.length
   const out = Array(n).fill(null)
+  if (!n) return out
   const k = 2 / (period + 1)
-  let seed = 0, count = 0, start = -1
+  let prev = null
   for (let i = 0; i < n; i++) {
     if (data[i] == null) continue
-    seed += data[i]
-    count++
-    if (count === period) { start = i; break }
-  }
-  if (start < 0) return out
-  let prev = seed / period
-  out[start] = +prev.toFixed(4)
-  for (let i = start + 1; i < n; i++) {
-    if (data[i] == null) { out[i] = out[i - 1]; continue }
-    prev = data[i] * k + prev * (1 - k)
+    if (prev == null) {
+      prev = data[i]
+    } else {
+      prev = data[i] * k + prev * (1 - k)
+    }
     out[i] = +prev.toFixed(4)
   }
   return out
@@ -52,20 +53,22 @@ function kdj(highs, lows, closes, n = 9) {
   const jArr = Array(size).fill(null)
   let k = 50, d = 50
   for (let i = 0; i < size; i++) {
+    if (closes[i] == null) continue
     const start = Math.max(0, i - n + 1)
     let hh = -Infinity, ll = Infinity
     for (let j = start; j <= i; j++) {
-      if (highs[j] > hh) hh = highs[j]
-      if (lows[j] < ll) ll = lows[j]
+      const h = highs[j] ?? closes[j]
+      const l = lows[j] ?? closes[j]
+      if (h > hh) hh = h
+      if (l < ll) ll = l
     }
-    const rsv = hh === ll ? 50 : (closes[i] - ll) / (hh - ll) * 100
-    k = 2 / 3 * k + 1 / 3 * rsv
-    d = 2 / 3 * d + 1 / 3 * k
-    if (i >= n - 1) {
-      kArr[i] = +k.toFixed(4)
-      dArr[i] = +d.toFixed(4)
-      jArr[i] = +(3 * k - 2 * d).toFixed(4)
-    }
+    const rsv = (hh === ll || !isFinite(hh) || !isFinite(ll)) ? 50 : ((closes[i] - ll) / (hh - ll)) * 100
+    k = (2 / 3) * k + (1 / 3) * rsv
+    d = (2 / 3) * d + (1 / 3) * k
+    const jVal = 3 * k - 2 * d
+    kArr[i] = +k.toFixed(4)
+    dArr[i] = +d.toFixed(4)
+    jArr[i] = +jVal.toFixed(4)
   }
   return { k: kArr, d: dArr, j: jArr }
 }
@@ -73,21 +76,20 @@ function kdj(highs, lows, closes, n = 9) {
 function rsi(closes, period = 14) {
   const n = closes.length
   const out = Array(n).fill(null)
-  if (n <= period) return out
-  let gains = 0, losses = 0
-  for (let i = 1; i <= period; i++) {
-    const diff = closes[i] - closes[i - 1]
-    if (diff >= 0) gains += diff
-    else losses -= diff
-  }
-  let avgG = gains / period, avgL = losses / period
-  out[period] = +(avgL === 0 ? 100 : 100 - 100 / (1 + avgG / avgL)).toFixed(4)
-  for (let i = period + 1; i < n; i++) {
-    const diff = closes[i] - closes[i - 1]
+  if (!n) return out
+  out[0] = 50
+  let avgG = 0, avgL = 0
+  for (let i = 1; i < n; i++) {
+    const diff = (closes[i] ?? 0) - (closes[i - 1] ?? 0)
     const gain = diff > 0 ? diff : 0
     const loss = diff < 0 ? -diff : 0
-    avgG = (avgG * (period - 1) + gain) / period
-    avgL = (avgL * (period - 1) + loss) / period
+    if (i <= period) {
+      avgG = (avgG * (i - 1) + gain) / i
+      avgL = (avgL * (i - 1) + loss) / i
+    } else {
+      avgG = (avgG * (period - 1) + gain) / period
+      avgL = (avgL * (period - 1) + loss) / period
+    }
     out[i] = +(avgL === 0 ? 100 : 100 - 100 / (1 + avgG / avgL)).toFixed(4)
   }
   return out

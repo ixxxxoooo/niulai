@@ -298,19 +298,19 @@ function subSeries(ind, tc) {
   const type = subInd.value
   if (type === 'kdj' && ind.kdj) {
     return [
-      { name: 'K', type: 'line', xAxisIndex: 1, yAxisIndex: 1, data: ind.kdj.k, showSymbol: false, lineStyle: { width: 1, color: '#f5a623' } },
-      { name: 'D', type: 'line', xAxisIndex: 1, yAxisIndex: 1, data: ind.kdj.d, showSymbol: false, lineStyle: { width: 1, color: '#4c9aff' } },
-      { name: 'J', type: 'line', xAxisIndex: 1, yAxisIndex: 1, data: ind.kdj.j, showSymbol: false, lineStyle: { width: 1, color: '#f04444' } },
+      { name: 'K', type: 'line', data: ind.kdj.k, showSymbol: false, lineStyle: { width: 1, color: '#f5a623' } },
+      { name: 'D', type: 'line', data: ind.kdj.d, showSymbol: false, lineStyle: { width: 1, color: '#4c9aff' } },
+      { name: 'J', type: 'line', data: ind.kdj.j, showSymbol: false, lineStyle: { width: 1, color: '#f04444' } },
     ]
   }
   if (type === 'rsi' && ind.rsi) {
-    return [{ name: 'RSI', type: 'line', xAxisIndex: 1, yAxisIndex: 1, data: ind.rsi, showSymbol: false, lineStyle: { width: 1, color: '#e3b341' } }]
+    return [{ name: 'RSI', type: 'line', data: ind.rsi, showSymbol: false, lineStyle: { width: 1, color: '#e3b341' } }]
   }
   const macd = ind.macd || { dif: [], dea: [], hist: [] }
   return [
-    { name: 'DIF', type: 'line', xAxisIndex: 1, yAxisIndex: 1, data: macd.dif, showSymbol: false, lineStyle: { width: 1, color: '#4c9aff' } },
-    { name: 'DEA', type: 'line', xAxisIndex: 1, yAxisIndex: 1, data: macd.dea, showSymbol: false, lineStyle: { width: 1, color: '#f5a623' } },
-    { name: 'MACD', type: 'bar', xAxisIndex: 1, yAxisIndex: 1, barWidth: '55%', data: (macd.hist || []).map(v => ({ value: v, itemStyle: { color: (v || 0) >= 0 ? tc.up + '99' : tc.down + '99' } })) },
+    { name: 'DIF', type: 'line', data: macd.dif, showSymbol: false, lineStyle: { width: 1, color: '#4c9aff' } },
+    { name: 'DEA', type: 'line', data: macd.dea, showSymbol: false, lineStyle: { width: 1, color: '#f5a623' } },
+    { name: 'MACD', type: 'bar', barWidth: '55%', data: (macd.hist || []).map(v => ({ value: v, itemStyle: { color: (v || 0) >= 0 ? tc.up + '99' : tc.down + '99' } })) },
   ]
 }
 
