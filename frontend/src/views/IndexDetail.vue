@@ -98,15 +98,23 @@ const indexSourceUrl = computed(() => {
 })
 
 function prevIndex() {
-  const idx = INDEX_LIST.indexOf(secid.value)
-  if (idx < 0) return
-  const next = idx <= 0 ? INDEX_LIST[INDEX_LIST.length - 1] : INDEX_LIST[idx - 1]
+  const list = Object.keys(INDEX_NAMES)
+  const idx = list.indexOf(secid.value)
+  if (idx < 0) {
+    navigate('/index/' + list[0])
+    return
+  }
+  const next = idx <= 0 ? list[list.length - 1] : list[idx - 1]
   navigate('/index/' + next)
 }
 function nextIndex() {
-  const idx = INDEX_LIST.indexOf(secid.value)
-  if (idx < 0) return
-  const next = idx >= INDEX_LIST.length - 1 ? INDEX_LIST[0] : INDEX_LIST[idx + 1]
+  const list = Object.keys(INDEX_NAMES)
+  const idx = list.indexOf(secid.value)
+  if (idx < 0) {
+    navigate('/index/' + list[0])
+    return
+  }
+  const next = idx >= list.length - 1 ? list[0] : list[idx + 1]
   navigate('/index/' + next)
 }
 
@@ -402,7 +410,13 @@ function onChartScaleChange() {
 }
 
 watch(() => props.secid, (n) => {
-  if (n && n !== secid.value) { secid.value = n; Object.keys(klineCache).forEach(k => delete klineCache[k]); period.value = 'trend'; load() }
+  if (n && n !== secid.value) {
+    secid.value = n
+    trend.value = null
+    Object.keys(klineCache).forEach(k => delete klineCache[k])
+    period.value = 'trend'
+    load()
+  }
 })
 
 const poll = usePolling(load, 5000)
