@@ -34,7 +34,7 @@
         </div>
       </div>
 
-      <div class="kv-grid mt12">
+      <div class="index-kv-grid mt12">
         <div class="kv">
           <span class="k">最高</span>
           <span class="v" :class="vsPreClass(meta.high)">{{ fmtPrice(meta.high) }}</span>
@@ -53,7 +53,7 @@
         </div>
         <div class="kv">
           <span class="k">成交量</span>
-          <span class="v">{{ fmtNum((meta.volume || 0) * 100, 0) }}股</span>
+          <span class="v">{{ fmtAmount(meta.volume) }}{{ secid.startsWith('100.') ? '股' : '手' }}</span>
         </div>
         <div class="kv" v-if="hasBreadth">
           <span class="k">涨跌分布</span>
@@ -692,4 +692,34 @@ onUnmounted(() => {
 .breadth-val .up { color: var(--up); }
 .breadth-val .down { color: var(--down); }
 .breadth-val .flat { color: var(--text-dim); }
+
+.index-kv-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
+  gap: 10px;
+  width: 100%;
+}
+.index-kv-grid .kv {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  padding: 10px 14px;
+  background: var(--kv-bg);
+  border-radius: 8px;
+  min-width: 0;
+  box-sizing: border-box;
+}
+.index-kv-grid .kv .k {
+  font-size: 12px;
+  color: var(--text-dim);
+  margin-bottom: 4px;
+}
+.index-kv-grid .kv .v {
+  font-size: 16px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
 </style>
