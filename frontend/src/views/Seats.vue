@@ -1,10 +1,8 @@
 <template>
   <div>
-    <div class="page-title">游资</div>
-
-    <div class="settings-nav">
-      <div class="sn-item" :class="{ active: tab === 'board' }" @click="tab = 'board'">游资榜单</div>
-      <div class="sn-item" :class="{ active: tab === 'moves' }" @click="tab = 'moves'">游资动向</div>
+    <div class="tabs">
+      <button class="tab" :class="{ active: tab === 'board' }" @click="tab = 'board'">游资榜单</button>
+      <button class="tab" :class="{ active: tab === 'moves' }" @click="tab = 'moves'">游资动向</button>
     </div>
 
     <!-- ═══ 游资榜单：管理 + 筛选 ═══ -->

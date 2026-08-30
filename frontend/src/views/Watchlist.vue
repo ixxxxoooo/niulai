@@ -1,6 +1,5 @@
 <template>
   <div>
-    <div class="page-title">自选股</div>
     <div class="error-banner" v-if="error">{{ error }}</div>
 
     <div class="tabs">
