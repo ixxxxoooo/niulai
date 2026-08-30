@@ -430,8 +430,24 @@ function renderKline(p) {
         const chg = chgNum != null ? chgNum.toFixed(2) : '-'
         const chgColor = chgNum > 0 ? tc.up : chgNum < 0 ? tc.down : tc.axis
         const cum = base ? ((x.close - base) / base) * 100 : null
-        return `${x.date}<br/>开 ${fmtPrice(x.open)} 收 <b>${fmtPrice(x.close)}</b><br/>高 ${fmtPrice(x.high)} 低 ${fmtPrice(x.low)}<br/>涨跌幅 <span style="color:${chgColor};font-weight:700">${chgNum > 0 ? '+' : ''}${chg}%</span>`
-          + (cum != null ? `<br/>区间涨幅 <span style="color:${chgColor}">${cum > 0 ? '+' : ''}${cum.toFixed(2)}%</span>` : '')
+
+        const row = (label, valHtml) =>
+          `<div style="display:flex;justify-content:space-between;gap:24px;line-height:1.7"><span style="color:${tc.axis};opacity:.8">${label}</span><span>${valHtml}</span></div>`
+
+        let html = `<div style="min-width:140px;font-size:12px">`
+        html += row('时间', `<b>${x.date}</b>`)
+        html += row('开盘', fmtPrice(x.open))
+        html += row('收盘', `<b>${fmtPrice(x.close)}</b>`)
+        html += row('最高', fmtPrice(x.high))
+        html += row('最低', fmtPrice(x.low))
+        if (chgNum != null) {
+          html += row('涨跌幅', `<span style="color:${chgColor};font-weight:700">${chgNum > 0 ? '+' : ''}${chg}%</span>`)
+        }
+        if (cum != null) {
+          html += row('区间涨幅', `<span style="color:${chgColor};font-weight:700">${cum > 0 ? '+' : ''}${cum.toFixed(2)}%</span>`)
+        }
+        html += `</div>`
+        return html
       },
     },
     legend: { data: ['MA5', 'MA10', 'MA20', 'MA60'], top: 0, right: 0, textStyle: { color: tc.axis, fontSize: 10 }, itemWidth: 12, itemHeight: 6 },
