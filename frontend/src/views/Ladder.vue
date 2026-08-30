@@ -1,9 +1,8 @@
 <template>
   <div>
-    <div class="page-title">连板梯队</div>
-    <div class="settings-nav">
-      <div class="sn-item" :class="{ active: tab === 'ladder' }" @click="tab = 'ladder'">连板梯队</div>
-      <div class="sn-item" :class="{ active: tab === 'reason' }" @click="tab = 'reason'">涨停原因</div>
+    <div class="tabs">
+      <button class="tab" :class="{ active: tab === 'ladder' }" @click="tab = 'ladder'">连板梯队</button>
+      <button class="tab" :class="{ active: tab === 'reason' }" @click="tab = 'reason'">涨停原因</button>
     </div>
 
     <template v-if="tab === 'ladder'">
