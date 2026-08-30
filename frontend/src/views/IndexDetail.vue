@@ -332,10 +332,12 @@ function buildFullTrendTimes() {
 }
 
 function calcMA(points, n) {
+  if (!points || !points.length) return []
   return points.map((_, i) => {
-    if (i < n - 1) return null
-    const s = points.slice(i - n + 1, i + 1).reduce((sum, p) => sum + p.close, 0)
-    return +(s / n).toFixed(2)
+    const start = Math.max(0, i - n + 1)
+    const count = i - start + 1
+    const s = points.slice(start, i + 1).reduce((sum, p) => sum + (p.close != null ? p.close : (p.price != null ? p.price : (typeof p === 'number' ? p : 0))), 0)
+    return +(s / count).toFixed(2)
   })
 }
 
@@ -456,7 +458,7 @@ function renderKline(p) {
   const ma5 = ind.ma5 || calcMA(pts, 5)
   const ma10 = ind.ma10 || calcMA(pts, 10)
   const ma20 = ind.ma20 || calcMA(pts, 20)
-  const ma60 = ind.ma60 || []
+  const ma60 = ind.ma60 || calcMA(pts, 60)
   const base = pts[0].close || pts[0].low || 1
   const priceRange = calcKlineYRange({
     mode: settingsState.klineYScale || 'auto',

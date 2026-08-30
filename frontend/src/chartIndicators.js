@@ -100,12 +100,14 @@ function boll(closes, period = 20, k = 2) {
   const n = closes.length
   const upper = Array(n).fill(null)
   const lower = Array(n).fill(null)
-  for (let i = period - 1; i < n; i++) {
+  for (let i = 0; i < n; i++) {
     const m = mid[i]
     if (m == null) continue
+    const start = Math.max(0, i - period + 1)
+    const len = i - start + 1
     let v = 0
-    for (let j = i - period + 1; j <= i; j++) v += (closes[j] - m) ** 2
-    const std = Math.sqrt(v / period)
+    for (let j = start; j <= i; j++) v += ((closes[j] ?? m) - m) ** 2
+    const std = Math.sqrt(v / len)
     upper[i] = +(m + k * std).toFixed(4)
     lower[i] = +(m - k * std).toFixed(4)
   }
@@ -119,21 +121,21 @@ function boll(closes, period = 20, k = 2) {
  */
 export function ensureIndicators(points, ind) {
   const src = ind || {}
-  if (src.macd && src.kdj && src.rsi) return src
   const closes = points.map(p => p.close)
   const highs = points.map(p => p.high ?? p.close)
   const lows = points.map(p => p.low ?? p.close)
   const vols = points.map(p => p.volume || 0)
+  const validArr = (a) => Array.isArray(a) && a.length === points.length && a[0] != null
   return {
-    ma5: src.ma5 || ma(closes, 5),
-    ma10: src.ma10 || ma(closes, 10),
-    ma20: src.ma20 || ma(closes, 20),
-    ma60: src.ma60 || ma(closes, 60),
-    vol_ma5: src.vol_ma5 || ma(vols, 5),
-    macd: src.macd || macd(closes),
-    kdj: src.kdj || kdj(highs, lows, closes),
-    rsi: src.rsi || rsi(closes),
-    boll: src.boll || boll(closes),
+    ma5: validArr(src.ma5) ? src.ma5 : ma(closes, 5),
+    ma10: validArr(src.ma10) ? src.ma10 : ma(closes, 10),
+    ma20: validArr(src.ma20) ? src.ma20 : ma(closes, 20),
+    ma60: validArr(src.ma60) ? src.ma60 : ma(closes, 60),
+    vol_ma5: validArr(src.vol_ma5) ? src.vol_ma5 : ma(vols, 5),
+    macd: (src.macd && validArr(src.macd.dif)) ? src.macd : macd(closes),
+    kdj: (src.kdj && validArr(src.kdj.k)) ? src.kdj : kdj(highs, lows, closes),
+    rsi: validArr(src.rsi) ? src.rsi : rsi(closes),
+    boll: (src.boll && validArr(src.boll.upper)) ? src.boll : boll(closes),
   }
 }
 
