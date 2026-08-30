@@ -65,9 +65,9 @@ function render() {
   const lastDate = pts[pts.length - 1]?.date
   const turnoverHint = lastDate ? props.detail.turnover : null
 
-  // 初始视图：日周月默认显示 90 个蜡烛图
-  if (klineZoom.start === 0 && klineZoom.end === 100 && pts.length > 90) {
-    klineZoom.start = Math.max(0, 100 - Math.round(90 / pts.length * 100))
+  // 初始视图：日周月默认显示 60 个蜡烛图
+  if (klineZoom.start === 0 && klineZoom.end === 100 && pts.length > 60) {
+    klineZoom.start = Math.max(0, 100 - Math.round(60 / pts.length * 100))
     klineZoom.end = 100
   }
 
