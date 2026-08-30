@@ -1068,23 +1068,27 @@ class EastMoneyClient:
 
     def intraday_trends(self, code: str = "", market: Optional[int] = None,
                         secid: Optional[str] = None) -> Optional[IntradayTrend]:
-        """分时数据：优先东财 push2his，失败降级腾讯（双源容错）
+        """分时数据：优先腾讯（极速低延迟），失败降级东财 push2his（双源容错）
 
-        可传 secid（如全球指数 100.N225）或 A 股 code。
+        可传 secid（如全球指数 100.N225）或 A 股/基金 code。
         """
         secid = self._resolve_secid(code, market, secid)
-        tx_symbol = self._tencent_symbol_of(secid)
-        if tx_symbol:
-            from . import tencent
-            tx = tencent.get_client().minute_quotes(code, symbol=tx_symbol)
-            if tx and tx.get("points"):
-                return IntradayTrend(
-                    code=code, name=tx.get("name") or "",
-                    pre_close=tx.get("pre_close") or 0.0,
-                    points=tx["points"],
-                )
+        stock_code = code or (secid.split(".", 1)[-1] if secid else "")
+        tx_symbol = self._tencent_symbol_of(secid) or self.TENCENT_INDEX_SYMBOL.get(secid)
+
+        # 优先腾讯分时（毫秒级极速响应，支持股票与 ETF）
+        from . import tencent
+        tx = tencent.get_client().minute_quotes(stock_code, symbol=tx_symbol)
+        if tx and tx.get("points"):
+            return IntradayTrend(
+                code=stock_code, name=tx.get("name") or "",
+                pre_close=tx.get("pre_close") or 0.0,
+                points=tx["points"],
+            )
+
+        # 降级：东财 push2his
         try:
-            data = self._q.get("/stock/trends2/get", {
+            data = self._his.get("/stock/trends2/get", {
                 "secid": secid,
                 "fields1": "f1,f2,f3,f4,f5,f6,f7,f8,f9,f10,f11,f12,f13",
                 "fields2": "f51,f52,f53,f54,f55,f56,f57,f58",
@@ -1110,19 +1114,10 @@ class EastMoneyClient:
                         low=_num(parts[4]) or 0.0,
                     ))
                 return IntradayTrend(
-                    code=code, name=d.get("name") or "",
+                    code=stock_code, name=d.get("name") or "",
                     pre_close=_num(d.get("preClose")) or 0.0,
                     points=points,
                 )
-        # 降级：腾讯分时
-        from . import tencent
-        tx = tencent.get_client().minute_quotes(code, symbol=self.TENCENT_INDEX_SYMBOL.get(secid))
-        if tx and tx.get("points"):
-            return IntradayTrend(
-                code=code, name=tx.get("name") or "",
-                pre_close=tx.get("pre_close") or 0.0,
-                points=tx["points"],
-            )
         return None
 
     def kline(self, code: str = "", market: Optional[int] = None,

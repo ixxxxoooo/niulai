@@ -137,40 +137,52 @@
               </tr>
             </thead>
             <tbody>
-              <tr v-for="s in tsW.sorted" :key="s.code" @click="openFromList(s, tsW.sorted, '返回自选')">
-                <td class="stock-name">
-                  <MiniTrend :code="s.code" :name="s.name">
-                    <span class="name-cell">
-                      {{ s.name }}<BoardBadges :row="s" />
-                      <LeaderBadge :code="s.code" />
-                      <span v-if="s.shares" class="hold-tag">持仓</span>
-                      <span
-                        v-if="riskMap[s.code]?.badge_text"
-                        class="risk-pill"
-                        :class="'pill-' + riskMap[s.code].badge_level"
-                        @click.stop="openRisk(s)"
-                        :title="`智能排雷预警：${riskMap[s.code].badge_text}，点击查看诊断`"
-                      >
-                        🛡️ {{ riskMap[s.code].badge_text }}
+              <template v-for="s in tsW.sorted" :key="s.code">
+                <tr
+                  :class="{ 'row-expanded': expandedCode === s.code }"
+                  @click="toggleRow(s)"
+                  @dblclick.stop="openFromList(s, tsW.sorted, '返回自选')"
+                >
+                  <td class="stock-name">
+                    <MiniTrend :code="s.code" :name="s.name">
+                      <span class="name-cell" @click.stop="openFromList(s, tsW.sorted, '返回自选')">
+                        {{ s.name }}<BoardBadges :row="s" />
+                        <LeaderBadge :code="s.code" />
+                        <span v-if="s.shares" class="hold-tag">持仓</span>
+                        <span
+                          v-if="riskMap[s.code]?.badge_text"
+                          class="risk-pill"
+                          :class="'pill-' + riskMap[s.code].badge_level"
+                          @click.stop="openRisk(s)"
+                          :title="`智能排雷预警：${riskMap[s.code].badge_text}，点击查看诊断`"
+                        >
+                          🛡️ {{ riskMap[s.code].badge_text }}
+                        </span>
                       </span>
-                    </span>
-                  </MiniTrend>
-                </td>
-                <td>{{ s.code }}</td>
+                    </MiniTrend>
+                  </td>
+                  <td>{{ s.code }}</td>
 
-                <td :class="pctClass(s.change_pct)">{{ fmtPrice(s.price) }}</td>
-                <td><span class="pct-badge" :class="pctClass(s.change_pct)">{{ fmtPct(s.change_pct) }}</span></td>
-                <td :class="pctClass(s.zhangsu)">{{ fmtPct(s.zhangsu) }}</td>
-                <td>{{ fmtAmount(s.amount) }}</td>
-                <td :class="pctClass(s.main_inflow)">{{ fmtAmount(s.main_inflow) }}</td>
-                <td>
-                  <div class="td-actions">
-                    <UiButton size="sm" variant="ghost" @click.stop="openStockGroup(s)">分组</UiButton>
-                    <UiButton size="sm" variant="ghost" @click.stop="edit(s)">{{ s.shares ? '改仓' : '录入' }}</UiButton>
-                    <UiButton size="sm" variant="danger" @click.stop="removeStock(s)">{{ currentGroupId !== null ? '移出' : '删除' }}</UiButton>
-                  </div>
-                </td>
-              </tr>
+                  <td :class="pctClass(s.change_pct)">{{ fmtPrice(s.price) }}</td>
+                  <td><span class="pct-badge" :class="pctClass(s.change_pct)">{{ fmtPct(s.change_pct) }}</span></td>
+                  <td :class="pctClass(s.zhangsu)">{{ fmtPct(s.zhangsu) }}</td>
+                  <td>{{ fmtAmount(s.amount) }}</td>
+                  <td :class="pctClass(s.main_inflow)">{{ fmtAmount(s.main_inflow) }}</td>
+                  <td>
+                    <div class="td-actions">
+                      <UiButton size="sm" variant="ghost" @click.stop="openStockGroup(s)">分组</UiButton>
+                      <UiButton size="sm" variant="ghost" @click.stop="edit(s)">{{ s.shares ? '改仓' : '录入' }}</UiButton>
+                      <UiButton size="sm" variant="danger" @click.stop="removeStock(s)">{{ currentGroupId !== null ? '移出' : '删除' }}</UiButton>
+                    </div>
+                  </td>
+                </tr>
+                <PoolExpandRow
+                  v-if="expandedCode === s.code"
+                  :code="s.code"
+                  :name="s.name"
+                  :colspan="8"
+                />
+              </template>
             </tbody>
           </table>
         </div>
@@ -231,45 +243,57 @@
               </tr>
             </thead>
             <tbody>
-              <tr v-for="s in tsHS.sorted" :key="s.code" @click="openFromList(s, tsHS.sorted, '返回自选')">
-                <td class="stock-name">
-                  <MiniTrend :code="s.code" :name="s.name">
-                    <span class="name-cell" :class="pctClass(s.pnl)">
-                      {{ s.name }}<BoardBadges :row="s" />
-                      <LeaderBadge :code="s.code" />
-                      <span
-                        v-if="riskMap[s.code]?.badge_text"
-                        class="risk-pill"
-                        :class="'pill-' + riskMap[s.code].badge_level"
-                        @click.stop="openRisk(s)"
-                        :title="`智能排雷预警：${riskMap[s.code].badge_text}，点击查看诊断`"
-                      >
-                        🛡️ {{ riskMap[s.code].badge_text }}
+              <template v-for="s in tsHS.sorted" :key="s.code">
+                <tr
+                  :class="{ 'row-expanded': expandedCode === s.code }"
+                  @click="toggleRow(s)"
+                  @dblclick.stop="openFromList(s, tsHS.sorted, '返回自选')"
+                >
+                  <td class="stock-name">
+                    <MiniTrend :code="s.code" :name="s.name">
+                      <span class="name-cell" :class="pctClass(s.pnl)" @click.stop="openFromList(s, tsHS.sorted, '返回自选')">
+                        {{ s.name }}<BoardBadges :row="s" />
+                        <LeaderBadge :code="s.code" />
+                        <span
+                          v-if="riskMap[s.code]?.badge_text"
+                          class="risk-pill"
+                          :class="'pill-' + riskMap[s.code].badge_level"
+                          @click.stop="openRisk(s)"
+                          :title="`智能排雷预警：${riskMap[s.code].badge_text}，点击查看诊断`"
+                        >
+                          🛡️ {{ riskMap[s.code].badge_text }}
+                        </span>
                       </span>
-                    </span>
-                  </MiniTrend>
-                  <div class="name-mv">{{ fmtMoney(s.market_value) }}</div>
-                </td>
+                    </MiniTrend>
+                    <div class="name-mv">{{ fmtMoney(s.market_value) }}</div>
+                  </td>
 
-                <td :class="pctClass(s.pnl)">{{ fmtSignedMoney(s.pnl) }}</td>
-                <td :class="pctClass(s.pnl_pct)">{{ fmtPct(s.pnl_pct) }}</td>
-                <td :class="pctClass(s.change_pct)">{{ fmtPrice(s.price) }}</td>
-                <td>{{ fmtPrice(s.cost) }}</td>
-                <td>{{ fmtShares(s.shares) }}</td>
-                <td><span class="pct-badge" :class="pctClass(s.change_pct)">{{ fmtPct(s.change_pct) }}</span></td>
-                <td :class="pctClass(s.day_pnl)">{{ fmtSignedMoney(s.day_pnl) }}</td>
-                <td>
-                  <div class="pos-ratio">
-                    <div class="pos-ratio-track">
-                      <div class="pos-ratio-bar" :class="s.position_ratio > 50 ? 'over' : ''" :style="{ width: Math.min(100, s.position_ratio) + '%' }"></div>
+                  <td :class="pctClass(s.pnl)">{{ fmtSignedMoney(s.pnl) }}</td>
+                  <td :class="pctClass(s.pnl_pct)">{{ fmtPct(s.pnl_pct) }}</td>
+                  <td :class="pctClass(s.change_pct)">{{ fmtPrice(s.price) }}</td>
+                  <td>{{ fmtPrice(s.cost) }}</td>
+                  <td>{{ fmtShares(s.shares) }}</td>
+                  <td><span class="pct-badge" :class="pctClass(s.change_pct)">{{ fmtPct(s.change_pct) }}</span></td>
+                  <td :class="pctClass(s.day_pnl)">{{ fmtSignedMoney(s.day_pnl) }}</td>
+                  <td>
+                    <div class="pos-ratio">
+                      <div class="pos-ratio-track">
+                        <div class="pos-ratio-bar" :class="s.position_ratio > 50 ? 'over' : ''" :style="{ width: Math.min(100, s.position_ratio) + '%' }"></div>
+                      </div>
+                      <span>{{ fmtPct(s.position_ratio) }}</span>
                     </div>
-                    <span>{{ fmtPct(s.position_ratio) }}</span>
-                  </div>
-                </td>
-                <td>
-                  <div class="td-actions"><UiButton size="sm" variant="ghost" @click.stop="edit(s)">改仓</UiButton><UiButton size="sm" variant="danger" @click.stop="clearOne(s)">清仓</UiButton></div>
-                </td>
-              </tr>
+                  </td>
+                  <td>
+                    <div class="td-actions"><UiButton size="sm" variant="ghost" @click.stop="edit(s)">改仓</UiButton><UiButton size="sm" variant="danger" @click.stop="clearOne(s)">清仓</UiButton></div>
+                  </td>
+                </tr>
+                <PoolExpandRow
+                  v-if="expandedCode === s.code"
+                  :code="s.code"
+                  :name="s.name"
+                  :colspan="10"
+                />
+              </template>
             </tbody>
           </table>
         </div>
@@ -300,32 +324,46 @@
               </tr>
             </thead>
             <tbody>
-              <tr v-for="s in tsHE.sorted" :key="s.code" @click="openFromList(s, tsHE.sorted, '返回自选')">
-                <td class="stock-name">
-                  <MiniTrend :code="s.code" :name="s.name">
-                    <span class="name-cell" :class="pctClass(s.pnl)">{{ s.name }}<BoardBadges :row="s" /></span>
-                  </MiniTrend>
-                  <div class="name-mv">{{ fmtMoney(s.market_value) }}</div>
-                </td>
-                <td :class="pctClass(s.pnl)">{{ fmtSignedMoney(s.pnl) }}</td>
-                <td :class="pctClass(s.pnl_pct)">{{ fmtPct(s.pnl_pct) }}</td>
-                <td :class="pctClass(s.change_pct)">{{ fmtPrice(s.price) }}</td>
-                <td>{{ fmtPrice(s.cost) }}</td>
-                <td>{{ fmtShares(s.shares) }}</td>
-                <td><span class="pct-badge" :class="pctClass(s.change_pct)">{{ fmtPct(s.change_pct) }}</span></td>
-                <td :class="pctClass(s.day_pnl)">{{ fmtSignedMoney(s.day_pnl) }}</td>
-                <td>
-                  <div class="pos-ratio">
-                    <div class="pos-ratio-track">
-                      <div class="pos-ratio-bar" :class="s.position_ratio > 50 ? 'over' : ''" :style="{ width: Math.min(100, s.position_ratio) + '%' }"></div>
+              <template v-for="s in tsHE.sorted" :key="s.code">
+                <tr
+                  :class="{ 'row-expanded': expandedCode === s.code }"
+                  @click="toggleRow(s)"
+                  @dblclick.stop="openFromList(s, tsHE.sorted, '返回自选')"
+                >
+                  <td class="stock-name">
+                    <MiniTrend :code="s.code" :name="s.name">
+                      <span class="name-cell" :class="pctClass(s.pnl)" @click.stop="openFromList(s, tsHE.sorted, '返回自选')">
+                        {{ s.name }}<BoardBadges :row="s" />
+                      </span>
+                    </MiniTrend>
+                    <div class="name-mv">{{ fmtMoney(s.market_value) }}</div>
+                  </td>
+                  <td :class="pctClass(s.pnl)">{{ fmtSignedMoney(s.pnl) }}</td>
+                  <td :class="pctClass(s.pnl_pct)">{{ fmtPct(s.pnl_pct) }}</td>
+                  <td :class="pctClass(s.change_pct)">{{ fmtPrice(s.price) }}</td>
+                  <td>{{ fmtPrice(s.cost) }}</td>
+                  <td>{{ fmtShares(s.shares) }}</td>
+                  <td><span class="pct-badge" :class="pctClass(s.change_pct)">{{ fmtPct(s.change_pct) }}</span></td>
+                  <td :class="pctClass(s.day_pnl)">{{ fmtSignedMoney(s.day_pnl) }}</td>
+                  <td>
+                    <div class="pos-ratio">
+                      <div class="pos-ratio-track">
+                        <div class="pos-ratio-bar" :class="s.position_ratio > 50 ? 'over' : ''" :style="{ width: Math.min(100, s.position_ratio) + '%' }"></div>
+                      </div>
+                      <span>{{ fmtPct(s.position_ratio) }}</span>
                     </div>
-                    <span>{{ fmtPct(s.position_ratio) }}</span>
-                  </div>
-                </td>
-                <td>
-                  <div class="td-actions"><UiButton size="sm" variant="ghost" @click.stop="edit(s)">改仓</UiButton><UiButton size="sm" variant="danger" @click.stop="clearOne(s)">清仓</UiButton></div>
-                </td>
-              </tr>
+                  </td>
+                  <td>
+                    <div class="td-actions"><UiButton size="sm" variant="ghost" @click.stop="edit(s)">改仓</UiButton><UiButton size="sm" variant="danger" @click.stop="clearOne(s)">清仓</UiButton></div>
+                  </td>
+                </tr>
+                <PoolExpandRow
+                  v-if="expandedCode === s.code"
+                  :code="s.code"
+                  :name="s.name"
+                  :colspan="10"
+                />
+              </template>
             </tbody>
           </table>
         </div>
@@ -432,6 +470,14 @@ import BoardBadges from '../components/BoardBadges.vue'
 import RiskModal from '../components/RiskModal.vue'
 import GroupManageModal from '../components/GroupManageModal.vue'
 import StockGroupModal from '../components/StockGroupModal.vue'
+import PoolExpandRow from '../components/PoolExpandRow.vue'
+
+// 点击行下拉展开分时图、日K线与评分
+const expandedCode = ref(null)
+function toggleRow(s) {
+  if (!s || !s.code) return
+  expandedCode.value = expandedCode.value === s.code ? null : s.code
+}
 
 /**
  * 从自选/持仓列表进入详情，带同表左右切换与返回自选。
