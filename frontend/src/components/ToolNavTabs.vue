@@ -46,7 +46,7 @@ function go(path) {
 .tool-nav-bar {
   display: flex;
   align-items: center;
-  margin-bottom: 16px;
+  margin-bottom: 18px;
 }
 .tool-tabs {
   margin-bottom: 0;
