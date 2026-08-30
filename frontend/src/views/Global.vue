@@ -198,8 +198,10 @@ const poll = usePolling(load, 10000)
   position: absolute;
   left: 0;
   top: calc(100% + 6px);
-  z-index: 20;
-  min-width: 150px;
+  z-index: 50;
+  min-width: 175px;
+  max-height: 280px;
+  overflow-y: auto;
   background: var(--bg-card);
   border: 1px solid var(--border);
   border-radius: 8px;
