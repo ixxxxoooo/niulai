@@ -84,7 +84,7 @@
           <div class="tab" @click="zoomKline(-1)" title="聚焦近期K线 (蜡烛变粗)">缩短K线</div>
         </div>
       </div>
-      <div ref="chartEl" style="width: 100%; height: 460px"></div>
+      <div ref="chartEl" style="width: 100%; height: 500px"></div>
     </div>
 
     <AlertQuickModal
@@ -383,9 +383,9 @@ function renderTrend() {
       zoomOnMouseWheel: false, moveOnMouseWheel: false, moveOnMouseMove: false,
     }],
     grid: [
-      { left: 70, right: 54, top: 28, height: '48%' },
-      { left: 70, right: 54, top: '58%', height: '12%' },
-      { left: 70, right: 54, top: '76%', height: '16%' },
+      { left: 64, right: 56, top: 26, height: '52%' },
+      { left: 64, right: 56, top: '61%', height: '14%' },
+      { left: 64, right: 56, top: '78%', height: '17%' },
     ],
     tooltip: {
       trigger: 'axis', axisPointer: { type: 'cross' },
@@ -394,10 +394,17 @@ function renderTrend() {
         if (prices[i] == null) return null
         const chg = ((prices[i] - pre) / pre * 100)
         const chgColor = chg >= 0 ? tc.up : tc.down
-        return `${times[i]}<br/>点位 <b style="color:${chgColor}">${fmtPrice(prices[i])}</b>`
-          + `<br/>涨跌幅 <span style="color:${chgColor}">${chg >= 0 ? '+' : ''}${chg.toFixed(2)}%</span>`
-          + (avgOk ? `<br/>均价 ${fmtPrice(avgs[i])}` : '')
-          + `<br/>昨收 ${fmtPrice(pre)}<br/>成交量 ${fmtNum(vols[i], 0)}`
+        const row = (label, valHtml) =>
+          `<div style="display:flex;justify-content:space-between;gap:24px;line-height:1.7"><span style="color:${tc.axis};opacity:.8">${label}</span><span>${valHtml}</span></div>`
+        let html = `<div style="min-width:140px;font-size:12px">`
+        html += row('时间', `<b>${times[i]}</b>`)
+        html += row('点位', `<b style="color:${chgColor}">${fmtPrice(prices[i])}</b>`)
+        html += row('涨跌幅', `<span style="color:${chgColor};font-weight:700">${chg >= 0 ? '+' : ''}${chg.toFixed(2)}%</span>`)
+        if (avgOk && avgs[i] != null) html += row('均价', fmtPrice(avgs[i]))
+        html += row('昨收', fmtPrice(pre))
+        if (vols[i] != null) html += row('成交量', fmtNum(vols[i], 0))
+        html += `</div>`
+        return html
       },
     },
     legend: { show: false },
@@ -490,9 +497,9 @@ function renderKline(p) {
       },
     ],
     grid: [
-      { left: 70, right: 54, top: 28, height: '44%' },
-      { left: 70, right: 54, top: '55%', height: '14%' },
-      { left: 70, right: 54, top: '73%', height: '18%' },
+      { left: 64, right: 56, top: 26, height: '52%' },
+      { left: 64, right: 56, top: '61%', height: '14%' },
+      { left: 64, right: 56, top: '78%', height: '17%' },
     ],
     tooltip: {
       trigger: 'axis', axisPointer: { type: 'cross' },

@@ -1,5 +1,5 @@
 <template>
-  <div ref="el" style="width: 100%; height: 460px"></div>
+  <div ref="el" style="width: 100%; height: 500px"></div>
 </template>
 
 <script setup>
@@ -126,13 +126,13 @@ function render() {
   const zeroColor = isLightTheme() ? 'rgba(0,0,0,0.28)' : 'rgba(255,255,255,0.28)'
   const grids = hasSub
     ? [
-      { left: 58, right: 58, top: 28, height: '40%' },
-      { left: 58, right: 58, top: '53%', height: '13%' },
-      { left: 58, right: 58, top: '72%', height: '18%' },
+      { left: 64, right: 56, top: 26, height: '52%' },
+      { left: 64, right: 56, top: '61%', height: '14%' },
+      { left: 64, right: 56, top: '78%', height: '17%' },
     ]
     : [
-      { left: 58, right: 58, top: 28, height: '58%' },
-      { left: 58, right: 58, top: '72%', height: '18%' },
+      { left: 64, right: 56, top: 26, height: '67%' },
+      { left: 64, right: 56, top: '75%', height: '19%' },
     ]
   const xAxes = [
     { type: 'category', data: times, gridIndex: 0, boundaryGap: false,

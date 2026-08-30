@@ -72,16 +72,16 @@ export function tripleAxis(times, tc, priceRange = null, withSub = true) {
     y0.max = priceRange.yMax
     y0.scale = false
   }
-  const rightPad = priceRange ? 54 : 16
+  const rightPad = priceRange ? 56 : 16
   const grids = withSub
     ? [
-      { left: 58, right: rightPad, top: 28, height: '40%' },
-      { left: 58, right: rightPad, top: '53%', height: '13%' },
-      { left: 58, right: rightPad, top: '72%', height: '18%' },
+      { left: 64, right: rightPad, top: 26, height: '52%' },
+      { left: 64, right: rightPad, top: '61%', height: '14%' },
+      { left: 64, right: rightPad, top: '78%', height: '17%' },
     ]
     : [
-      { left: 58, right: rightPad, top: 28, height: '58%' },
-      { left: 58, right: rightPad, top: '72%', height: '18%' },
+      { left: 64, right: rightPad, top: 26, height: '67%' },
+      { left: 64, right: rightPad, top: '75%', height: '19%' },
     ]
   const xAxes = [
     { type: 'category', data: times, gridIndex: 0, axisLabel: { color: tc.axis, fontSize: 11 }, axisLine: { lineStyle: { color: tc.split } } },

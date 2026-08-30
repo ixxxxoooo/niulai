@@ -1,5 +1,5 @@
 <template>
-  <div ref="el" style="width: 100%; height: 460px"></div>
+  <div ref="el" style="width: 100%; height: 500px"></div>
 </template>
 
 <script setup>
