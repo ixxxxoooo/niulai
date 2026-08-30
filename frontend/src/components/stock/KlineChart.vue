@@ -61,9 +61,21 @@ function render() {
   const lastDate = pts[pts.length - 1]?.date
   const turnoverHint = lastDate ? props.detail.turnover : null
 
+  if (klineZoom.start === 0 && klineZoom.end === 100 && pts.length > 50) {
+    klineZoom.start = Math.max(0, 100 - Math.round(50 / pts.length * 100))
+    klineZoom.end = 100
+  }
+
   chart.setOption({
     animation: false,
-    dataZoom: [{ type: 'inside', xAxisIndex: zoomAxes, filterMode: 'filter', zoomOnMouseWheel: true }],
+    dataZoom: [{
+      type: 'inside',
+      xAxisIndex: zoomAxes,
+      filterMode: 'filter',
+      zoomOnMouseWheel: true,
+      start: klineZoom.start,
+      end: klineZoom.end,
+    }],
     ...axis,
     tooltip: {
       trigger: 'axis',
@@ -114,10 +126,36 @@ function render() {
   }, true)
 }
 
+const klineZoom = { start: 0, end: 100 }
+
+function zoom(dir) {
+  if (!chart) return
+  if (dir > 0) {
+    klineZoom.start = Math.max(0, klineZoom.start - 15)
+    klineZoom.end = Math.min(100, klineZoom.end + 5)
+  } else {
+    klineZoom.start = Math.min(klineZoom.end - 10, klineZoom.start + 15)
+  }
+  chart.dispatchAction({
+    type: 'dataZoom',
+    start: klineZoom.start,
+    end: klineZoom.end,
+  })
+}
+
 function onResize() { chart && chart.resize() }
 
 onMounted(() => {
   chart = echarts.init(el.value)
+  chart.on('datazoom', (params) => {
+    if (params.batch && params.batch[0]) {
+      klineZoom.start = params.batch[0].start != null ? params.batch[0].start : klineZoom.start
+      klineZoom.end = params.batch[0].end != null ? params.batch[0].end : klineZoom.end
+    } else if (params.start != null) {
+      klineZoom.start = params.start
+      klineZoom.end = params.end != null ? params.end : klineZoom.end
+    }
+  })
   window.addEventListener('resize', onResize)
   render()
 })
@@ -129,5 +167,5 @@ onUnmounted(() => {
 
 watch(() => [props.kline, props.period, props.subInd, props.selectedSet], () => render(), { deep: true })
 
-defineExpose({ render, resize: onResize, getChart: () => chart })
+defineExpose({ render, resize: onResize, zoom, getChart: () => chart })
 </script>

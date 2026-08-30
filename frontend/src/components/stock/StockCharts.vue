@@ -16,6 +16,10 @@
       <div class="tabs mini-tabs">
         <div class="tab" :class="{ active: showBuySell }" @click="toggleBuySell">买卖点</div>
       </div>
+      <div class="tabs mini-tabs" v-if="chartPeriod !== 'trend'">
+        <div class="tab" @click="zoomKline(1)" title="显示更多历史K线 (视野变宽)">拉长K线</div>
+        <div class="tab" @click="zoomKline(-1)" title="聚焦近期K线 (蜡烛变粗)">缩短K线</div>
+      </div>
       <button class="btn-screenshot" @click="screenshotChart" title="截图到剪贴板"><UiIcon name="screenshot" :size="14" /></button>
     </div>
     <div class="sr-picker" v-if="srOptions.length && chartPeriod !== 'trend'">
@@ -159,6 +163,10 @@ function setSub(t) {
 function toggleBuySell() {
   showBuySell.value = !showBuySell.value
   redraw()
+}
+
+function zoomKline(dir) {
+  klineRef.value?.zoom(dir)
 }
 
 function redraw() {

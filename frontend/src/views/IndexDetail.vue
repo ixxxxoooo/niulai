@@ -41,6 +41,10 @@
           <div class="tab" :class="{ active: subInd === 'kdj' }" @click="setSub('kdj')">KDJ</div>
           <div class="tab" :class="{ active: subInd === 'rsi' }" @click="setSub('rsi')">RSI</div>
         </div>
+        <div class="tabs mini-tabs" v-if="period !== 'trend'">
+          <div class="tab" @click="zoomKline(1)" title="显示更多历史K线 (视野变宽)">拉长K线</div>
+          <div class="tab" @click="zoomKline(-1)" title="聚焦近期K线 (蜡烛变粗)">缩短K线</div>
+        </div>
       </div>
       <div ref="chartEl" style="width: 100%; height: 460px"></div>
     </div>
@@ -165,6 +169,25 @@ async function probeKline() {
     const k = await getCachedKline(secid.value, 'day', 30, true)
     if (k && k.points && k.points.length) klineCache.day = k
   } catch (e) { /* 探测失败仍保留日K入口 */ }
+}
+
+const klineZoom = reactive({ start: 0, end: 100 })
+
+function zoomKline(dir) {
+  if (!chart || period.value === 'trend') return
+  if (dir > 0) {
+    // 拉长K线：视野更宽，看到更多根 K 线
+    klineZoom.start = Math.max(0, klineZoom.start - 15)
+    klineZoom.end = Math.min(100, klineZoom.end + 5)
+  } else {
+    // 缩短K线：聚焦近期，蜡烛变宽
+    klineZoom.start = Math.min(klineZoom.end - 10, klineZoom.start + 15)
+  }
+  chart.dispatchAction({
+    type: 'dataZoom',
+    start: klineZoom.start,
+    end: klineZoom.end,
+  })
 }
 
 function setSub(t) {
@@ -344,9 +367,25 @@ function renderKline(p) {
     overlays: [ma5, ma10, ma20, ma60],
     base,
   })
+
+  // 初始视图：若点数较多，默认聚焦在最近 60 根
+  if (klineZoom.start === 0 && klineZoom.end === 100 && pts.length > 50) {
+    klineZoom.start = Math.max(0, 100 - Math.round(50 / pts.length * 100))
+    klineZoom.end = 100
+  }
+
   chart.setOption({
     animation: false,
-    dataZoom: [{ type: 'inside', xAxisIndex: [0, 1], filterMode: 'filter' }],
+    dataZoom: [
+      {
+        type: 'inside',
+        xAxisIndex: [0, 1],
+        filterMode: 'filter',
+        zoomOnMouseWheel: true,
+        start: klineZoom.start,
+        end: klineZoom.end,
+      },
+    ],
     grid: [{ left: 70, right: 54, top: 36, height: '54%' }, { left: 70, right: 54, top: '74%', height: '18%' }],
     tooltip: {
       trigger: 'axis', axisPointer: { type: 'cross' },
@@ -424,6 +463,15 @@ const poll = usePolling(load, 5000)
 onMounted(async () => {
   await nextTick()
   chart = echarts.init(chartEl.value)
+  chart.on('datazoom', (params) => {
+    if (params.batch && params.batch[0]) {
+      klineZoom.start = params.batch[0].start != null ? params.batch[0].start : klineZoom.start
+      klineZoom.end = params.batch[0].end != null ? params.batch[0].end : klineZoom.end
+    } else if (params.start != null) {
+      klineZoom.start = params.start
+      klineZoom.end = params.end != null ? params.end : klineZoom.end
+    }
+  })
   window.addEventListener('resize', onResize)
   window.addEventListener('theme-change', onThemeChange)
   window.addEventListener('chart-scale-change', onChartScaleChange)
