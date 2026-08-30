@@ -16,7 +16,7 @@
 
     <div ref="calendarEl">
       <!-- ── 顶部 4 大核心倒计时卡片 ── -->
-      <div class="hero-grid mt16" v-if="heroCards.length">
+      <div class="hero-grid" v-if="heroCards.length">
         <div
           v-for="c in heroCards"
           :key="c.key"
@@ -647,6 +647,7 @@ onMounted(() => {
   justify-content: space-between;
   gap: 12px;
   flex-wrap: wrap;
+  margin-bottom: 8px;
 }
 </style>
 

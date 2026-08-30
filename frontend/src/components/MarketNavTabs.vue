@@ -46,7 +46,7 @@ function go(path) {
 .market-nav-bar {
   display: flex;
   align-items: center;
-  margin-bottom: 12px;
+  margin-bottom: 8px;
 }
 .market-tabs {
   margin-bottom: 0;
