@@ -462,6 +462,9 @@ function renderKline(p) {
     base,
   })
 
+  const vols = pts.map(x => x.volume || 0)
+  const volMa5 = ind.vol_ma5 || calcMA(pts.map(x => ({ close: x.volume || 0 })), 5)
+
   // 初始视图：日周月默认显示 90 个蜡烛图
   if (klineZoom.start === 0 && klineZoom.end === 100 && pts.length > 90) {
     klineZoom.start = Math.max(0, 100 - Math.round(90 / pts.length * 100))
@@ -473,14 +476,18 @@ function renderKline(p) {
     dataZoom: [
       {
         type: 'inside',
-        xAxisIndex: [0, 1],
+        xAxisIndex: [0, 1, 2],
         filterMode: 'filter',
         zoomOnMouseWheel: true,
         start: klineZoom.start,
         end: klineZoom.end,
       },
     ],
-    grid: [{ left: 70, right: 54, top: 36, height: '54%' }, { left: 70, right: 54, top: '74%', height: '18%' }],
+    grid: [
+      { left: 70, right: 54, top: 28, height: '44%' },
+      { left: 70, right: 54, top: '55%', height: '14%' },
+      { left: 70, right: 54, top: '73%', height: '18%' },
+    ],
     tooltip: {
       trigger: 'axis', axisPointer: { type: 'cross' },
       formatter: (ps) => {
@@ -507,6 +514,9 @@ function renderKline(p) {
         if (cum != null) {
           html += row('区间涨幅', `<span style="color:${chgColor};font-weight:700">${cum > 0 ? '+' : ''}${cum.toFixed(2)}%</span>`)
         }
+        if (x.volume != null) {
+          html += row('成交量', fmtNum(x.volume, 0))
+        }
         html += `</div>`
         return html
       },
@@ -515,6 +525,7 @@ function renderKline(p) {
     xAxis: [
       { type: 'category', data: dates, gridIndex: 0, axisLabel: { color: tc.axis, fontSize: 11 }, axisLine: { lineStyle: { color: tc.split } } },
       { type: 'category', data: dates, gridIndex: 1, axisLabel: { show: false }, axisLine: { lineStyle: { color: tc.split } } },
+      { type: 'category', data: dates, gridIndex: 2, axisLabel: { show: false }, axisLine: { lineStyle: { color: tc.split } } },
     ],
     yAxis: [
       {
@@ -531,19 +542,40 @@ function renderKline(p) {
         axisLabel: { color: tc.axis, fontSize: 10, formatter: (v) => (v > 0 ? '+' : '') + Number(v).toFixed(1) + '%' },
         axisLine: { lineStyle: { color: tc.split } },
       },
-      { type: 'value', gridIndex: 1, scale: true, splitLine: { lineStyle: { color: tc.split } }, axisLabel: { color: tc.axis, fontSize: 10 } },
+      {
+        type: 'value', gridIndex: 1,
+        splitLine: { show: false },
+        axisLabel: { color: tc.axis, fontSize: 10 },
+      },
+      {
+        type: 'value', gridIndex: 2, scale: true,
+        splitLine: { lineStyle: { color: tc.split } },
+        axisLabel: { color: tc.axis, fontSize: 10 },
+      },
     ],
     series: [
       {
         name: 'K线', type: 'candlestick',
+        xAxisIndex: 0, yAxisIndex: 0,
         data: pts.map(x => [x.open, x.close, x.low, x.high]),
         itemStyle: { color: tc.up, color0: tc.down, borderColor: tc.up, borderColor0: tc.down },
       },
-      { name: 'MA5', type: 'line', data: ma5, showSymbol: false, lineStyle: { width: 1, color: '#f5a623' }, itemStyle: { color: '#f5a623' } },
-      { name: 'MA10', type: 'line', data: ma10, showSymbol: false, lineStyle: { width: 1, color: '#4c9aff' }, itemStyle: { color: '#4c9aff' } },
-      { name: 'MA20', type: 'line', data: ma20, showSymbol: false, lineStyle: { width: 1, color: '#f04444' }, itemStyle: { color: '#f04444' } },
-      { name: 'MA60', type: 'line', data: ma60, showSymbol: false, lineStyle: { width: 1, color: '#2fbf8f' }, itemStyle: { color: '#2fbf8f' } },
-      ...subSeries(ind, tc).map(s => ({ ...s, yAxisIndex: 2 })),
+      { name: 'MA5', type: 'line', xAxisIndex: 0, yAxisIndex: 0, data: ma5, showSymbol: false, lineStyle: { width: 1, color: '#f5a623' }, itemStyle: { color: '#f5a623' } },
+      { name: 'MA10', type: 'line', xAxisIndex: 0, yAxisIndex: 0, data: ma10, showSymbol: false, lineStyle: { width: 1, color: '#4c9aff' }, itemStyle: { color: '#4c9aff' } },
+      { name: 'MA20', type: 'line', xAxisIndex: 0, yAxisIndex: 0, data: ma20, showSymbol: false, lineStyle: { width: 1, color: '#f04444' }, itemStyle: { color: '#f04444' } },
+      { name: 'MA60', type: 'line', xAxisIndex: 0, yAxisIndex: 0, data: ma60, showSymbol: false, lineStyle: { width: 1, color: '#2fbf8f' }, itemStyle: { color: '#2fbf8f' } },
+      {
+        name: '成交量', type: 'bar', xAxisIndex: 1, yAxisIndex: 2, barWidth: '60%',
+        data: vols.map((v, i) => ({
+          value: v,
+          itemStyle: { color: pts[i].close >= pts[i].open ? tc.up + '8c' : tc.down + '8c' },
+        })),
+      },
+      {
+        name: 'VOL MA5', type: 'line', data: volMa5, xAxisIndex: 1, yAxisIndex: 2, showSymbol: false,
+        lineStyle: { width: 1, color: '#f5a623', type: 'dashed' }, itemStyle: { color: '#f5a623' },
+      },
+      ...subSeries(ind, tc).map(s => ({ ...s, xAxisIndex: 2, yAxisIndex: 3 })),
     ],
   }, true)
 }
