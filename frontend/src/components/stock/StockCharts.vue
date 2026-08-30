@@ -121,9 +121,11 @@ watch(() => props.trend, () => {
   if (chartPeriod.value === 'trend') nextTick(() => trendRef.value?.render())
 })
 
-watch(() => props.code, () => {
+watch(() => props.code, async () => {
   Object.keys(klineCache).forEach(k => delete klineCache[k])
-  chartPeriod.value = 'trend'
+  if (chartPeriod.value !== 'trend') {
+    await switchChart(chartPeriod.value)
+  }
 })
 
 function toggleSRItem(id) {

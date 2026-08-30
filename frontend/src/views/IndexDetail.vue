@@ -192,7 +192,11 @@ async function load() {
     Object.keys(meta).forEach(k => delete meta[k])
     Object.assign(meta, q || { secid: secid.value })
     error.value = ''
-    if (period.value === 'trend') loadTrend()
+    if (period.value === 'trend') {
+      loadTrend()
+    } else {
+      switchChart(period.value)
+    }
   } catch (e) {
     error.value = '指数数据加载失败：' + e.message
   }
@@ -595,7 +599,7 @@ watch(() => props.secid, (n) => {
     secid.value = n
     trend.value = null
     Object.keys(klineCache).forEach(k => delete klineCache[k])
-    period.value = 'trend'
+    // 保持当前选中的图表类型（分时 / 日K / 周K / 月K）
     load()
   }
 })
@@ -621,7 +625,6 @@ onMounted(async () => {
   window.addEventListener('theme-change', onThemeChange)
   window.addEventListener('chart-scale-change', onChartScaleChange)
   load()
-  renderTrend()
 })
 onUnmounted(() => {
   window.removeEventListener('resize', onResize)
