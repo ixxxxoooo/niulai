@@ -17,6 +17,7 @@
             {{ fmtPct(q.change_pct) }}
             <span style="font-size:12px;font-weight:400">{{ fmtNum(q.change) }}</span>
           </div>
+          <IndexSpark :trend="trendOf(q)" />
         </div>
       </div>
       <div class="index-grid ap-grid mt12">
@@ -27,6 +28,7 @@
             {{ fmtPct(q.change_pct) }}
             <span style="font-size:12px;font-weight:400">{{ fmtNum(q.change) }}</span>
           </div>
+          <IndexSpark :trend="trendOf(q)" />
         </div>
       </div>
     </div>
@@ -120,6 +122,7 @@ import { navigate } from '../router.js'
 import { usePolling } from '../composables/usePolling.js'
 import { captureElement } from '../composables/useScreenshot.js'
 import MarketNavTabs from '../components/MarketNavTabs.vue'
+import IndexSpark from '../components/IndexSpark.vue'
 
 const idxCard = ref(null)
 const usCard = ref(null)
@@ -130,6 +133,24 @@ const metalCard = ref(null)
 const indices = ref([])
 const allBoards = ref([])
 const error = ref('')
+
+let _cachedGlobalTrends = null
+const globalTrends = ref({ ...(_cachedGlobalTrends || {}) })
+
+function trendOf(q) {
+  const items = globalTrends.value?.items || []
+  return items.find(t => t.secid === q.secid || t.code === q.code) || null
+}
+
+async function loadTrends() {
+  try {
+    const res = await api.globalIndicesTrends()
+    if (res && res.items) {
+      globalTrends.value = res
+      _cachedGlobalTrends = res
+    }
+  } catch (e) { /* ignore */ }
+}
 
 // 全球指数分组：美股一排，日韩/港股一排
 const usIndices = computed(() => indices.value.filter(q => q.region === '美股'))
@@ -147,7 +168,7 @@ function goIndex(q) {
 
 async function load() {
   try {
-    const [gi, gs] = await Promise.all([api.globalIndices(), api.globalSectors()])
+    const [gi, gs] = await Promise.all([api.globalIndices(), api.globalSectors(), loadTrends()])
     indices.value = gi
     allBoards.value = gs
     error.value = ''

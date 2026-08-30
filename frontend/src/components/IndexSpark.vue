@@ -40,10 +40,22 @@ const fullTimes = (() => {
 })()
 const timeIndex = new Map(fullTimes.map((t, i) => [t, i]))
 
+const isGlobal = computed(() => {
+  const secid = props.trend?.secid || ''
+  if (secid.startsWith('100.')) return true
+  const pts = props.trend?.points || []
+  if (pts.length > 250) return true
+  if (pts.length > 0 && !timeIndex.has(pts[0].time)) return true
+  return false
+})
 
-// 带时间索引的数据点 [{time, price, idx}]
+// 带时间索引的数据点 [{price, idx}]
 const spacedPoints = computed(() => {
   const pts = props.trend?.points || []
+  if (!pts.length) return []
+  if (isGlobal.value) {
+    return pts.map((p, i) => ({ price: p.price, idx: i }))
+  }
   const out = []
   for (const p of pts) {
     const idx = timeIndex.get(p.time)
@@ -72,8 +84,9 @@ const baseY = computed(() => PAD + (vh - PAD * 2) / 2)
 
 const polyPoints = computed(() => {
   const pts = spacedPoints.value
-  const n = fullTimes.length
-  const stepX = (vw - PAD * 2) / (n - 1)
+  if (!pts.length) return ''
+  const n = isGlobal.value ? pts.length : fullTimes.length
+  const stepX = (vw - PAD * 2) / Math.max(n - 1, 1)
   const pre = preClose.value || (pts[0] && pts[0].price)
   return pts.map((pt) => {
     const x = PAD + pt.idx * stepX

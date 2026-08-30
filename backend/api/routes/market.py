@@ -214,6 +214,35 @@ def global_indices():
     return [q.model_dump() for q in eastmoney.get_client().global_indices()]
 
 
+@router.get("/global/indices-trends")
+@ttl_cache(ttl=30)
+def global_indices_trends():
+    """全球指数分时（全球外盘缩略图用），并发拉取全球指数分时。"""
+    from concurrent.futures import ThreadPoolExecutor
+
+    client = eastmoney.get_client()
+
+    def _fetch(secid: str):
+        try:
+            t = client.intraday_trends(secid=secid)
+            if t is None or not t.points:
+                return None
+            return {
+                "code": t.code,
+                "secid": secid,
+                "name": t.name,
+                "pre_close": t.pre_close,
+                "points": [{"time": p.time, "price": p.price} for p in t.points],
+            }
+        except Exception:
+            return None
+
+    secids = [s for s, _, _ in eastmoney.EastMoneyClient.GLOBAL_INDICES]
+    with ThreadPoolExecutor(max_workers=len(secids) or 1) as ex:
+        items = list(ex.map(_fetch, secids))
+    return {"items": [it for it in items if it is not None]}
+
+
 @router.get("/global/sectors")
 @ttl_cache(ttl=10)
 def global_sectors(
