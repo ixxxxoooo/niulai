@@ -1,5 +1,6 @@
 <template>
   <div>
+    <MarketNavTabs current-tab="overview" />
     <div class="error-banner" v-if="error">{{ error }}</div>
 
     <!-- 关键日历事件横幅 -->
@@ -147,6 +148,7 @@ import { usePolling } from '../composables/usePolling.js'
 import { openStock } from '../composables/useStockMeta.js'
 import StockTable from '../components/StockTable.vue'
 import IndexSpark from '../components/IndexSpark.vue'
+import MarketNavTabs from '../components/MarketNavTabs.vue'
 
 /**
  * 盘面榜单进入详情：在当前榜内切换，返回盘面。

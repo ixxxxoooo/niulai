@@ -1,6 +1,6 @@
 <template>
   <div>
-    <div class="page-title">全球市场</div>
+    <MarketNavTabs current-tab="global" />
     <div class="error-banner" v-if="error">{{ error }}</div>
 
     <!-- 全球指数（卡片块） -->
@@ -119,6 +119,7 @@ import { fmtPrice, fmtPct, fmtNum, pctClass } from '../utils.js'
 import { navigate } from '../router.js'
 import { usePolling } from '../composables/usePolling.js'
 import { captureElement } from '../composables/useScreenshot.js'
+import MarketNavTabs from '../components/MarketNavTabs.vue'
 
 const idxCard = ref(null)
 const usCard = ref(null)

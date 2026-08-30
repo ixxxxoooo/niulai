@@ -1,5 +1,6 @@
 <template>
   <div class="heatmap-page" :class="{ 'is-fullscreen': isFullscreen }" ref="fullscreenContainer">
+    <MarketNavTabs current-tab="heatmap" v-if="!isFullscreen" />
     <div class="page-title-row">
       <div>
         <div class="page-title">大盘热力云图</div>
@@ -184,6 +185,7 @@ import { navigate } from '../router.js'
 import { usePolling } from '../composables/usePolling.js'
 import { usePageTab } from '../composables/usePageTab.js'
 import { captureElement } from '../composables/useScreenshot.js'
+import MarketNavTabs from '../components/MarketNavTabs.vue'
 import { openStock } from '../composables/useStockMeta.js'
 import UiIcon from '../components/ui/UiIcon.vue'
 
