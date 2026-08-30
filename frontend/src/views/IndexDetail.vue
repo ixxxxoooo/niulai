@@ -214,13 +214,14 @@ function renderTrend() {
   if (!chart || !trend.value || !trend.value.points || !trend.value.points.length) return
   const tc = themeColors()
   const t = trend.value
-  const fullTimes = buildFullTrendTimes()
+  const isGlobal = secid.value.startsWith('100.')
+  const fullTimes = isGlobal ? t.points.map(p => p.time) : buildFullTrendTimes()
   const byTime = new Map()
   for (const p of t.points) byTime.set(p.time, p)
   const times = fullTimes
-  const prices = fullTimes.map(tt => { const p = byTime.get(tt); return p ? p.price : null })
-  const avgs = fullTimes.map(tt => { const p = byTime.get(tt); return p ? p.avg : null })
-  const vols = fullTimes.map(tt => { const p = byTime.get(tt); return p ? p.volume || 0 : 0 })
+  const prices = isGlobal ? t.points.map(p => p.price) : fullTimes.map(tt => { const p = byTime.get(tt); return p ? p.price : null })
+  const avgs = isGlobal ? t.points.map(p => p.avg) : fullTimes.map(tt => { const p = byTime.get(tt); return p ? p.avg : null })
+  const vols = isGlobal ? t.points.map(p => p.volume || 0) : fullTimes.map(tt => { const p = byTime.get(tt); return p ? p.volume || 0 : 0 })
   const realPrices = prices.filter(v => v != null)
   const pre = t.pre_close || realPrices[0]
   const last = realPrices[realPrices.length - 1]
@@ -235,8 +236,8 @@ function renderTrend() {
   if (ind.macd) { ind.macd.dif = padTail(ind.macd.dif); ind.macd.dea = padTail(ind.macd.dea); ind.macd.hist = padTail(ind.macd.hist) }
   if (ind.kdj) { ind.kdj.k = padTail(ind.kdj.k); ind.kdj.d = padTail(ind.kdj.d); ind.kdj.j = padTail(ind.kdj.j) }
   if (ind.rsi) ind.rsi = padTail(ind.rsi)
-  // 过滤异常均价（仍远低于点位时不画，避免压扁 Y 轴）
-  const avgOk = avgs.every((a, i) => a != null && a > (prices[i] || 0) * 0.5)
+  // 过滤异常均价（海外指数通常无均价，避免压扁 Y 轴）
+  const avgOk = !isGlobal && avgs.every((a, i) => a != null && a > (prices[i] || 0) * 0.5)
   // 指数无涨跌停：limit 模式自动回退 normal
   const { yMin, yMax, pctMin, pctMax } = calcTrendYRange({
     mode: settingsState.trendYScale || 'normal',
