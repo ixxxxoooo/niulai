@@ -42,7 +42,7 @@ const timeIndex = new Map(fullTimes.map((t, i) => [t, i]))
 
 const isGlobal = computed(() => {
   const secid = props.trend?.secid || ''
-  if (secid.startsWith('100.')) return true
+  if (secid.startsWith('100.') || secid.startsWith('124.')) return true
   const pts = props.trend?.points || []
   if (pts.length > 250) return true
   if (pts.length > 0 && !timeIndex.has(pts[0].time)) return true

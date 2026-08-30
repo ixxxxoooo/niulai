@@ -91,7 +91,7 @@ const indexSourceUrl = computed(() => {
   const parts = (secid.value || '').split('.')
   const mkt = parts[0]
   const code = parts[1] || parts[0]
-  if (mkt === '100') {
+  if (mkt === '100' || mkt === '124') {
     return `https://quote.eastmoney.com/gb/zs${code}.html`
   }
   return `https://quote.eastmoney.com/zs${code}.html`
@@ -222,7 +222,7 @@ function renderTrend() {
   if (!chart || !trend.value || !trend.value.points || !trend.value.points.length) return
   const tc = themeColors()
   const t = trend.value
-  const isGlobal = secid.value.startsWith('100.')
+  const isGlobal = secid.value.startsWith('100.') || secid.value.startsWith('124.')
   const fullTimes = isGlobal ? t.points.map(p => p.time) : buildFullTrendTimes()
   const byTime = new Map()
   for (const p of t.points) byTime.set(p.time, p)

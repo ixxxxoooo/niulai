@@ -519,6 +519,7 @@ class EastMoneyClient:
         ("100.N225", "日经225", "日韩"),
         ("100.KS11", "韩国KOSPI", "日韩"),
         ("100.HSI", "恒生指数", "亚太"),
+        ("124.HSTECH", "恒生科技", "亚太"),
         ("100.NDX", "纳斯达克", "美股"),
         ("100.NDX100", "纳斯达克100", "美股"),
         ("100.SPX", "标普500", "美股"),
@@ -528,14 +529,13 @@ class EastMoneyClient:
     def global_indices(self) -> List[IndexQuote]:
         """全球主要指数（日韩/亚太/美股）"""
         quotes = self.index_quotes([s for s, _, _ in self.GLOBAL_INDICES])
-        # 修正 secid（东财 f13 对海外指数可能返回 100）
+        # 修正 secid 与名称
         for q in quotes:
             for secid, name, region in self.GLOBAL_INDICES:
-                if q.code == secid.split(".")[1] or q.name == name:
+                if q.code == secid.split(".")[1] or q.secid == secid or q.name == name:
                     q.secid = secid
                     q.region = region
-                    if not q.name:
-                        q.name = name
+                    q.name = name
         return quotes
 
     def global_stock_quotes(self, secids: List[str]) -> List[dict]:
@@ -1086,6 +1086,8 @@ class EastMoneyClient:
     # 指数 → 腾讯符号映射（全球 + A股主要指数）
     TENCENT_INDEX_SYMBOL = {
         "100.HSI": "hkHSI",
+        "124.HSTECH": "hkHSTECH",
+        "100.HSTECH": "hkHSTECH",
         "100.NDX": "usNDX",
         "100.NDX100": "usNDX",
         "100.SPX": "usINX",
