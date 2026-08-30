@@ -127,7 +127,7 @@
           <table class="data-table">
             <thead>
               <tr>
-                <th>名称</th><th>代码</th>
+                <th>名称</th><th>代码</th><th>分时</th>
                 <th class="sortable" :class="{ sorted: tsW.sortKey === 'price' }" @click="tsW.toggleSort('price')">现价</th>
                 <th class="sortable" :class="{ sorted: tsW.sortKey === 'change_pct' }" @click="tsW.toggleSort('change_pct')">涨跌幅</th>
                 <th class="sortable" :class="{ sorted: tsW.sortKey === 'zhangsu' }" @click="tsW.toggleSort('zhangsu')">涨速</th>
@@ -154,7 +154,7 @@
                           class="risk-pill"
                           :class="'pill-' + riskMap[s.code].badge_level"
                           @click.stop="openRisk(s)"
-                          :title="`智能排雷预警：${riskMap[s.code].badge_text}，点击查看诊断`"
+                          :title="`智能排雷预警：${riskMap[s.code]?.badge_text}，点击查看诊断`"
                         >
                           🛡️ {{ riskMap[s.code].badge_text }}
                         </span>
@@ -162,6 +162,7 @@
                     </MiniTrend>
                   </td>
                   <td>{{ s.code }}</td>
+                  <td class="td-spark" @click.stop="toggleRow(s)"><StockSparkline :code="s.code" /></td>
 
                   <td :class="pctClass(s.change_pct)">{{ fmtPrice(s.price) }}</td>
                   <td><span class="pct-badge" :class="pctClass(s.change_pct)">{{ fmtPct(s.change_pct) }}</span></td>
@@ -180,7 +181,7 @@
                   v-if="expandedCode === s.code"
                   :code="s.code"
                   :name="s.name"
-                  :colspan="8"
+                  :colspan="9"
                 />
               </template>
             </tbody>
@@ -231,6 +232,7 @@
             <thead>
               <tr>
                 <th>名称</th>
+                <th>分时</th>
                 <th class="sortable" :class="{ sorted: tsHS.sortKey === 'pnl' }" @click="tsHS.toggleSort('pnl')">浮动盈亏</th>
                 <th class="sortable" :class="{ sorted: tsHS.sortKey === 'pnl_pct' }" @click="tsHS.toggleSort('pnl_pct')">盈亏比</th>
                 <th class="sortable" :class="{ sorted: tsHS.sortKey === 'price' }" @click="tsHS.toggleSort('price')">现价</th>
@@ -259,14 +261,15 @@
                           class="risk-pill"
                           :class="'pill-' + riskMap[s.code].badge_level"
                           @click.stop="openRisk(s)"
-                          :title="`智能排雷预警：${riskMap[s.code].badge_text}，点击查看诊断`"
+                          :title="`智能排雷预警：${riskMap[s.code]?.badge_text}，点击查看诊断`"
                         >
-                          🛡️ {{ riskMap[s.code].badge_text }}
+                          🛡️ {{ riskMap[s.code]?.badge_text }}
                         </span>
                       </span>
                     </MiniTrend>
                     <div class="name-mv">{{ fmtMoney(s.market_value) }}</div>
                   </td>
+                  <td class="td-spark" @click.stop="toggleRow(s)"><StockSparkline :code="s.code" /></td>
 
                   <td :class="pctClass(s.pnl)">{{ fmtSignedMoney(s.pnl) }}</td>
                   <td :class="pctClass(s.pnl_pct)">{{ fmtPct(s.pnl_pct) }}</td>
@@ -291,7 +294,7 @@
                   v-if="expandedCode === s.code"
                   :code="s.code"
                   :name="s.name"
-                  :colspan="10"
+                  :colspan="11"
                 />
               </template>
             </tbody>
@@ -312,6 +315,7 @@
             <thead>
               <tr>
                 <th>名称</th>
+                <th>分时</th>
                 <th class="sortable" :class="{ sorted: tsHE.sortKey === 'pnl' }" @click="tsHE.toggleSort('pnl')">浮动盈亏</th>
                 <th class="sortable" :class="{ sorted: tsHE.sortKey === 'pnl_pct' }" @click="tsHE.toggleSort('pnl_pct')">盈亏比</th>
                 <th class="sortable" :class="{ sorted: tsHE.sortKey === 'price' }" @click="tsHE.toggleSort('price')">现价</th>
@@ -338,6 +342,8 @@
                     </MiniTrend>
                     <div class="name-mv">{{ fmtMoney(s.market_value) }}</div>
                   </td>
+                  <td class="td-spark" @click.stop="toggleRow(s)"><StockSparkline :code="s.code" /></td>
+
                   <td :class="pctClass(s.pnl)">{{ fmtSignedMoney(s.pnl) }}</td>
                   <td :class="pctClass(s.pnl_pct)">{{ fmtPct(s.pnl_pct) }}</td>
                   <td :class="pctClass(s.change_pct)">{{ fmtPrice(s.price) }}</td>
@@ -361,7 +367,7 @@
                   v-if="expandedCode === s.code"
                   :code="s.code"
                   :name="s.name"
-                  :colspan="10"
+                  :colspan="11"
                 />
               </template>
             </tbody>
@@ -471,6 +477,7 @@ import RiskModal from '../components/RiskModal.vue'
 import GroupManageModal from '../components/GroupManageModal.vue'
 import StockGroupModal from '../components/StockGroupModal.vue'
 import PoolExpandRow from '../components/PoolExpandRow.vue'
+import StockSparkline from '../components/StockSparkline.vue'
 
 // 点击行下拉展开分时图、日K线与评分
 const expandedCode = ref(null)
@@ -1374,4 +1381,10 @@ usePolling(load, 3000)
 /* 弹窗底部按钮组 */
 .modal-actions { display: flex; justify-content: flex-end; gap: 10px; margin-top: 14px; }
 .td-actions { display: inline-flex; align-items: center; gap: 8px; }
+.td-spark {
+  width: 104px;
+  padding: 4px 6px !important;
+  text-align: center;
+  vertical-align: middle;
+}
 </style>
