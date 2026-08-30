@@ -197,10 +197,12 @@ def stock_trends(code: str):
 def stock_kline(
     code: str,
     period: str = Query("day", pattern="^(day|week|month)$"),
-    limit: int = Query(350, ge=10, le=1000),
+    limit: int = Query(120, ge=10, le=1000),
 ):
     """K 线（前复权）：day/week/month，附带 MA 均线指标；用百度补齐额/涨跌/换手"""
-    k = eastmoney.get_client().kline(code, period=period, limit=limit)
+    clean_code = code.split(".")[-1]
+    secid = code if "." in code else None
+    k = eastmoney.get_client().kline(clean_code, period=period, limit=limit, secid=secid)
     if k is None or not k.get("points"):
         return {
             "code": code,
@@ -208,7 +210,7 @@ def stock_kline(
             "points": [],
             "indicators": {"ma5": [], "ma10": [], "ma20": [], "ma60": []}
         }
-    _merge_baidu_kline_fields(code, period, k["points"])
+    _merge_baidu_kline_fields(clean_code, period, k["points"])
     k["indicators"] = _calc_indicators(k["points"])
     return k
 

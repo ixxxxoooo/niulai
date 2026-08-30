@@ -148,17 +148,18 @@ async function loadTrend() {
 
 async function switchChart(p) {
   period.value = p
+  klineZoom.start = 0
+  klineZoom.end = 100
   if (p === 'trend') { loadTrend(); return }
   if (klineCache[p]) { renderKline(p); return }
   try {
-    const isGlobal = secid.value.startsWith('100.') || secid.value.startsWith('124.')
-    const k = await getCachedKline(secid.value, p, 350, isGlobal)
+    const k = await getCachedKline(secid.value, p, 120)
     if (k && k.points && k.points.length) {
       klineCache[p] = k
       error.value = ''
       renderKline(p)
     } else {
-      error.value = `${chartTitle.value}暂不可用（已尝试腾讯/新浪）`
+      error.value = `${chartTitle.value}暂不可用`
     }
   } catch (e) {
     error.value = 'K线加载失败：' + e.message
@@ -167,8 +168,7 @@ async function switchChart(p) {
 
 async function probeKline() {
   try {
-    const isGlobal = secid.value.startsWith('100.') || secid.value.startsWith('124.')
-    const k = await getCachedKline(secid.value, 'day', 350, isGlobal)
+    const k = await getCachedKline(secid.value, 'day', 120)
     if (k && k.points && k.points.length) klineCache.day = k
   } catch (e) { /* 探测失败仍保留日K入口 */ }
 }
@@ -182,16 +182,10 @@ async function maybeLoadMoreHistory() {
   const curLen = currentK?.points?.length || 0
   if (curLen === 0 || curLen >= 800) return
 
-  const targetLimit = Math.min(800, curLen + 300)
+  const targetLimit = Math.min(800, curLen + 120)
   loadingMoreHistory = true
   try {
-    const isGlobal = secid.value.startsWith('100.') || secid.value.startsWith('124.')
-    let fresh
-    if (isGlobal) {
-      fresh = await api.quoteKline(secid.value, period.value, targetLimit)
-    } else {
-      fresh = await api.kline(secid.value, period.value, targetLimit)
-    }
+    const fresh = await api.quoteKline(secid.value, period.value, targetLimit)
     if (fresh && fresh.points && fresh.points.length > curLen) {
       const added = fresh.points.length - curLen
       klineCache[period.value] = fresh

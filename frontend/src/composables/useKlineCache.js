@@ -17,15 +17,16 @@ function cacheKey(code, period) {
  * @param {boolean} isGlobal 是否全球指数
  * @returns {Promise<object|null>}
  */
-export async function getCachedKline(code, period, limit = 350, isGlobal = false) {
+export async function getCachedKline(code, period, limit = 120, isSecid = null) {
   const key = cacheKey(code, period)
   const hit = _cache.get(key)
   if (hit && Date.now() - hit.ts < CACHE_TTL && (hit.data?.points?.length || 0) >= limit) {
     return hit.data
   }
 
+  const useQuoteApi = isSecid !== null ? isSecid : String(code).includes('.')
   let data
-  if (isGlobal) {
+  if (useQuoteApi) {
     data = await api.quoteKline(code, period, limit)
   } else {
     data = await api.kline(code, period, limit)

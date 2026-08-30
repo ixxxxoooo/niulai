@@ -138,16 +138,13 @@ async function maybeLoadMoreHistory() {
   const curLen = props.kline?.points?.length || 0
   if (curLen === 0 || curLen >= 800) return
 
-  const targetLimit = Math.min(800, curLen + 300)
+  const targetLimit = Math.min(800, curLen + 120)
   loadingMoreHistory = true
   try {
-    const isGlobal = props.code.startsWith('100.') || props.code.startsWith('124.')
-    let fresh
-    if (isGlobal) {
-      fresh = await api.quoteKline(props.code, props.period, targetLimit)
-    } else {
-      fresh = await api.kline(props.code, props.period, targetLimit)
-    }
+    const isSecid = String(props.code).includes('.')
+    const fresh = isSecid
+      ? await api.quoteKline(props.code, props.period, targetLimit)
+      : await api.kline(props.code, props.period, targetLimit)
     if (fresh && fresh.points && fresh.points.length > curLen) {
       const added = fresh.points.length - curLen
       const oldVisibleIdx = Math.round((klineZoom.start / 100) * curLen)

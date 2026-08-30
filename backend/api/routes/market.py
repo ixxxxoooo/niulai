@@ -267,7 +267,7 @@ def global_trends(secid: str):
 def global_kline(
     secid: str,
     period: str = Query("day", pattern="^(day|week|month)$"),
-    limit: int = Query(350, ge=10, le=1000),
+    limit: int = Query(120, ge=10, le=1000),
 ):
     """全球指数 K 线（东财→腾讯降级）"""
     k = eastmoney.get_client().kline(secid=secid, period=period, limit=limit)
@@ -464,7 +464,7 @@ def quotes_trends(secid: str = Query(..., min_length=3, max_length=32)):
 def quotes_kline(
     secid: str = Query(..., min_length=3, max_length=32),
     period: str = Query("day", pattern="^(day|week|month)$"),
-    limit: int = Query(350, ge=10, le=1000),
+    limit: int = Query(120, ge=10, le=1000),
 ):
     """K 线：用 query 传 secid。"""
     k = eastmoney.get_client().kline(secid=secid, period=period, limit=limit)
