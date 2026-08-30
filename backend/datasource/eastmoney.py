@@ -1036,7 +1036,8 @@ class EastMoneyClient:
     TENCENT_INDEX_SYMBOL = {
         "100.HSI": "hkHSI",
         "100.NDX": "usNDX",
-        "100.SPX": "usSPX",
+        "100.NDX100": "usNDX",
+        "100.SPX": "usINX",
         "100.DJIA": "usDJI",
         # A 股指数：000001 等代码会被 to_tencent_symbol 误判为深市个股，必须显式映射
         "1.000001": "sh000001",
@@ -1068,9 +1069,9 @@ class EastMoneyClient:
 
     def intraday_trends(self, code: str = "", market: Optional[int] = None,
                         secid: Optional[str] = None) -> Optional[IntradayTrend]:
-        """分时数据：优先腾讯（极速低延迟），失败降级东财 push2his（双源容错）
+        """分时数据：优先腾讯（极速低延迟），失败降级东财 _q / _his（双源容错）。
 
-        可传 secid（如全球指数 100.N225）或 A 股/基金 code。
+        可传 secid（如全球指数 100.SPX / 100.N225）或 A 股/基金 code。
         """
         secid = self._resolve_secid(code, market, secid)
         stock_code = code or (secid.split(".", 1)[-1] if secid else "")
@@ -1086,16 +1087,20 @@ class EastMoneyClient:
                 points=tx["points"],
             )
 
-        # 降级：东财 push2his
-        try:
-            data = self._his.get("/stock/trends2/get", {
-                "secid": secid,
-                "fields1": "f1,f2,f3,f4,f5,f6,f7,f8,f9,f10,f11,f12,f13",
-                "fields2": "f51,f52,f53,f54,f55,f56,f57,f58",
-                "ndays": 1, "iscr": 0,
-            })
-        except EastMoneyError:
-            data = None
+        # 降级：东财（优先 _q 实时节点，支持 100.SPX / 100.NDX / 100.N225 等美股全球指数与 A 股；失败再试 _his）
+        data = None
+        for client in (self._q, self._his):
+            try:
+                data = client.get("/stock/trends2/get", {
+                    "secid": secid,
+                    "fields1": "f1,f2,f3,f4,f5,f6,f7,f8,f9,f10,f11,f12,f13",
+                    "fields2": "f51,f52,f53,f54,f55,f56,f57,f58",
+                    "ndays": 1, "iscr": 0,
+                })
+                if data and (data.get("data") or {}).get("trends"):
+                    break
+            except EastMoneyError:
+                data = None
         if data:
             d = data.get("data")
             if d and d.get("trends"):
@@ -1104,8 +1109,11 @@ class EastMoneyClient:
                     parts = str(row).split(",")
                     if len(parts) < 8:
                         continue
+                    t_str = parts[0].split()[-1] if " " in str(parts[0]) else str(parts[0])
+                    if len(t_str) > 5:
+                        t_str = t_str[-5:]
                     points.append(TrendPoint(
-                        time=parts[0][-5:] if len(parts[0]) >= 5 else parts[0],
+                        time=t_str,
                         price=_num(parts[2]) or 0.0,
                         avg=_num(parts[7]) or 0.0,
                         volume=_num(parts[5]) or 0.0,
@@ -1125,13 +1133,13 @@ class EastMoneyClient:
               secid: Optional[str] = None) -> Optional[Dict]:
         """K 线（前复权）。period: day/week/month。腾讯优先（极速），失败降级东财/TickFlow。
 
-        可传 secid（如全球指数 100.N225）或 A 股 code。
+        可传 secid（如全球指数 100.SPX / 100.N225）或 A 股 code。
         返回 {"points": [{date, open, close, high, low, volume}], "name": str}
         """
         klt_map = {"day": 101, "week": 102, "month": 103}
         klt = klt_map.get(period, 101)
         secid = self._resolve_secid(code, market, secid)
-        # 指数：腾讯/新浪优先（东财 his 对 000001/399001 等经常断连）
+        # 指数：腾讯/新浪优先（东财 his 对 000001/399001/海外指数经常断连）
         idx_kl = self._kline_tencent_sina(secid, period, limit)
         if idx_kl:
             return idx_kl
@@ -1144,15 +1152,19 @@ class EastMoneyClient:
         if tx and tx.get("points"):
             return tx
 
-        # 降级备选：东财 his
-        try:
-            data = self._his.get("/stock/kline/get", {
-                "secid": secid, "klt": klt, "fqt": 1, "lmt": limit,
-                "fields1": "f1,f2,f3,f4,f5,f6",
-                "fields2": "f51,f52,f53,f54,f55,f56,f57,f58,f59,f60,f61",
-            })
-        except EastMoneyError:
-            data = None
+        # 降级备选：东财（优先 _q，失败试 _his）
+        data = None
+        for client in (self._q, self._his):
+            try:
+                data = client.get("/stock/kline/get", {
+                    "secid": secid, "klt": klt, "fqt": 1, "lmt": limit,
+                    "fields1": "f1,f2,f3,f4,f5,f6",
+                    "fields2": "f51,f52,f53,f54,f55,f56,f57,f58,f59,f60,f61",
+                })
+                if data and (data.get("data") or {}).get("klines"):
+                    break
+            except EastMoneyError:
+                data = None
         if data:
             d = data.get("data")
             rows = (d or {}).get("klines") or []

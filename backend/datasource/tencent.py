@@ -209,8 +209,13 @@ class TencentClient:
         if period not in ("day", "week", "month"):
             period = "day"
         symbol = symbol or to_tencent_symbol(code)
-        url = (f"https://ifzq.gtimg.cn/appstock/app/fqkline/get"
-               f"?param={symbol},{period},,,{limit},qfq")
+        if symbol.startswith("us"):
+            base_url = "https://web.ifzq.gtimg.cn/appstock/app/usfqkline/get"
+        elif symbol.startswith("hk"):
+            base_url = "https://web.ifzq.gtimg.cn/appstock/app/hkfqkline/get"
+        else:
+            base_url = "https://ifzq.gtimg.cn/appstock/app/fqkline/get"
+        url = f"{base_url}?param={symbol},{period},,,{limit},qfq"
         try:
             resp = self._http.get(url, timeout=config.REQUEST_TIMEOUT)
             resp.raise_for_status()
