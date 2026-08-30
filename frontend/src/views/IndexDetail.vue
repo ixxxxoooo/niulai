@@ -88,7 +88,12 @@ const INDEX_LIST = Object.keys(INDEX_NAMES)
 const displayName = computed(() => meta.name || INDEX_NAMES[secid.value] || '')
 const chartTitle = computed(() => ({ trend: '分时走势', day: '日K线', week: '周K线', month: '月K线' }[period.value]))
 const indexSourceUrl = computed(() => {
-  const code = secid.value.split('.')[1] || ''
+  const parts = (secid.value || '').split('.')
+  const mkt = parts[0]
+  const code = parts[1] || parts[0]
+  if (mkt === '100') {
+    return `https://quote.eastmoney.com/gb/zs${code}.html`
+  }
   return `https://quote.eastmoney.com/zs${code}.html`
 })
 
