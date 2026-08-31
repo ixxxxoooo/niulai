@@ -179,7 +179,7 @@
  * ETF 选择对比：关键字/板块搜索 → 多选 → 横向指标对比 + 归一化走势叠加图
  * @author ygw
  */
-import { ref, computed, onMounted, onUnmounted } from 'vue'
+import { ref, computed, watch, onMounted, onUnmounted } from 'vue'
 import * as echarts from 'echarts'
 import ToolNavTabs from '../components/ToolNavTabs.vue'
 import UiInput from '../components/ui/UiInput.vue'
@@ -205,13 +205,42 @@ const kw = ref('')
 const activeChip = ref('')
 const searching = ref(false)
 const results = ref([])
-const selected = ref([])
+
+const SELECTED_KEY = 'niulai_etf_compare_selected'
+const VIEW_KEY = 'niulai_etf_compare_view'
+const DAYS_KEY = 'niulai_etf_compare_days'
+
+function loadStored(key, fallback) {
+  try {
+    const v = localStorage.getItem(key)
+    return v == null ? fallback : JSON.parse(v)
+  } catch (e) {
+    return fallback
+  }
+}
+
+function saveStored(key, value) {
+  try {
+    localStorage.setItem(key, JSON.stringify(value))
+  } catch (e) { /* ignore */ }
+}
+
+const storedDays = loadStored(DAYS_KEY, 30)
+const storedSelected = loadStored(SELECTED_KEY, [])
+const selected = ref(Array.isArray(storedSelected) ? storedSelected : [])
+const view = ref(loadStored(VIEW_KEY, 'row') === 'col' ? 'col' : 'row')
+const days = ref(LOOKBACKS.includes(storedDays) ? storedDays : 30)
+
+watch([selected, view, days], () => {
+  saveStored(SELECTED_KEY, selected.value)
+  saveStored(VIEW_KEY, view.value)
+  saveStored(DAYS_KEY, days.value)
+})
+
 const quotes = ref([])
 const sort = useTableSort(quotes, 'etf_compare')
 const trends = ref({})
 const dates = ref([])
-const days = ref(30)
-const view = ref('row')
 const updated = ref('')
 const chartEl = ref(null)
 let chart = null
@@ -412,6 +441,7 @@ onMounted(() => {
   }
   window.addEventListener('resize', resizeChart)
   window.addEventListener('theme-change', onThemeChange)
+  if (selected.value.length) load()
 })
 
 onUnmounted(() => {
