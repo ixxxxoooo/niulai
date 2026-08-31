@@ -64,6 +64,7 @@ export const api = {
   zhangsu: (limit = 50) => get(`/rank/zhangsu?limit=${limit}`),
   moneyflow: (limit = 50) => get(`/rank/moneyflow?limit=${limit}`),
   etfRank: (by = 'change_pct', limit = 50) => get(`/etf/rank?by=${by}&limit=${limit}`),
+  etfCompare: (codes, days = 30) => get(`/etf/compare?codes=${encodeURIComponent(codes)}&days=${days}`),
   sectorMoneyflow: (type = 'industry', limit = 100) =>
     get(`/sectors/moneyflow?type=${type}&limit=${limit}`),
   sectorConceptCode: (name, type = 'concept') => get(`/sectors/concept-code?name=${encodeURIComponent(name)}&type=${type}`),

@@ -437,7 +437,7 @@ class EastMoneyClient:
         for code in codes:
             m = markets.get(code)
             secids.append(secid_of(code, int(m) if m is not None else None))
-        fields = "f2,f3,f4,f5,f6,f7,f8,f10,f12,f13,f14,f15,f16,f17,f18,f22,f62,f100,f184"
+        fields = "f2,f3,f4,f5,f6,f7,f8,f10,f12,f13,f14,f15,f16,f17,f18,f20,f21,f22,f62,f100,f184"
         data = self._q.get("/ulist.np/get", {
             "fltt": 2, "invt": 2, "secids": ",".join(secids), "fields": fields,
         })

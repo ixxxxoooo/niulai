@@ -22,6 +22,7 @@ export function parseHash() {
   if (segs[0] === 'settings') return { name: 'settings' }
   if (segs[0] === 'screener') return { name: 'screener' }
   if (segs[0] === 'calendar') return { name: 'calendar' }
+  if (segs[0] === 'etf-compare') return { name: 'etf-compare' }
   if (segs[0] === 'heatmap') return { name: 'heatmap' }
   if (segs[0] === 'telegraph') return { name: 'telegraph', category: segs[1] || 'all' }
   return { name: 'overview' }

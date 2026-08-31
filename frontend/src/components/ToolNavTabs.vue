@@ -21,6 +21,13 @@
     >
       📅 事件日历
     </button>
+    <button
+      class="tab"
+      :class="{ active: currentTab === 'etf-compare' }"
+      @click="go('/etf-compare')"
+    >
+      📊 ETF对比
+    </button>
   </div>
 </template>
 

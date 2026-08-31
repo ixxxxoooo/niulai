@@ -190,6 +190,85 @@ def etf_rank(
     return _enrich_rows(eastmoney.get_client().etf_rank(by, limit))
 
 
+@router.get("/etf/compare")
+@ttl_cache()
+def etf_compare(
+    codes: str = Query(..., description="逗号分隔的 ETF 代码，最多 12 只"),
+    days: int = Query(30, ge=10, le=120),
+):
+    """ETF 多选对比：批量实时快照 + 近 N 日归一化走势（相对首日涨跌幅 %）。
+
+    @author ygw
+    参数:
+        codes: 逗号分隔的 ETF 代码（最多 12 只）
+        days: 走势回看天数（10~120）
+    返回: {"quotes": [StockBrief...], "trends": {code: {name, points: [{date, value, close}]}}, "dates": [...]}
+    """
+    from concurrent.futures import ThreadPoolExecutor
+
+    from ...db import store as db
+
+    code_list = [c.strip().upper() for c in (codes or "").split(",") if c.strip()][:12]
+    if not code_list:
+        return {"quotes": [], "trends": {}, "dates": []}
+
+    metas = db.get_stocks_map(code_list)
+    markets = {}
+    for c, m in metas.items():
+        if m.get("market") is not None:
+            try:
+                markets[c] = int(m["market"])
+            except (TypeError, ValueError):
+                pass
+
+    client = eastmoney.get_client()
+    briefs = client.ulist_briefs(code_list, markets)
+    by_code = {b.code: b for b in briefs}
+    quotes = []
+    for c in code_list:
+        b = by_code.get(c)
+        d = b.model_dump() if b else {}
+        m = metas.get(c) or {}
+        d["code"] = c
+        if not d.get("name"):
+            d["name"] = m.get("name") or ""
+        d["classify"] = m.get("classify") or d.get("classify") or "Fund"
+        d["board"] = m.get("board") or d.get("board")
+        quotes.append(d)
+
+    def _fetch_kline(c: str):
+        try:
+            k = client.kline(c, period="day", limit=days)
+            return c, (k or {}).get("points") or []
+        except Exception:
+            return c, []
+
+    with ThreadPoolExecutor(max_workers=min(len(code_list), 6)) as ex:
+        kl_map = dict(ex.map(_fetch_kline, code_list))
+
+    trends = {}
+    dates: list = []
+    for c in code_list:
+        pts = kl_map.get(c) or []
+        if not pts or not pts[0].get("close"):
+            continue
+        base = float(pts[0]["close"]) or 1.0
+        name = by_code.get(c).name if by_code.get(c) else (metas.get(c) or {}).get("name") or c
+        seq = [
+            {
+                "date": p.get("date") or "",
+                "value": round((float(p["close"]) / base - 1) * 100, 2),
+                "close": p.get("close"),
+            }
+            for p in pts
+        ]
+        trends[c] = {"name": name, "points": seq}
+        if not dates:
+            dates = [p.get("date") or "" for p in pts]
+
+    return {"quotes": quotes, "trends": trends, "dates": dates}
+
+
 @router.get("/sector-moves")
 @ttl_cache()
 def sector_moves(

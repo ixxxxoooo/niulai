@@ -23,13 +23,14 @@
         <a :class="{ active: route.name === 'telegraph' }" @click="go('/telegraph')">电报</a>
         <a :class="{ active: route.name === 'seats' }" @click="go('/seats')">游资</a>
         <span class="nav-drop" @click.stop="toolMenu = !toolMenu; sectorMenu = false">
-          <a class="nav-drop-btn" :class="{ active: ['screener', 'alerts', 'calendar'].includes(route.name) }">
+          <a class="nav-drop-btn" :class="{ active: ['screener', 'alerts', 'calendar', 'etf-compare'].includes(route.name) }">
             工具 <span class="caret">▾</span>
           </a>
           <div v-if="toolMenu" class="submenu" @click.stop>
             <a :class="{ active: route.name === 'screener' }" @click="go('/screener'); toolMenu = false">条件选股</a>
             <a :class="{ active: route.name === 'alerts' }" @click="go('/alerts'); toolMenu = false">盯盘监控</a>
             <a :class="{ active: route.name === 'calendar' }" @click="go('/calendar'); toolMenu = false">事件日历</a>
+            <a :class="{ active: route.name === 'etf-compare' }" @click="go('/etf-compare'); toolMenu = false">ETF对比</a>
           </div>
         </span>
       </nav>
@@ -102,6 +103,7 @@
         <a class="side-sub" :class="{ active: route.name === 'screener' }" @click="go('/screener')">条件选股</a>
         <a class="side-sub" :class="{ active: route.name === 'alerts' }" @click="go('/alerts')">盯盘监控</a>
         <a class="side-sub" :class="{ active: route.name === 'calendar' }" @click="go('/calendar')">事件日历</a>
+        <a class="side-sub" :class="{ active: route.name === 'etf-compare' }" @click="go('/etf-compare')">ETF对比</a>
       </nav>
       <nav class="side-nav side-collapsed-nav" v-else>
         <a :class="{ active: ['overview', 'global', 'heatmap'].includes(route.name) }" @click="go('/')" title="大盘（总览/全球/云图）">盘</a>
@@ -111,7 +113,7 @@
         <a :class="{ active: route.name === 'watchlist' }" @click="go('/watchlist')" title="自选股">自</a>
         <a :class="{ active: route.name === 'telegraph' }" @click="go('/telegraph')" title="实时电报">电</a>
         <a :class="{ active: route.name === 'seats' }" @click="go('/seats')" title="游资">游</a>
-        <a :class="{ active: ['screener', 'alerts', 'calendar'].includes(route.name) }" @click="go('/screener')" title="工具（选股/监控/日历）">具</a>
+        <a :class="{ active: ['screener', 'alerts', 'calendar', 'etf-compare'].includes(route.name) }" @click="go('/screener')" title="工具（选股/监控/日历）">具</a>
       </nav>
 
       <!-- 侧边栏底部：设置 + 时间 -->
@@ -197,6 +199,7 @@ import Screener from './views/Screener.vue'
 import Calendar from './views/Calendar.vue'
 import Heatmap from './views/Heatmap.vue'
 import Telegraph from './views/Telegraph.vue'
+import EtfCompare from './views/EtfCompare.vue'
 import { startAlertWatcher, stopAlertWatcher } from './composables/useAlertNotify.js'
 import { startTelegraphWatcher, stopTelegraphWatcher } from './composables/useTelegraphNotify.js'
 
@@ -216,6 +219,7 @@ const views = {
   rank: Rank, ladder: Ladder, stock: Stock, watchlist: Watchlist,
   alerts: Alerts, settings: Settings, screener: Screener,
   seats: Seats, calendar: Calendar, heatmap: Heatmap, telegraph: Telegraph,
+  'etf-compare': EtfCompare,
 }
 const viewComp = shallowRef(views[route.value.name] || Overview)
 
