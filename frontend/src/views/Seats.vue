@@ -169,9 +169,14 @@
           </div>
         </div>
         <div class="table-wrap" style="max-height: 560px; overflow-y: auto;">
-          <table v-if="!filterNick" class="seat-table">
+          <table v-if="!filterNick" class="seat-table date-detail-table">
             <thead>
-              <tr><th>股票</th><th>净额</th><th>游资席位</th><th>上榜原因</th></tr>
+              <tr>
+                <th class="col-stock">股票</th>
+                <th class="col-net">净额</th>
+                <th class="col-seats">游资席位</th>
+                <th class="col-reason">上榜原因</th>
+              </tr>
             </thead>
             <tbody>
               <template v-for="it in dateItems" :key="it.code">
@@ -182,7 +187,7 @@
                 >
                   <td class="stock-cell"><a @click.stop="openStock(it)">{{ it.name || it.code }}</a></td>
                   <td :class="netClass(it.net)">{{ fmtAmount(it.net) }}</td>
-                  <td>
+                  <td class="col-seats">
                     <span v-if="it.seats.length" class="youzi-list">
                       <span
                         v-for="s in it.seats"
@@ -230,13 +235,10 @@
                   <td class="col-date">{{ m.last_date }}</td>
                   <td class="col-count">{{ m.count }}</td>
                   <td class="col-amount">{{ fmtAmount(m.total_buy) }}</td>
-                  <td class="col-detail" @click.stop>
-                    <details>
-                      <summary class="record-summary">展开</summary>
-                      <div v-for="rc in sortedRecords(m.records)" :key="rc.date" class="record-line">
-                        {{ rc.date }} 买{{ fmtAmount(rc.buy) }} / 净<span :class="netClass(rc.net)">{{ fmtAmount(rc.net) }}</span>
-                      </div>
-                    </details>
+                  <td class="col-detail">
+                    <div v-for="rc in sortedRecords(m.records)" :key="rc.date" class="record-line">
+                      {{ rc.date }} 买{{ fmtAmount(rc.buy) }} / 净<span :class="netClass(rc.net)">{{ fmtAmount(rc.net) }}</span>
+                    </div>
                   </td>
                 </tr>
                 <PoolExpandRow
@@ -728,21 +730,30 @@ onUnmounted(() => {
   display: inline-block; font-size: 12px; padding: 1px 8px; border-radius: 10px;
   background: var(--accent-bg); color: var(--accent); cursor: pointer; border: 1px solid transparent;
 }
-.record-summary { cursor: pointer; font-size: 12px; color: var(--text-dim); user-select: none; }
-.record-summary:hover { color: var(--accent); }
 .record-line { font-size: 12px; color: var(--text-dim); line-height: 1.7; font-variant-numeric: tabular-nums; white-space: nowrap; }
 
-/* 游资买入汇总表 - 固定列宽防止展开明细时抖动 */
-.nick-summary-table {
+/* 当日席位明细表 - 列宽均匀分布 */
+.date-detail-table {
   table-layout: fixed;
   width: 100%;
   min-width: 680px;
 }
-.nick-summary-table .col-stock { width: 120px; }
-.nick-summary-table .col-date { width: 110px; font-variant-numeric: tabular-nums; }
-.nick-summary-table .col-count { width: 65px; font-variant-numeric: tabular-nums; }
-.nick-summary-table .col-amount { width: 110px; font-variant-numeric: tabular-nums; }
-.nick-summary-table .col-detail { width: auto; }
+.date-detail-table .col-stock { width: 16%; min-width: 100px; }
+.date-detail-table .col-net { width: 14%; min-width: 90px; font-variant-numeric: tabular-nums; }
+.date-detail-table .col-seats { width: 42%; }
+.date-detail-table .col-reason { width: 28%; min-width: 160px; }
+
+/* 游资买入汇总表 - 列宽均匀合适分布 */
+.nick-summary-table {
+  table-layout: fixed;
+  width: 100%;
+  min-width: 720px;
+}
+.nick-summary-table .col-stock { width: 14%; min-width: 100px; }
+.nick-summary-table .col-date { width: 13%; min-width: 95px; font-variant-numeric: tabular-nums; }
+.nick-summary-table .col-count { width: 8%; min-width: 55px; font-variant-numeric: tabular-nums; }
+.nick-summary-table .col-amount { width: 14%; min-width: 95px; font-variant-numeric: tabular-nums; }
+.nick-summary-table .col-detail { width: 38%; min-width: 250px; }
 
 .seat-stock-row {
   cursor: pointer;
