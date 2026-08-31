@@ -89,9 +89,11 @@
               v-for="q in sort.sorted"
               :key="q.code"
               class="cmp-row"
-              @click="openDetail(q)"
+              :class="{ 'row-expanded': expandedCode === q.code }"
+              @click="toggleExpand(q.code)"
+              @dblclick.stop="openDetail(q)"
             >
-              <td class="td-name" @click="openDetail(q)">
+              <td class="td-name">
                 <span class="td-name-text">{{ q.name }}</span>
                 <span class="th-code">{{ q.code }}</span>
               </td>
@@ -111,6 +113,12 @@
                 <button class="op-btn" title="设置自选分组" @click.stop="openGroup(q)">分组</button>
               </td>
             </tr>
+            <PoolExpandRow
+              v-if="expandedCode === q.code"
+              :code="q.code"
+              :name="q.name"
+              :colspan="9"
+            />
           </tbody>
         </table>
 
@@ -175,6 +183,7 @@ import * as echarts from 'echarts'
 import ToolNavTabs from '../components/ToolNavTabs.vue'
 import UiInput from '../components/ui/UiInput.vue'
 import StockGroupModal from '../components/StockGroupModal.vue'
+import PoolExpandRow from '../components/PoolExpandRow.vue'
 import { api } from '../api.js'
 import { fmtPrice, fmtPct, fmtAmount, fmtNum, pctClass, themeColors } from '../utils.js'
 import { usePolling } from '../composables/usePolling.js'
@@ -309,6 +318,12 @@ async function load() {
 
 function openDetail(q) {
   if (q && q.code) openStock({ code: q.code, name: q.name })
+}
+
+const expandedCode = ref('')
+
+function toggleExpand(code) {
+  expandedCode.value = expandedCode.value === code ? '' : code
 }
 
 const groupOpen = ref(false)
@@ -511,6 +526,7 @@ usePolling(async () => {
 }
 .cmp-row { cursor: pointer; transition: background 0.15s; }
 .cmp-row:hover { background: var(--kv-bg); }
+.row-expanded { background: var(--accent-bg) !important; }
 .td-name { color: var(--text); font-weight: 600; }
 .td-name-text { display: inline-block; max-width: 130px; overflow: hidden; text-overflow: ellipsis; vertical-align: bottom; white-space: nowrap; }
 .th-op, .td-op { text-align: center; width: 130px; }
