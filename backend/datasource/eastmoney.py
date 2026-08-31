@@ -743,6 +743,7 @@ class EastMoneyClient:
             is_st=is_st,
             main_inflow=_num(it.get("f62")),
             main_inflow_pct=_num(it.get("f184")),
+            fund_scale=_num(it.get("f21")),
             high=_num(it.get("f15")),
             low=_num(it.get("f16")),
             open=_num(it.get("f17")),
@@ -775,7 +776,9 @@ class EastMoneyClient:
         fid_map = {"change_pct": "f3", "amount": "f6", "turnover": "f8",
                    "amplitude": "f7", "volume": "f5"}
         fid = fid_map.get(by, "f3")
-        items = self.clist("b:MK0021", fid, limit)
+        fields = ("f2,f3,f4,f5,f6,f7,f8,f10,f12,f13,f14,f15,f16,f17,f18,"
+                  "f20,f21,f22,f62,f100,f184")
+        items = self.clist("b:MK0021", fid, limit, fields=fields)
         return [self._brief(it) for it in items]
 
     def etf_holdings(self, code: str, top: int = 10) -> Dict[str, Any]:

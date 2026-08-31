@@ -175,6 +175,7 @@ const etfColumns = [
   { key: 'code', label: '代码' },
   { key: 'price', label: '现价', fmt: 'price', sortable: true },
   { key: 'change_pct', label: '涨跌幅', fmt: 'pct', sortable: true },
+  { key: 'fund_scale', label: '规模', fmt: 'amount', sortable: true },
   { key: 'amount', label: '成交额', fmt: 'amount', sortable: true },
 ]
 

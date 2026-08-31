@@ -42,6 +42,7 @@ class StockBrief(BaseModel):
     is_st: Optional[int] = None
     main_inflow: Optional[float] = None     # 主力净流入（元）
     main_inflow_pct: Optional[float] = None # 主力净流入占比 %
+    fund_scale: Optional[float] = None      # 基金规模（仅 ETF 板块，元）
     high: Optional[float] = None
     low: Optional[float] = None
     open: Optional[float] = None
