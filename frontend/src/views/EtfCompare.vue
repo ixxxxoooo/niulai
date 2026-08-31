@@ -49,7 +49,7 @@
     <div v-if="selected.length" class="card compare-card">
       <div class="card-title">
         ② 对比（{{ selected.length }} 只）
-        <span class="compare-sub">点击标签移除 · 点击代码跳详情</span>
+        <span class="compare-sub">点击标签移除 · 点击行跳详情</span>
       </div>
       <div class="picked-chips">
         <span v-for="c in selected" :key="c" class="chip picked" @click="remove(c)">{{ pickedName(c) }} ✕</span>
@@ -65,21 +65,26 @@
         <table class="cmp-table">
           <thead>
             <tr>
-              <th class="th-label">指标</th>
-              <th v-for="q in quotes" :key="q.code" @click="openDetail(q)">
-                {{ q.name }}<span class="th-code">{{ q.code }}</span>
-              </th>
+              <th class="th-label">ETF</th>
+              <th v-for="m in METRICS" :key="m.key">{{ m.label }}</th>
             </tr>
           </thead>
           <tbody>
-            <tr v-for="row in METRICS" :key="row.key">
-              <td class="td-label">{{ row.label }}</td>
+            <tr
+              v-for="q in quotes"
+              :key="q.code"
+              class="cmp-row"
+              @click="openDetail(q)"
+            >
+              <td class="td-name">
+                {{ q.name }}<span class="th-code">{{ q.code }}</span>
+              </td>
               <td
-                v-for="q in quotes"
-                :key="q.code"
+                v-for="m in METRICS"
+                :key="m.key"
                 class="tabular"
-                :class="row.cls(q)"
-              >{{ row.fmt(q) }}</td>
+                :class="m.cls(q)"
+              >{{ m.fmt(q) }}</td>
             </tr>
           </tbody>
         </table>
@@ -376,16 +381,16 @@ usePolling(async () => {
 .cmp-table th {
   padding: 9px 12px; text-align: left; font-weight: 600; color: var(--text);
   background: var(--kv-bg); border-bottom: 1px solid var(--border); white-space: nowrap;
-  cursor: pointer;
 }
-.cmp-table th:hover { color: var(--accent); }
-.th-label { cursor: default !important; color: var(--text-dim) !important; width: 90px; }
+.th-label { color: var(--text-dim) !important; width: 170px; }
 .th-code { display: block; font-size: 11px; color: var(--text-dim); font-weight: 400; }
 .cmp-table td {
   padding: 9px 12px; border-bottom: 1px solid var(--border); white-space: nowrap;
   font-variant-numeric: tabular-nums;
 }
-.td-label { color: var(--text-dim); font-size: 12px; }
+.cmp-row { cursor: pointer; transition: background 0.15s; }
+.cmp-row:hover { background: var(--kv-bg); }
+.td-name { color: var(--text); font-weight: 600; }
 .tabular.up { color: var(--up); }
 .tabular.down { color: var(--down); }
 .tabular.flat { color: var(--text); }
