@@ -174,24 +174,36 @@
               <tr><th>股票</th><th>净额</th><th>游资席位</th><th>上榜原因</th></tr>
             </thead>
             <tbody>
-              <tr v-for="it in dateItems" :key="it.code">
-                <td class="stock-cell"><a @click="openStock(it)">{{ it.name || it.code }}</a></td>
-                <td :class="netClass(it.net)">{{ fmtAmount(it.net) }}</td>
-                <td>
-                  <span v-if="it.seats.length" class="youzi-list">
-                    <span
-                      v-for="s in it.seats"
-                      :key="s.seat_name + s.nickname"
-                      class="youzi-chip"
-                      :class="'seat-' + s.type"
-                      :data-tip="seatTip(s)"
-                      @click="filterByNick(s.nickname)"
-                    >{{ s.nickname }}</span>
-                  </span>
-                  <span v-else style="color:var(--text-dim)">—</span>
-                </td>
-                <td class="seat-style">{{ it.reason || '—' }}</td>
-              </tr>
+              <template v-for="it in dateItems" :key="it.code">
+                <tr
+                  class="seat-stock-row"
+                  :class="{ 'row-expanded': expandedCode === it.code }"
+                  @click="toggleExpand(it.code)"
+                >
+                  <td class="stock-cell"><a @click.stop="openStock(it)">{{ it.name || it.code }}</a></td>
+                  <td :class="netClass(it.net)">{{ fmtAmount(it.net) }}</td>
+                  <td>
+                    <span v-if="it.seats.length" class="youzi-list">
+                      <span
+                        v-for="s in it.seats"
+                        :key="s.seat_name + s.nickname"
+                        class="youzi-chip"
+                        :class="'seat-' + s.type"
+                        :data-tip="seatTip(s)"
+                        @click.stop="filterByNick(s.nickname)"
+                      >{{ s.nickname }}</span>
+                    </span>
+                    <span v-else style="color:var(--text-dim)">—</span>
+                  </td>
+                  <td class="seat-style">{{ it.reason || '—' }}</td>
+                </tr>
+                <PoolExpandRow
+                  v-if="expandedCode === it.code"
+                  :code="it.code"
+                  :name="it.name"
+                  :colspan="4"
+                />
+              </template>
               <tr v-if="!dateItems.length"><td colspan="4" class="empty">暂无数据，请先在「同步日期范围」拉取该日席位</td></tr>
             </tbody>
           </table>
@@ -207,21 +219,33 @@
               </tr>
             </thead>
             <tbody>
-              <tr v-for="m in nickItems" :key="m.code">
-                <td class="stock-cell"><a @click="openStock(m)">{{ m.name || m.code }}</a></td>
-                <td class="col-date">{{ m.first_date }}</td>
-                <td class="col-date">{{ m.last_date }}</td>
-                <td class="col-count">{{ m.count }}</td>
-                <td class="col-amount">{{ fmtAmount(m.total_buy) }}</td>
-                <td class="col-detail">
-                  <details>
-                    <summary class="record-summary">展开</summary>
-                    <div v-for="rc in m.records" :key="rc.date" class="record-line">
-                      {{ rc.date }} 买{{ fmtAmount(rc.buy) }} / 净<span :class="netClass(rc.net)">{{ fmtAmount(rc.net) }}</span>
-                    </div>
-                  </details>
-                </td>
-              </tr>
+              <template v-for="m in nickItems" :key="m.code">
+                <tr
+                  class="seat-stock-row"
+                  :class="{ 'row-expanded': expandedCode === m.code }"
+                  @click="toggleExpand(m.code)"
+                >
+                  <td class="stock-cell"><a @click.stop="openStock(m)">{{ m.name || m.code }}</a></td>
+                  <td class="col-date">{{ m.first_date }}</td>
+                  <td class="col-date">{{ m.last_date }}</td>
+                  <td class="col-count">{{ m.count }}</td>
+                  <td class="col-amount">{{ fmtAmount(m.total_buy) }}</td>
+                  <td class="col-detail" @click.stop>
+                    <details>
+                      <summary class="record-summary">展开</summary>
+                      <div v-for="rc in sortedRecords(m.records)" :key="rc.date" class="record-line">
+                        {{ rc.date }} 买{{ fmtAmount(rc.buy) }} / 净<span :class="netClass(rc.net)">{{ fmtAmount(rc.net) }}</span>
+                      </div>
+                    </details>
+                  </td>
+                </tr>
+                <PoolExpandRow
+                  v-if="expandedCode === m.code"
+                  :code="m.code"
+                  :name="m.name"
+                  :colspan="6"
+                />
+              </template>
               <tr v-if="!nickItems.length"><td colspan="6" class="empty">该游资暂无买入记录</td></tr>
             </tbody>
           </table>
@@ -291,8 +315,21 @@ import { openStock } from '../composables/useStockMeta.js'
 import { usePageTab } from '../composables/usePageTab.js'
 import { showConfirm } from '../composables/useConfirm.js'
 import { showToast } from '../composables/useToast.js'
+import PoolExpandRow from '../components/PoolExpandRow.vue'
 
 const tab = usePageTab('seats', 'moves')
+
+// 展开分时/日K/评分
+const expandedCode = ref('')
+function toggleExpand(code) {
+  if (!code) return
+  expandedCode.value = expandedCode.value === code ? '' : code
+}
+
+function sortedRecords(records) {
+  if (!records || !records.length) return []
+  return [...records].sort((a, b) => (b.date || '').localeCompare(a.date || ''))
+}
 
 // ── 游资榜单 ──
 const seatCount = ref(0)
@@ -706,4 +743,15 @@ onUnmounted(() => {
 .nick-summary-table .col-count { width: 65px; font-variant-numeric: tabular-nums; }
 .nick-summary-table .col-amount { width: 110px; font-variant-numeric: tabular-nums; }
 .nick-summary-table .col-detail { width: auto; }
+
+.seat-stock-row {
+  cursor: pointer;
+  transition: background .15s;
+}
+.seat-stock-row:hover {
+  background: var(--bg-hover);
+}
+.seat-stock-row.row-expanded {
+  background: var(--bg-hover) !important;
+}
 </style>

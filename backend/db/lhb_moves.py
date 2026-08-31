@@ -440,5 +440,7 @@ def moves_by_nick(nickname: str) -> List[Dict[str, Any]]:
         if r["reason"]:
             g["reason"] = r["reason"]
         g["records"].append({"date": r["date"], "buy": r["buy"], "sell": r["sell"], "net": r["net"]})
+    for g in agg.values():
+        g["records"].sort(key=lambda x: x["date"], reverse=True)
     out = sorted(agg.values(), key=lambda x: x["last_date"], reverse=True)
     return out
