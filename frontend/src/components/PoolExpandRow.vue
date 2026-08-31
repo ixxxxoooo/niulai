@@ -21,7 +21,7 @@
         </div>
 
         <!-- 综合评分 -->
-        <div class="expand-block expand-score">
+        <div v-if="showScore" class="expand-block expand-score">
           <template v-if="scoreLoading">
             <div class="expand-empty">加载中...</div>
           </template>
@@ -80,6 +80,7 @@ const props = defineProps({
   code: { type: String, required: true },
   name: { type: String, default: '' },
   colspan: { type: Number, default: 11 },
+  showScore: { type: Boolean, default: true },
 })
 
 const trendEl = ref(null)
@@ -174,7 +175,11 @@ async function loadData() {
     }).catch(() => { klineErr.value = 'K线暂不可用'; klineLoading.value = false })
   }
 
-  // 综合评分
+  // 综合评分（ETF 等场景可关闭）
+  if (!props.showScore) {
+    scoreLoading.value = false
+    return
+  }
   const cachedScore = getCached('s:' + code)
   if (cachedScore) {
     score.value = cachedScore.total_score != null ? cachedScore : null

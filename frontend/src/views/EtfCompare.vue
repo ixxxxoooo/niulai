@@ -117,6 +117,7 @@
               :code="q.code"
               :name="q.name"
               :colspan="9"
+              :show-score="false"
             />
           </template>
           </tbody>
