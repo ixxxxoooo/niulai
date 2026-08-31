@@ -69,13 +69,22 @@
         <table class="cmp-table">
           <thead>
             <tr>
-              <th class="th-label">ETF</th>
-              <th v-for="m in METRICS" :key="m.key">{{ m.label }}</th>
+              <th class="th-label th-sortable" @click="sort.toggleSort('name')">
+                ETF<span class="sort-arrow">{{ sort.sortKey === 'name' ? (sort.sortDir === 1 ? ' ▲' : ' ▼') : '' }}</span>
+              </th>
+              <th
+                v-for="m in METRICS"
+                :key="m.key"
+                class="th-sortable"
+                @click="sort.toggleSort(m.key)"
+              >
+                {{ m.label }}<span class="sort-arrow">{{ sort.sortKey === m.key ? (sort.sortDir === 1 ? ' ▲' : ' ▼') : '' }}</span>
+              </th>
             </tr>
           </thead>
           <tbody>
             <tr
-              v-for="q in quotes"
+              v-for="q in sort.sorted"
               :key="q.code"
               class="cmp-row"
               @click="openDetail(q)"
@@ -114,6 +123,7 @@ import UiInput from '../components/ui/UiInput.vue'
 import { api } from '../api.js'
 import { fmtPrice, fmtPct, fmtAmount, fmtNum, pctClass, themeColors } from '../utils.js'
 import { usePolling } from '../composables/usePolling.js'
+import { useTableSort } from '../composables/useTableSort.js'
 import { openStock } from '../composables/useStockMeta.js'
 
 const MAX_PICK = 50
@@ -130,6 +140,7 @@ const searching = ref(false)
 const results = ref([])
 const selected = ref([])
 const quotes = ref([])
+const sort = useTableSort(quotes, 'etf_compare')
 const trends = ref({})
 const dates = ref([])
 const days = ref(30)
@@ -414,6 +425,9 @@ usePolling(async () => {
   padding: 9px 12px; text-align: left; font-weight: 600; color: var(--text);
   background: var(--kv-bg); border-bottom: 1px solid var(--border); white-space: nowrap;
 }
+.th-sortable { cursor: pointer; user-select: none; }
+.th-sortable:hover { color: var(--accent); }
+.sort-arrow { color: var(--accent); font-size: 10px; }
 .th-label { color: var(--text-dim) !important; width: 170px; }
 .th-code { display: block; font-size: 11px; color: var(--text-dim); font-weight: 400; }
 .cmp-table td {
