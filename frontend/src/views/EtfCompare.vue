@@ -41,6 +41,13 @@
           <span class="ri-name">{{ r.name }}</span>
           <span class="ri-code">{{ r.code }}</span>
           <span class="ri-tag">ETF</span>
+          <button
+            class="ri-op"
+            :class="{ watched: isWatched(r.code) }"
+            :title="isWatched(r.code) ? '移出自选' : '加入自选'"
+            @click.stop="toggleWatchFn(r)"
+          >★</button>
+          <button class="ri-op" title="设置自选分组" @click.stop="openGroup(r)">▣</button>
         </div>
       </div>
       <div v-else-if="kw.trim() && !searching" class="result-hint">未找到匹配的 ETF</div>
@@ -62,6 +69,8 @@
       <div class="chart-toolbar">
         <span class="tool-label">走势回看</span>
         <span v-for="d in LOOKBACKS" :key="d" class="chip" :class="{ active: days === d }" @click="setDays(d)">{{ d }}日</span>
+        <span class="toolbar-sep"></span>
+        <button class="batch-btn" :disabled="!selected.length" @click="batchAddWatch">全部加入自选</button>
         <span class="updated">更新 {{ updated }}</span>
       </div>
 
@@ -89,8 +98,18 @@
               class="cmp-row"
               @click="openDetail(q)"
             >
-              <td class="td-name">
-                {{ q.name }}<span class="th-code">{{ q.code }}</span>
+              <td class="td-name" @click="openDetail(q)">
+                <span class="td-name-text">{{ q.name }}</span>
+                <span class="th-code">{{ q.code }}</span>
+                <span class="td-ops" @click.stop>
+                  <button
+                    class="row-op"
+                    :class="{ watched: isWatched(q.code) }"
+                    :title="isWatched(q.code) ? '移出自选' : '加入自选'"
+                    @click.stop="toggleWatchFn(q)"
+                  >★</button>
+                  <button class="row-op" title="设置自选分组" @click.stop="openGroup(q)">▣</button>
+                </span>
               </td>
               <td
                 v-for="m in METRICS"
@@ -108,6 +127,14 @@
       </div>
       <div ref="chartEl" class="cmp-chart"></div>
     </div>
+
+    <StockGroupModal
+      :open="groupOpen"
+      :code="groupTarget?.code || ''"
+      :name="groupTarget?.name || ''"
+      @close="groupOpen = false"
+      @saved="groupOpen = false; onGroupSaved()"
+    />
   </div>
 </template>
 
@@ -120,10 +147,13 @@ import { ref, computed, onMounted, onUnmounted } from 'vue'
 import * as echarts from 'echarts'
 import ToolNavTabs from '../components/ToolNavTabs.vue'
 import UiInput from '../components/ui/UiInput.vue'
+import StockGroupModal from '../components/StockGroupModal.vue'
 import { api } from '../api.js'
 import { fmtPrice, fmtPct, fmtAmount, fmtNum, pctClass, themeColors } from '../utils.js'
 import { usePolling } from '../composables/usePolling.js'
 import { useTableSort } from '../composables/useTableSort.js'
+import { isWatched, toggleWatch, importWatch } from '../composables/useWatchlist.js'
+import { showToast } from '../composables/useToast.js'
 import { openStock } from '../composables/useStockMeta.js'
 
 const MAX_PICK = 50
@@ -261,6 +291,38 @@ async function load() {
 
 function openDetail(q) {
   if (q && q.code) openStock({ code: q.code, name: q.name })
+}
+
+const groupOpen = ref(false)
+const groupTarget = ref(null)
+
+function openGroup(r) {
+  groupTarget.value = { code: r.code, name: r.name || r.code }
+  groupOpen.value = true
+}
+
+function onGroupSaved() {
+  showToast('分组已保存', 'success')
+}
+
+async function toggleWatchFn(r) {
+  try {
+    const was = isWatched(r.code)
+    await toggleWatch(r.code)
+    showToast(`${was ? '已移出' : '已加入'}自选：${r.name || r.code}`, 'success')
+  } catch (e) {
+    showToast('操作失败：' + e.message, 'error')
+  }
+}
+
+async function batchAddWatch() {
+  if (!selected.value.length) return
+  try {
+    await importWatch([...selected.value])
+    showToast(`已加入自选 ${selected.value.length} 只`, 'success')
+  } catch (e) {
+    showToast('操作失败：' + e.message, 'error')
+  }
 }
 
 const PALETTE = ['#4c9aff', '#f04444', '#2fbf8f', '#e3b341', '#9a7bff', '#4fd6be', '#ff9d5c', '#5aa2ff', '#f27ab5', '#7bd44c']
@@ -408,6 +470,14 @@ usePolling(async () => {
   font-size: 10px; color: var(--accent); border: 1px solid var(--accent);
   border-radius: 4px; padding: 1px 4px;
 }
+.ri-op {
+  width: 20px; height: 20px; border: none; border-radius: 4px; flex-shrink: 0;
+  background: transparent; color: var(--text-dim); font-size: 13px; cursor: pointer;
+  display: inline-flex; align-items: center; justify-content: center;
+  transition: all 0.15s;
+}
+.ri-op:hover { background: var(--accent-bg); color: var(--accent); }
+.ri-op.watched { color: var(--accent); }
 
 .picked-chips { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 10px; }
 
@@ -415,6 +485,14 @@ usePolling(async () => {
   display: flex; align-items: center; gap: 8px; margin-bottom: 12px; font-size: 12px;
 }
 .tool-label { color: var(--text-dim); }
+.toolbar-sep { flex: 1; }
+.batch-btn {
+  height: 24px; padding: 0 12px; border-radius: 12px; font-size: 12px; cursor: pointer;
+  background: var(--accent-bg); border: 1px solid var(--accent); color: var(--accent);
+  transition: all 0.15s;
+}
+.batch-btn:hover { background: var(--accent); color: #fff; }
+.batch-btn:disabled { opacity: 0.4; cursor: not-allowed; }
 .updated { margin-left: auto; color: var(--text-dim); font-size: 11px; font-variant-numeric: tabular-nums; }
 
 .cmp-table-wrap { overflow-x: auto; margin-bottom: 18px; }
@@ -437,6 +515,16 @@ usePolling(async () => {
 .cmp-row { cursor: pointer; transition: background 0.15s; }
 .cmp-row:hover { background: var(--kv-bg); }
 .td-name { color: var(--text); font-weight: 600; }
+.td-name-text { display: inline-block; max-width: 130px; overflow: hidden; text-overflow: ellipsis; vertical-align: bottom; white-space: nowrap; }
+.td-ops { display: inline-flex; gap: 4px; margin-left: 8px; vertical-align: middle; }
+.row-op {
+  width: 18px; height: 18px; border: none; border-radius: 4px;
+  background: transparent; color: var(--text-dim); font-size: 12px; cursor: pointer;
+  display: inline-flex; align-items: center; justify-content: center;
+  transition: all 0.15s;
+}
+.row-op:hover { background: var(--accent-bg); color: var(--accent); }
+.row-op.watched { color: var(--accent); }
 .tabular.up { color: var(--up); }
 .tabular.down { color: var(--down); }
 .tabular.flat { color: var(--text); }
