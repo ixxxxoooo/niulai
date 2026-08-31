@@ -41,13 +41,6 @@
           <span class="ri-name">{{ r.name }}</span>
           <span class="ri-code">{{ r.code }}</span>
           <span class="ri-tag">ETF</span>
-          <button
-            class="ri-op"
-            :class="{ watched: isWatched(r.code) }"
-            :title="isWatched(r.code) ? '移出自选' : '加入自选'"
-            @click.stop="toggleWatchFn(r)"
-          >★</button>
-          <button class="ri-op" title="设置自选分组" @click.stop="openGroup(r)">▣</button>
         </div>
       </div>
       <div v-else-if="kw.trim() && !searching" class="result-hint">未找到匹配的 ETF</div>
@@ -455,14 +448,6 @@ usePolling(async () => {
   font-size: 10px; color: var(--accent); border: 1px solid var(--accent);
   border-radius: 4px; padding: 1px 4px;
 }
-.ri-op {
-  width: 20px; height: 20px; border: none; border-radius: 4px; flex-shrink: 0;
-  background: transparent; color: var(--text-dim); font-size: 13px; cursor: pointer;
-  display: inline-flex; align-items: center; justify-content: center;
-  transition: all 0.15s;
-}
-.ri-op:hover { background: var(--accent-bg); color: var(--accent); }
-.ri-op.watched { color: var(--accent); }
 
 .chart-toolbar {
   display: flex; align-items: center; gap: 8px; margin-bottom: 12px; font-size: 12px;
