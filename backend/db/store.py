@@ -567,6 +567,19 @@ def search_stocks_local(keyword: str, limit: int = 10) -> List[Dict[str, Any]]:
     本地模糊搜索：代码 / 名称 / 拼音首字母 / 全拼（支持前缀与中间匹配，如 gzmt、zmt、maotai）。
     @author ygw
     """
+    return _search_stocks_impl(keyword, limit)
+
+
+def search_etfs_local(keyword: str, limit: int = 30) -> List[Dict[str, Any]]:
+    """
+    本地模糊搜索仅限 ETF（classify='Fund'）：板块关键词（证券/医药/半导体…）也能命中 ETF。
+    @author ygw
+    """
+    return _search_stocks_impl(keyword, limit, only_classify="Fund")
+
+
+def _search_stocks_impl(keyword: str, limit: int = 10,
+                        only_classify: Optional[str] = None) -> List[Dict[str, Any]]:
     q = (keyword or "").strip()
     if not q:
         return []
@@ -576,12 +589,18 @@ def search_stocks_local(keyword: str, limit: int = 10) -> List[Dict[str, Any]]:
     py_like = f"%{py}%"
     py_prefix = f"{py}%"
     conn = get_conn()
+    classify_sql = " AND classify = ?" if only_classify else ""
+    params: List[Any] = [q, prefix, like, py, py_prefix, py_like, py, py_prefix, py_like]
+    if only_classify:
+        params.append(only_classify)
+    params += [q, prefix, like, py, py, py_prefix, py_prefix, limit]
     rows = conn.execute(
-        """
+        f"""
         SELECT code, name, market, classify, pinyin, pinyin_full FROM stocks
-        WHERE code = ? OR code LIKE ? OR name LIKE ?
+        WHERE (code = ? OR code LIKE ? OR name LIKE ?
            OR pinyin = ? OR pinyin LIKE ? OR pinyin LIKE ?
-           OR pinyin_full = ? OR pinyin_full LIKE ? OR pinyin_full LIKE ?
+           OR pinyin_full = ? OR pinyin_full LIKE ? OR pinyin_full LIKE ?)
+           {classify_sql}
         ORDER BY
           CASE
             WHEN code = ? THEN 0
@@ -594,13 +613,7 @@ def search_stocks_local(keyword: str, limit: int = 10) -> List[Dict[str, Any]]:
           length(name), code
         LIMIT ?
         """,
-        (
-            q, prefix, like,
-            py, py_prefix, py_like,
-            py, py_prefix, py_like,
-            q, prefix, like, py, py, py_prefix, py_prefix,
-            limit,
-        ),
+        tuple(params),
     ).fetchall()
     out = []
     for r in rows:

@@ -92,6 +92,7 @@ export const api = {
     get(`/quotes/kline?secid=${encodeURIComponent(secid)}&period=${period}&limit=${limit}`),
   tradingTime: () => get('/trading/time'),
   search: (q, limit = 10) => get(`/search?q=${encodeURIComponent(q)}&limit=${limit}`),
+  etfSearch: (q, limit = 30) => get(`/etf/search?q=${encodeURIComponent(q)}&limit=${limit}`),
   globalIndices: () => get('/global/indices'),
   globalSectors: (region = '') => get(`/global/sectors${region ? `?region=${region}` : ''}`),
   globalTrends: (secid) => get(`/global/${secid}/trends`),

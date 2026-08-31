@@ -280,10 +280,6 @@ watch([selected, view, days], () => {
   saveStored(VIEW_KEY, view.value)
   saveStored(DAYS_KEY, days.value)
 })
-watch(showHoldings, v => saveStored(SHOW_HOLDINGS_KEY, v))
-watch(selected, () => {
-  if (showHoldings.value) loadHoldings()
-})
 
 const quotes = ref([])
 const sort = useTableSort(quotes, 'etf_compare')
@@ -340,7 +336,7 @@ function doSearch() {
   searchTimer = setTimeout(async () => {
     searching.value = true
     try {
-      const r = await api.search(q, 30)
+      const r = await api.etfSearch(q, 30)
       results.value = (r || []).filter(isEtf).slice(0, 30)
       holdings.value = {}
       showHoldings.value = false

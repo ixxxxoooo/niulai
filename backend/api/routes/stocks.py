@@ -40,6 +40,15 @@ def search(
         return []
 
 
+@router.get("/etf/search")
+def etf_search(
+    q: str = Query(..., min_length=1, max_length=30, description="ETF 板块/名称/拼音/代码"),
+    limit: int = Query(30, ge=1, le=50),
+):
+    """仅搜索 ETF（本地 classify='Fund'）：板块关键词（证券/医药/半导体…）直接命中 ETF，不受 A 股挤占。"""
+    return db.search_etfs_local(q, limit)
+
+
 @router.get("/stocks/batch")
 @ttl_cache()
 def stocks_batch(codes: str = Query(..., description="逗号分隔的股票代码")):
