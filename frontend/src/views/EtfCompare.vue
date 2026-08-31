@@ -58,13 +58,16 @@
       <div class="chart-toolbar">
         <span class="tool-label">走势回看</span>
         <span v-for="d in LOOKBACKS" :key="d" class="chip" :class="{ active: days === d }" @click="setDays(d)">{{ d }}日</span>
+        <span class="tool-label">视图</span>
+        <span class="chip" :class="{ active: view === 'row' }" @click="view = 'row'">列表</span>
+        <span class="chip" :class="{ active: view === 'col' }" @click="view = 'col'">横向</span>
         <span class="toolbar-sep"></span>
         <button class="batch-btn ghost" :disabled="!selected.length" @click="clearAll">清空已选</button>
         <span class="updated">更新 {{ updated }}</span>
       </div>
 
       <div class="cmp-table-wrap">
-        <table class="cmp-table">
+        <table v-if="view === 'row'" class="cmp-table">
           <thead>
             <tr>
               <th class="th-label th-sortable" @click="sort.toggleSort('name')">
@@ -106,6 +109,40 @@
                   @click.stop="toggleWatchFn(q)"
                 >{{ isWatched(q.code) ? '已自选' : '自选' }}</button>
                 <button class="op-btn" title="设置自选分组" @click.stop="openGroup(q)">分组</button>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+
+        <table v-else class="cmp-table cmp-table-col">
+          <thead>
+            <tr>
+              <th class="th-label">指标</th>
+              <th v-for="q in quotes" :key="q.code">
+                {{ q.name }}<span class="th-code">{{ q.code }}</span>
+              </th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr v-for="m in METRICS" :key="m.key">
+              <td class="td-label">{{ m.label }}</td>
+              <td
+                v-for="q in quotes"
+                :key="q.code"
+                class="tabular"
+                :class="m.cls(q)"
+              >{{ m.fmt(q) }}</td>
+            </tr>
+            <tr>
+              <td class="td-label">操作</td>
+              <td v-for="q in quotes" :key="q.code" class="td-op">
+                <button
+                  class="op-btn"
+                  :class="{ watched: isWatched(q.code) }"
+                  :title="isWatched(q.code) ? '移出自选' : '加入自选'"
+                  @click="toggleWatchFn(q)"
+                >{{ isWatched(q.code) ? '已自选' : '自选' }}</button>
+                <button class="op-btn" title="设置自选分组" @click="openGroup(q)">分组</button>
               </td>
             </tr>
           </tbody>
@@ -164,6 +201,7 @@ const sort = useTableSort(quotes, 'etf_compare')
 const trends = ref({})
 const dates = ref([])
 const days = ref(30)
+const view = ref('row')
 const updated = ref('')
 const chartEl = ref(null)
 let chart = null
@@ -477,6 +515,9 @@ usePolling(async () => {
 .td-name-text { display: inline-block; max-width: 130px; overflow: hidden; text-overflow: ellipsis; vertical-align: bottom; white-space: nowrap; }
 .th-op, .td-op { text-align: center; width: 130px; }
 .td-op { white-space: nowrap; }
+.td-label { color: var(--text-dim); font-size: 12px; }
+.cmp-table-col { min-width: 480px; }
+.cmp-table-col .th-label { width: 70px; }
 .op-btn {
   height: 22px; padding: 0 10px; border-radius: 11px; font-size: 12px; cursor: pointer;
   background: transparent; border: 1px solid var(--border); color: var(--text);
