@@ -235,10 +235,16 @@
                   <td class="col-date">{{ m.last_date }}</td>
                   <td class="col-count">{{ m.count }}</td>
                   <td class="col-amount">{{ fmtAmount(m.total_buy) }}</td>
-                  <td class="col-detail">
-                    <div v-for="rc in sortedRecords(m.records)" :key="rc.date" class="record-line">
-                      {{ rc.date }} 买{{ fmtAmount(rc.buy) }} / 净<span :class="netClass(rc.net)">{{ fmtAmount(rc.net) }}</span>
-                    </div>
+                  <td class="col-detail" @click.stop>
+                    <details open class="record-details">
+                      <summary class="record-summary">
+                        <span class="sum-open">收起</span>
+                        <span class="sum-closed">展开 ({{ (m.records || []).length }}次)</span>
+                      </summary>
+                      <div v-for="rc in sortedRecords(m.records)" :key="rc.date" class="record-line">
+                        {{ rc.date }} 买{{ fmtAmount(rc.buy) }} / 净<span :class="netClass(rc.net)">{{ fmtAmount(rc.net) }}</span>
+                      </div>
+                    </details>
                   </td>
                 </tr>
                 <PoolExpandRow
@@ -730,7 +736,24 @@ onUnmounted(() => {
   display: inline-block; font-size: 12px; padding: 1px 8px; border-radius: 10px;
   background: var(--accent-bg); color: var(--accent); cursor: pointer; border: 1px solid transparent;
 }
-.record-line { font-size: 12px; color: var(--text-dim); line-height: 1.7; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.record-details summary {
+  cursor: pointer;
+  font-size: 11px;
+  color: var(--text-dim);
+  user-select: none;
+  margin-bottom: 2px;
+  transition: color .15s;
+}
+.record-details summary:hover {
+  color: var(--accent);
+}
+.record-details[open] .sum-closed {
+  display: none;
+}
+.record-details:not([open]) .sum-open {
+  display: none;
+}
+.record-line { font-size: 12px; color: var(--text-dim); line-height: 1.6; font-variant-numeric: tabular-nums; white-space: nowrap; }
 
 /* 当日席位明细表 - 列宽均匀分布 */
 .date-detail-table {
