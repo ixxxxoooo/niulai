@@ -193,14 +193,14 @@ def etf_rank(
 @router.get("/etf/compare")
 @ttl_cache()
 def etf_compare(
-    codes: str = Query(..., description="逗号分隔的 ETF 代码，最多 12 只"),
+    codes: str = Query(..., description="逗号分隔的 ETF 代码，最多 50 只"),
     days: int = Query(30, ge=10, le=120),
 ):
     """ETF 多选对比：批量实时快照 + 近 N 日归一化走势（相对首日涨跌幅 %）。
 
     @author ygw
     参数:
-        codes: 逗号分隔的 ETF 代码（最多 12 只）
+        codes: 逗号分隔的 ETF 代码（最多 50 只）
         days: 走势回看天数（10~120）
     返回: {"quotes": [StockBrief...], "trends": {code: {name, points: [{date, value, close}]}}, "dates": [...]}
     """
@@ -208,7 +208,7 @@ def etf_compare(
 
     from ...db import store as db
 
-    code_list = [c.strip().upper() for c in (codes or "").split(",") if c.strip()][:12]
+    code_list = [c.strip().upper() for c in (codes or "").split(",") if c.strip()][:50]
     if not code_list:
         return {"quotes": [], "trends": {}, "dates": []}
 
@@ -243,7 +243,7 @@ def etf_compare(
         except Exception:
             return c, []
 
-    with ThreadPoolExecutor(max_workers=min(len(code_list), 6)) as ex:
+    with ThreadPoolExecutor(max_workers=min(len(code_list), 8)) as ex:
         kl_map = dict(ex.map(_fetch_kline, code_list))
 
     trends = {}

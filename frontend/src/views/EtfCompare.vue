@@ -4,7 +4,7 @@
 
     <!-- ① 选择区 -->
     <div class="card picker-card">
-      <div class="card-title">① 选择 ETF（最多 {{ MAX_PICK }} 只）</div>
+      <div class="card-title">① 选择 ETF（已选 {{ selected.length }} / 最多 {{ MAX_PICK }} 只）</div>
       <div class="picker-row">
         <UiInput
           v-model="kw"
@@ -24,6 +24,10 @@
         >{{ b }}</span>
       </div>
 
+      <div class="result-head" v-if="results.length">
+        <span class="result-count">共 {{ results.length }} 条 · 点击勾选</span>
+        <button class="select-all-btn" :disabled="!selectableCount" @click="selectAll">全选当前结果</button>
+      </div>
       <div v-if="searching" class="result-hint">搜索中…</div>
       <div v-else-if="results.length" class="result-list">
         <div
@@ -103,7 +107,7 @@
  * ETF 选择对比：关键字/板块搜索 → 多选 → 横向指标对比 + 归一化走势叠加图
  * @author ygw
  */
-import { ref, onMounted, onUnmounted } from 'vue'
+import { ref, computed, onMounted, onUnmounted } from 'vue'
 import * as echarts from 'echarts'
 import ToolNavTabs from '../components/ToolNavTabs.vue'
 import UiInput from '../components/ui/UiInput.vue'
@@ -112,7 +116,7 @@ import { fmtPrice, fmtPct, fmtAmount, fmtNum, pctClass, themeColors } from '../u
 import { usePolling } from '../composables/usePolling.js'
 import { openStock } from '../composables/useStockMeta.js'
 
-const MAX_PICK = 10
+const MAX_PICK = 50
 const SECTORS = [
   '半导体', '人工智能', '云计算', '芯片', '通信', '消费电子', '光伏', '新能源',
   '电池', '机器人', '军工', '证券', '银行', '白酒', '医疗', '创新药', '煤炭',
@@ -153,6 +157,22 @@ function isEtf(x) {
 
 function canPick(code) {
   return selected.value.includes(code) || selected.value.length < MAX_PICK
+}
+
+const selectableCount = computed(() => results.value.filter(r => !selected.value.includes(r.code)).length)
+
+function selectAll() {
+  const room = MAX_PICK - selected.value.length
+  if (room <= 0) return
+  let n = 0
+  for (const r of results.value) {
+    if (n >= room) break
+    if (!selected.value.includes(r.code)) {
+      selected.value.push(r.code)
+      n++
+    }
+  }
+  load()
 }
 
 let searchTimer = null
@@ -339,6 +359,18 @@ usePolling(async () => {
 
 .result-hint { padding: 14px 4px; font-size: 12px; color: var(--text-dim); }
 .dim-hint { line-height: 1.8; }
+
+.result-head {
+  display: flex; align-items: center; gap: 10px; margin-bottom: 8px; font-size: 12px;
+}
+.result-count { color: var(--text-dim); }
+.select-all-btn {
+  height: 24px; padding: 0 12px; border-radius: 12px; font-size: 12px; cursor: pointer;
+  background: var(--accent-bg); border: 1px solid var(--accent); color: var(--accent);
+  transition: all 0.15s;
+}
+.select-all-btn:hover { background: var(--accent); color: #fff; }
+.select-all-btn:disabled { opacity: 0.4; cursor: not-allowed; }
 
 .result-list {
   display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 6px;
