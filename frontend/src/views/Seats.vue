@@ -195,18 +195,25 @@
               <tr v-if="!dateItems.length"><td colspan="4" class="empty">暂无数据，请先在「同步日期范围」拉取该日席位</td></tr>
             </tbody>
           </table>
-          <table v-else class="seat-table">
+          <table v-else class="seat-table nick-summary-table">
             <thead>
-              <tr><th>股票</th><th>首次买入</th><th>最近买入</th><th>次数</th><th>累计买入</th><th>逐次明细</th></tr>
+              <tr>
+                <th class="col-stock">股票</th>
+                <th class="col-date">首次买入</th>
+                <th class="col-date">最近买入</th>
+                <th class="col-count">次数</th>
+                <th class="col-amount">累计买入</th>
+                <th class="col-detail">逐次明细</th>
+              </tr>
             </thead>
             <tbody>
               <tr v-for="m in nickItems" :key="m.code">
                 <td class="stock-cell"><a @click="openStock(m)">{{ m.name || m.code }}</a></td>
-                <td>{{ m.first_date }}</td>
-                <td>{{ m.last_date }}</td>
-                <td>{{ m.count }}</td>
-                <td>{{ fmtAmount(m.total_buy) }}</td>
-                <td>
+                <td class="col-date">{{ m.first_date }}</td>
+                <td class="col-date">{{ m.last_date }}</td>
+                <td class="col-count">{{ m.count }}</td>
+                <td class="col-amount">{{ fmtAmount(m.total_buy) }}</td>
+                <td class="col-detail">
                   <details>
                     <summary class="record-summary">展开</summary>
                     <div v-for="rc in m.records" :key="rc.date" class="record-line">
@@ -684,7 +691,19 @@ onUnmounted(() => {
   display: inline-block; font-size: 12px; padding: 1px 8px; border-radius: 10px;
   background: var(--accent-bg); color: var(--accent); cursor: pointer; border: 1px solid transparent;
 }
-.youzi-chip:hover { border-color: var(--accent); }
-.record-summary { cursor: pointer; font-size: 12px; color: var(--text-dim); }
-.record-line { font-size: 12px; color: var(--text-dim); line-height: 1.7; }
+.record-summary { cursor: pointer; font-size: 12px; color: var(--text-dim); user-select: none; }
+.record-summary:hover { color: var(--accent); }
+.record-line { font-size: 12px; color: var(--text-dim); line-height: 1.7; font-variant-numeric: tabular-nums; white-space: nowrap; }
+
+/* 游资买入汇总表 - 固定列宽防止展开明细时抖动 */
+.nick-summary-table {
+  table-layout: fixed;
+  width: 100%;
+  min-width: 680px;
+}
+.nick-summary-table .col-stock { width: 120px; }
+.nick-summary-table .col-date { width: 110px; font-variant-numeric: tabular-nums; }
+.nick-summary-table .col-count { width: 65px; font-variant-numeric: tabular-nums; }
+.nick-summary-table .col-amount { width: 110px; font-variant-numeric: tabular-nums; }
+.nick-summary-table .col-detail { width: auto; }
 </style>
