@@ -162,6 +162,42 @@
         <span>近 {{ days }} 日走势（归一化涨幅 %）</span>
       </div>
       <div ref="chartEl" class="cmp-chart"></div>
+
+      <div class="holdings-bar">
+        <button class="batch-btn" :disabled="!selected.length" @click="toggleHoldings">
+          {{ showHoldings ? '收起持仓对比' : '对比前十大持仓' }}
+        </button>
+      </div>
+
+      <div v-if="showHoldings" class="holdings-block">
+        <div v-if="holdingsLoading" class="result-hint">加载持仓中…</div>
+        <div v-else-if="!holdingsEtfs.length" class="result-hint">暂无可对比的持仓数据</div>
+        <div v-else class="cmp-table-wrap">
+          <table class="cmp-table holdings-table">
+            <thead>
+              <tr>
+                <th class="th-label">持仓序号</th>
+                <th v-for="c in holdingsEtfs" :key="c">
+                  {{ nameOfCode(c) }}<span class="th-code">{{ c }}</span>
+                </th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr v-for="i in HOLDINGS_TOP" :key="i">
+                <td class="td-label">{{ i }}</td>
+                <td v-for="c in holdingsEtfs" :key="c">
+                  <template v-if="holdings[c][i - 1]">
+                    <span class="h-name">{{ holdings[c][i - 1].name }}</span>
+                    <span class="h-code">{{ holdings[c][i - 1].code }}</span>
+                    <span class="h-ratio" :class="hRatioClass(holdings[c][i - 1])">{{ holdings[c][i - 1].ratio }}%</span>
+                  </template>
+                  <span v-else class="h-empty">—</span>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
     </div>
 
     <StockGroupModal
@@ -319,6 +355,8 @@ function clearAll() {
   quotes.value = []
   trends.value = {}
   dates.value = []
+  holdings.value = {}
+  showHoldings.value = false
 }
 
 function setDays(d) {
@@ -376,6 +414,45 @@ async function toggleWatchFn(r) {
   } catch (e) {
     showToast('操作失败：' + e.message, 'error')
   }
+}
+
+const HOLDINGS_TOP = 10
+const holdings = ref({})
+const holdingsLoading = ref(false)
+const showHoldings = ref(false)
+
+const holdingsEtfs = computed(() => Object.keys(holdings.value))
+
+function nameOfCode(code) {
+  const q = quotes.value.find(x => x.code === code)
+  return q ? q.name : code
+}
+
+function hRatioClass(item) {
+  const r = item && item.ratio
+  if (r == null) return 'flat'
+  return r >= 10 ? 'up' : r >= 5 ? 'accent' : 'flat'
+}
+
+async function loadHoldings() {
+  if (!selected.value.length) return
+  holdingsLoading.value = true
+  const list = selected.value.slice(0, 12)
+  const res = await Promise.allSettled(list.map(async (c) => {
+    const r = await api.holdings(c)
+    return { code: c, items: (r && r.items) || [] }
+  }))
+  const map = {}
+  for (const r of res) {
+    if (r.status === 'fulfilled') map[r.value.code] = r.value.items
+  }
+  holdings.value = map
+  holdingsLoading.value = false
+}
+
+function toggleHoldings() {
+  showHoldings.value = !showHoldings.value
+  if (showHoldings.value) loadHoldings()
 }
 
 const PALETTE = ['#4c9aff', '#f04444', '#2fbf8f', '#e3b341', '#9a7bff', '#4fd6be', '#ff9d5c', '#5aa2ff', '#f27ab5', '#7bd44c']
@@ -578,4 +655,15 @@ usePolling(async () => {
 
 .cmp-chart-head { font-size: 12px; color: var(--text-dim); margin-bottom: 8px; }
 .cmp-chart { width: 100%; height: 380px; }
+
+.holdings-bar { margin-top: 16px; display: flex; justify-content: flex-end; }
+.holdings-block { margin-top: 12px; }
+.holdings-table td { text-align: left; }
+.h-name { display: inline-block; max-width: 130px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; vertical-align: bottom; }
+.h-code { display: block; font-size: 11px; color: var(--text-dim); }
+.h-ratio { font-size: 11px; margin-left: 6px; font-variant-numeric: tabular-nums; }
+.h-ratio.up { color: var(--up); }
+.h-ratio.accent { color: var(--accent); }
+.h-ratio.flat { color: var(--text-dim); }
+.h-empty { color: var(--text-dim); }
 </style>
