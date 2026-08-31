@@ -60,17 +60,14 @@
     <div v-if="selected.length" class="card compare-card">
       <div class="card-title">
         ② 对比（{{ selected.length }} 只）
-        <span class="compare-sub">点击标签移除 · 点击行跳详情</span>
-      </div>
-      <div class="picked-chips">
-        <span v-for="c in selected" :key="c" class="chip picked" @click="remove(c)">{{ pickedName(c) }} ✕</span>
-        <span class="chip clear" @click="clearAll">清空</span>
+        <span class="compare-sub">点击行跳详情</span>
       </div>
       <div class="chart-toolbar">
         <span class="tool-label">走势回看</span>
         <span v-for="d in LOOKBACKS" :key="d" class="chip" :class="{ active: days === d }" @click="setDays(d)">{{ d }}日</span>
         <span class="toolbar-sep"></span>
         <button class="batch-btn" :disabled="!selected.length" @click="batchAddWatch">全部加入自选</button>
+        <button class="batch-btn ghost" :disabled="!selected.length" @click="clearAll">清空已选</button>
         <span class="updated">更新 {{ updated }}</span>
       </div>
 
@@ -247,11 +244,6 @@ function toggle(r) {
   load()
 }
 
-function remove(code) {
-  selected.value = selected.value.filter(c => c !== code)
-  load()
-}
-
 function clearAll() {
   selected.value = []
   quotes.value = []
@@ -262,11 +254,6 @@ function clearAll() {
 function setDays(d) {
   days.value = d
   load()
-}
-
-function pickedName(code) {
-  const q = quotes.value.find(x => x.code === code)
-  return q ? q.name : code
 }
 
 function nowStr() {
@@ -427,8 +414,6 @@ usePolling(async () => {
 }
 .chip:hover { border-color: var(--accent); color: var(--accent); }
 .chip.active { background: var(--accent); border-color: var(--accent); color: #fff; }
-.chip.picked { background: var(--accent-bg); border-color: var(--accent); color: var(--accent); }
-.chip.clear { color: var(--text-dim); }
 
 .result-hint { padding: 14px 4px; font-size: 12px; color: var(--text-dim); }
 .dim-hint { line-height: 1.8; }
@@ -479,8 +464,6 @@ usePolling(async () => {
 .ri-op:hover { background: var(--accent-bg); color: var(--accent); }
 .ri-op.watched { color: var(--accent); }
 
-.picked-chips { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 10px; }
-
 .chart-toolbar {
   display: flex; align-items: center; gap: 8px; margin-bottom: 12px; font-size: 12px;
 }
@@ -493,6 +476,7 @@ usePolling(async () => {
 }
 .batch-btn:hover { background: var(--accent); color: #fff; }
 .batch-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+.batch-btn.ghost { background: transparent; }
 .updated { margin-left: auto; color: var(--text-dim); font-size: 11px; font-variant-numeric: tabular-nums; }
 
 .cmp-table-wrap { overflow-x: auto; margin-bottom: 18px; }
