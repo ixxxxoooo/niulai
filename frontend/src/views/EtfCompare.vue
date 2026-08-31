@@ -50,10 +50,15 @@
     </div>
 
     <!-- ② 对比区 -->
-    <div v-if="selected.length" class="card compare-card">
+    <div v-if="selected.length" ref="compareCardRef" class="card compare-card">
       <div class="card-title">
-        ② 对比（{{ selected.length }} 只）
-        <span class="compare-sub">点击行跳详情</span>
+        <span class="ct-left">
+          ② 对比（{{ selected.length }} 只）
+          <span class="compare-sub">点击行跳详情</span>
+        </span>
+        <button class="shot-btn" title="截图对比区域" @click="screenshotCompare">
+          <UiIcon name="screenshot" :size="14" />
+        </button>
       </div>
       <div class="chart-toolbar">
         <span class="tool-label">走势回看</span>
@@ -215,10 +220,11 @@
  * ETF 选择对比：关键字/板块搜索 → 多选 → 横向指标对比 + 归一化走势叠加图
  * @author ygw
  */
-import { ref, computed, watch, onMounted, onUnmounted } from 'vue'
+import { ref, computed, watch, nextTick, onMounted, onUnmounted } from 'vue'
 import * as echarts from 'echarts'
 import ToolNavTabs from '../components/ToolNavTabs.vue'
 import UiInput from '../components/ui/UiInput.vue'
+import UiIcon from '../components/ui/UiIcon.vue'
 import StockGroupModal from '../components/StockGroupModal.vue'
 import PoolExpandRow from '../components/PoolExpandRow.vue'
 import { api } from '../api.js'
@@ -228,6 +234,7 @@ import { useTableSort } from '../composables/useTableSort.js'
 import { isWatched, toggleWatch } from '../composables/useWatchlist.js'
 import { showToast } from '../composables/useToast.js'
 import { openStock } from '../composables/useStockMeta.js'
+import { captureElement } from '../composables/useScreenshot.js'
 
 const MAX_PICK = 50
 const SECTORS = [
@@ -245,6 +252,7 @@ const results = ref([])
 const SELECTED_KEY = 'niulai_etf_compare_selected'
 const VIEW_KEY = 'niulai_etf_compare_view'
 const DAYS_KEY = 'niulai_etf_compare_days'
+const SHOW_HOLDINGS_KEY = 'niulai_etf_compare_show_holdings'
 
 function loadStored(key, fallback) {
   try {
@@ -272,6 +280,10 @@ watch([selected, view, days], () => {
   saveStored(VIEW_KEY, view.value)
   saveStored(DAYS_KEY, days.value)
 })
+watch(showHoldings, v => saveStored(SHOW_HOLDINGS_KEY, v))
+watch(selected, () => {
+  if (showHoldings.value) loadHoldings()
+})
 
 const quotes = ref([])
 const sort = useTableSort(quotes, 'etf_compare')
@@ -279,6 +291,7 @@ const trends = ref({})
 const dates = ref([])
 const updated = ref('')
 const chartEl = ref(null)
+const compareCardRef = ref(null)
 let chart = null
 
 const METRICS = [
@@ -329,6 +342,8 @@ function doSearch() {
     try {
       const r = await api.search(q, 30)
       results.value = (r || []).filter(isEtf).slice(0, 30)
+      holdings.value = {}
+      showHoldings.value = false
     } catch (e) {
       results.value = []
     } finally {
@@ -378,6 +393,7 @@ async function load() {
     trends.value = r.trends || {}
     dates.value = r.dates || []
     updated.value = nowStr()
+    await nextTick()
     renderChart()
   } catch (e) {
     /* 静默：下次轮询重试 */
@@ -386,6 +402,12 @@ async function load() {
 
 function openDetail(q) {
   if (q && q.code) openStock({ code: q.code, name: q.name })
+}
+
+async function screenshotCompare() {
+  if (!compareCardRef.value) return
+  const ts = new Date().toISOString().slice(0, 19).replace(/[:T]/g, '-')
+  await captureElement(compareCardRef.value, `etf_compare_${ts}.png`, { withFrame: false })
 }
 
 const expandedCode = ref('')
@@ -419,7 +441,7 @@ async function toggleWatchFn(r) {
 const HOLDINGS_TOP = 10
 const holdings = ref({})
 const holdingsLoading = ref(false)
-const showHoldings = ref(false)
+const showHoldings = ref(loadStored(SHOW_HOLDINGS_KEY, false))
 
 const holdingsEtfs = computed(() => Object.keys(holdings.value))
 
@@ -458,9 +480,26 @@ function toggleHoldings() {
 const PALETTE = ['#4c9aff', '#f04444', '#2fbf8f', '#e3b341', '#9a7bff', '#4fd6be', '#ff9d5c', '#5aa2ff', '#f27ab5', '#7bd44c']
 
 function renderChart() {
-  if (!chart || !chartEl.value) return
+  if (!chartEl.value) return
+  if (!chart) chart = echarts.init(chartEl.value)
   const entries = Object.entries(trends.value)
-  if (!entries.length || !dates.value.length) return
+  if (!entries.length || !dates.value.length) {
+    chart.setOption({
+      animation: false,
+      grid: { left: 52, right: 20, top: 20, bottom: 28 },
+      tooltip: { show: false },
+      xAxis: { type: 'category', data: [], axisLine: { lineStyle: { color: 'rgba(128,128,128,0.2)' } }, axisLabel: { show: false }, axisTick: { show: false } },
+      yAxis: { type: 'value', splitLine: { show: false }, axisLabel: { show: false } },
+      series: [],
+      graphic: [{
+        type: 'text',
+        left: 'center',
+        top: 'middle',
+        style: { text: '暂无走势数据', fill: '#8b9099', fontSize: 12 },
+      }],
+    }, true)
+    return
+  }
   const tc = themeColors()
   const colors = entries.map((_, i) => PALETTE[i % PALETTE.length])
   const series = entries.map(([code, t], i) => ({
@@ -475,6 +514,7 @@ function renderChart() {
   }))
   chart.setOption({
     animation: false,
+    graphic: [],
     grid: { left: 52, right: 20, top: 20, bottom: 28 },
     tooltip: {
       trigger: 'axis',
@@ -519,6 +559,7 @@ onMounted(() => {
   window.addEventListener('resize', resizeChart)
   window.addEventListener('theme-change', onThemeChange)
   if (selected.value.length) load()
+  if (showHoldings.value) loadHoldings()
 })
 
 onUnmounted(() => {
@@ -537,8 +578,16 @@ usePolling(async () => {
 <style scoped>
 .etf-compare-page { display: flex; flex-direction: column; gap: 14px; }
 
-.card-title { font-size: 14px; font-weight: 600; margin-bottom: 12px; }
+.card-title { display: flex; align-items: center; justify-content: space-between; font-size: 14px; font-weight: 600; margin-bottom: 12px; }
+.ct-left { display: flex; align-items: center; }
 .compare-sub { font-size: 11px; color: var(--text-dim); font-weight: 400; margin-left: 6px; }
+.shot-btn {
+  width: 26px; height: 26px; border: 1px solid var(--border); border-radius: 6px;
+  background: transparent; color: var(--text-dim); cursor: pointer;
+  display: inline-flex; align-items: center; justify-content: center;
+  transition: all 0.15s;
+}
+.shot-btn:hover { border-color: var(--accent); color: var(--accent); }
 
 .picker-row { display: flex; gap: 8px; margin-bottom: 10px; }
 .search-input { flex: 1; }
