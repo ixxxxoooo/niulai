@@ -187,7 +187,7 @@ class TencentClient:
         腾讯分钟数据为累计量/累计额，可换算每分钟量并推导均价线。
         """
         symbol = symbol or to_tencent_symbol(code)
-        url = f"https://ifzq.gtimg.cn/appstock/app/minute/query?code={symbol}"
+        url = f"https://web.ifzq.gtimg.cn/appstock/app/minute/query?code={symbol}"
         try:
             resp = self._http.get(url, timeout=config.REQUEST_TIMEOUT)
             resp.raise_for_status()
@@ -253,7 +253,7 @@ class TencentClient:
         elif symbol.startswith("hk"):
             base_url = "https://web.ifzq.gtimg.cn/appstock/app/hkfqkline/get"
         else:
-            base_url = "https://ifzq.gtimg.cn/appstock/app/fqkline/get"
+            base_url = "https://web.ifzq.gtimg.cn/appstock/app/fqkline/get"
         url = f"{base_url}?param={symbol},{period},,,{limit},qfq"
         try:
             resp = self._http.get(url, timeout=config.REQUEST_TIMEOUT)

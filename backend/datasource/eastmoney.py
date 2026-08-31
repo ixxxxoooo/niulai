@@ -1312,7 +1312,7 @@ class EastMoneyClient:
             points = []
             for _, row in df.iterrows():
                 points.append({
-                    "date": str(row.get("date", row.name))[:10],
+                    "date": str(row.get("trade_date") or row.get("date") or row.name)[:10],
                     "open": float(row.get("open", 0)),
                     "close": float(row.get("close", 0)),
                     "high": float(row.get("high", 0)),
