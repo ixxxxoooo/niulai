@@ -85,9 +85,8 @@
             </tr>
           </thead>
           <tbody>
+            <template v-for="q in sort.sorted" :key="q.code">
             <tr
-              v-for="q in sort.sorted"
-              :key="q.code"
               class="cmp-row"
               :class="{ 'row-expanded': expandedCode === q.code }"
               @click="toggleExpand(q.code)"
@@ -119,6 +118,7 @@
               :name="q.name"
               :colspan="9"
             />
+          </template>
           </tbody>
         </table>
 
