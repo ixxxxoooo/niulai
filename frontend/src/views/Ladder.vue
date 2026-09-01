@@ -103,18 +103,29 @@
             <table class="data-table kpl-table">
               <thead><tr><th>名称</th><th>连板</th><th>封板</th><th>封单额</th><th>主力资金</th><th>涨停原因</th></tr></thead>
               <tbody>
-                <tr v-for="st in sec.stocks" :key="st.code" @click="openKplStock(sec, st)">
-                  <td class="stock-name up">
-                    <span class="name-cell">{{ st.name }}</span>
-                    <span class="kpl-role" :class="roleClass(st.role)" v-if="st.role && st.role !== '首板'">{{ st.role }}</span>
-                    <span class="kpl-concepts" v-if="st.concepts">{{ st.concepts }}</span>
-                  </td>
-                  <td><span class="kpl-lb" :class="{ first: st.is_first }">{{ st.lbc || '首板' }}</span></td>
-                  <td>{{ st.seal_time || '-' }}</td>
-                  <td :class="pctClass(st.seal_amount)">{{ fmtAmount(st.seal_amount) }}</td>
-                  <td :class="pctClass(st.main_inflow)">{{ fmtAmount(st.main_inflow) }}</td>
-                  <td class="kpl-reason" :title="st.reason">{{ st.reason || '-' }}</td>
-                </tr>
+                <template v-for="st in sec.stocks" :key="st.code">
+                  <tr
+                    :class="{ 'row-expanded': expandedCode === st.code }"
+                    @click="toggleExpand(st.code)"
+                  >
+                    <td class="stock-name up">
+                      <span class="name-cell" @click.stop="openKplStock(sec, st)">{{ st.name }}</span>
+                      <span class="kpl-role" :class="roleClass(st.role)" v-if="st.role && st.role !== '首板'">{{ st.role }}</span>
+                      <span class="kpl-concepts" v-if="st.concepts">{{ st.concepts }}</span>
+                    </td>
+                    <td><span class="kpl-lb" :class="{ first: st.is_first }">{{ st.lbc || '首板' }}</span></td>
+                    <td>{{ st.seal_time || '-' }}</td>
+                    <td :class="pctClass(st.seal_amount)">{{ fmtAmount(st.seal_amount) }}</td>
+                    <td :class="pctClass(st.main_inflow)">{{ fmtAmount(st.main_inflow) }}</td>
+                    <td class="kpl-reason" :title="st.reason">{{ st.reason || '-' }}</td>
+                  </tr>
+                  <PoolExpandRow
+                    v-if="expandedCode === st.code"
+                    :code="st.code"
+                    :name="st.name"
+                    :colspan="6"
+                  />
+                </template>
               </tbody>
             </table>
           </div>
@@ -137,9 +148,15 @@ import { openStock } from '../composables/useStockMeta.js'
 import MiniTrend from '../components/MiniTrend.vue'
 import BoardBadges from '../components/BoardBadges.vue'
 import LadderYouzi from '../components/LadderYouzi.vue'
+import PoolExpandRow from '../components/PoolExpandRow.vue'
 import { captureElement } from '../composables/useScreenshot.js'
 
 const tab = usePageTab('ladder', 'ladder')
+const expandedCode = ref('')
+
+function toggleExpand(code) {
+  expandedCode.value = expandedCode.value === code ? '' : code
+}
 
 
 // ── 涨停原因 · 题材聚合（开盘啦，容错降级） ──
@@ -319,7 +336,12 @@ watch(tab, (t) => { if (t === 'reason') loadKpl() })
 .kpl-sector-count { font-size: 12px; color: var(--text-dim); }
 .kpl-table { margin: 0; }
 .kpl-table th, .kpl-table td { padding: 6px 12px; }
+.kpl-table tbody tr { cursor: pointer; transition: background .12s; }
+.kpl-table tbody tr:hover { background: var(--bg-hover); }
+.kpl-table tbody tr.row-expanded { background: var(--bg-hover); }
 .kpl-table .stock-name { white-space: nowrap; }
+.kpl-table .name-cell { cursor: pointer; font-weight: 600; }
+.kpl-table .name-cell:hover { text-decoration: underline; color: var(--accent); }
 .kpl-concepts { display: block; font-size: 11px; color: var(--text-dim); font-weight: 400; }
 .kpl-lb {
   display: inline-block; font-size: 11px; font-weight: 700; white-space: nowrap;
