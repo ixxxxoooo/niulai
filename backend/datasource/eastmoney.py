@@ -1133,15 +1133,17 @@ class EastMoneyClient:
         stock_code = code or (secid.split(".", 1)[-1] if secid else "")
         tx_symbol = self._tencent_symbol_of(secid) or self.TENCENT_INDEX_SYMBOL.get(secid)
 
-        # 优先腾讯分时（毫秒级极速响应，支持股票与 ETF）
-        from . import tencent
-        tx = tencent.get_client().minute_quotes(stock_code, symbol=tx_symbol)
-        if tx and tx.get("points"):
-            return IntradayTrend(
-                code=stock_code, name=tx.get("name") or "",
-                pre_close=tx.get("pre_close") or 0.0,
-                points=tx["points"],
-            )
+        # 优先腾讯分时（毫秒级极速响应，支持股票与 ETF；全球指数使用东财以获取完整北京时间分时序列）
+        is_global = bool(secid and (secid.startswith("100.") or secid.startswith("124.")))
+        if not is_global:
+            from . import tencent
+            tx = tencent.get_client().minute_quotes(stock_code, symbol=tx_symbol)
+            if tx and tx.get("points") and len(tx["points"]) > 1:
+                return IntradayTrend(
+                    code=stock_code, name=tx.get("name") or "",
+                    pre_close=tx.get("pre_close") or 0.0,
+                    points=tx["points"],
+                )
 
         # 降级：东财（优先 _q 实时节点，支持 100.SPX / 100.NDX / 100.N225 等美股全球指数与 A 股；失败再试 _his）
         data = None
