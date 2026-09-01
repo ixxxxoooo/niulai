@@ -1091,7 +1091,7 @@ class EastMoneyClient:
         "100.HSI": "hkHSI",
         "124.HSTECH": "hkHSTECH",
         "100.HSTECH": "hkHSTECH",
-        "100.NDX": "usNDX",
+        "100.NDX": "usIXIC",
         "100.NDX100": "usNDX",
         "100.SPX": "usINX",
         "100.DJIA": "usDJI",

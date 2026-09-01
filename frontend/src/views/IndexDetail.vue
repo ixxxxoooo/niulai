@@ -352,20 +352,70 @@ async function captureToClipboard(dataUrl, filename) {
 }
 
 /**
- * 生成 A 股全天分时时间轴：09:30~11:30 + 13:00~15:00，每分钟一个点。
+ * 根据指数 secid 与分时点生成全天固定时间轴：
+ * - A股指数: 09:30~11:30, 13:00~15:00
+ * - 港股指数: 09:30~12:00, 13:00~16:00
+ * - 美股指数: 21:30~04:00 (夏令时) / 22:30~05:00 (冬令时)
+ * - 日股/韩股: 08:00~14:30
+ * - 其他: 自适应数据自带时间
  * @returns {string[]}
- * @author ygw
  */
-function buildFullTrendTimes() {
-  const out = []
-  const push = (startH, startM, endH, endM) => {
+function buildTrendTimesForSecid(secid, points) {
+  const sid = String(secid || '').toUpperCase()
+  const pushRange = (out, startH, startM, endH, endM) => {
     for (let m = startH * 60 + startM; m <= endH * 60 + endM; m++) {
       out.push(`${String(Math.floor(m / 60)).padStart(2, '0')}:${String(m % 60).padStart(2, '0')}`)
     }
   }
-  push(9, 30, 11, 30)
-  push(13, 0, 15, 0)
-  return out
+
+  // 美股指数 (100.NDX, 100.NDX100, 100.SPX, 100.DJIA 等)
+  const isUs = sid.includes('NDX') || sid.includes('SPX') || sid.includes('DJIA') || sid.includes('US') ||
+    (points?.length && (points[0]?.time?.startsWith('21:') || points[0]?.time?.startsWith('22:')))
+  if (isUs) {
+    const isWinter = points?.length && points[0]?.time?.startsWith('22:')
+    const out = []
+    if (isWinter) {
+      pushRange(out, 22, 30, 23, 59)
+      pushRange(out, 0, 0, 5, 0)
+    } else {
+      pushRange(out, 21, 30, 23, 59)
+      pushRange(out, 0, 0, 4, 0)
+    }
+    return out
+  }
+
+  // 港股指数 (100.HSI, 124.HSTECH, 100.HSTECH)
+  if (sid.includes('HSI') || sid.includes('HSTECH')) {
+    const out = []
+    pushRange(out, 9, 30, 12, 0)
+    pushRange(out, 13, 0, 16, 0)
+    return out
+  }
+
+  // 日经 (100.N225)
+  if (sid.includes('N225')) {
+    const out = []
+    pushRange(out, 8, 0, 10, 30)
+    pushRange(out, 11, 30, 14, 30)
+    return out
+  }
+
+  // 韩国 (100.KS11)
+  if (sid.includes('KS11')) {
+    const out = []
+    pushRange(out, 8, 0, 14, 30)
+    return out
+  }
+
+  // A股指数 (1.000xxx, 0.399xxx)
+  if (sid.startsWith('1.') || sid.startsWith('0.') || !points?.length || points[0]?.time?.startsWith('09:')) {
+    const out = []
+    pushRange(out, 9, 30, 11, 30)
+    pushRange(out, 13, 0, 15, 0)
+    return out
+  }
+
+  return (points || []).map(p => p.time)
 }
 
 function calcMA(points, n) {
@@ -382,14 +432,25 @@ function renderTrend() {
   if (!chart || !trend.value || !trend.value.points || !trend.value.points.length) return
   const tc = themeColors()
   const t = trend.value
-  const fullTimes = buildFullTrendTimes()
+  const fullTimes = buildTrendTimesForSecid(secid.value, t.points)
   const byTime = new Map()
   for (const p of t.points) byTime.set(p.time, p)
-  const times = fullTimes
-  const prices = fullTimes.map(tt => { const p = byTime.get(tt); return p ? p.price : null })
-  const avgs = fullTimes.map(tt => { const p = byTime.get(tt); return p ? p.avg : null })
-  const vols = fullTimes.map(tt => { const p = byTime.get(tt); return p ? p.volume : 0 })
-  const realPrices = prices.filter(v => v != null)
+
+  let times = fullTimes
+  let prices = fullTimes.map(tt => { const p = byTime.get(tt); return p ? p.price : null })
+  let avgs = fullTimes.map(tt => { const p = byTime.get(tt); return p ? p.avg : null })
+  let vols = fullTimes.map(tt => { const p = byTime.get(tt); return p ? p.volume : 0 })
+  let realPrices = prices.filter(v => v != null)
+
+  // 兜底容错：如果全时间轴未匹配到任何点位，直接回退为原始点序列
+  if (!realPrices.length) {
+    times = t.points.map(p => p.time)
+    prices = t.points.map(p => p.price)
+    avgs = t.points.map(p => p.avg)
+    vols = t.points.map(p => p.volume || 0)
+    realPrices = prices.filter(v => v != null)
+  }
+
   const realAvgs = avgs.filter(v => v != null)
   const pre = t.pre_close || (realPrices.length ? realPrices[0] : 1)
   const last = realPrices[realPrices.length - 1]

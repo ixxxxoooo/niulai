@@ -206,15 +206,15 @@ class TencentClient:
         cum_v = 0.0
         for row in rows:
             parts = str(row).split()
-            if len(parts) < 4:
+            if len(parts) < 2:
                 continue
             t = parts[0]
             if len(t) == 4:
                 t = f"{t[0:2]}:{t[2:4]}"
             try:
                 price = float(parts[1])
-                cum_vol = float(parts[2])
-                cum_amt = float(parts[3])
+                cum_vol = float(parts[2]) if len(parts) > 2 else 0.0
+                cum_amt = float(parts[3]) if len(parts) > 3 else 0.0
             except ValueError:
                 continue
             vol = max(cum_vol - prev_vol, 0.0)   # 每分钟量（手）
